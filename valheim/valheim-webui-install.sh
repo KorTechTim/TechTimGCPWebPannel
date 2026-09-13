@@ -5,7 +5,7 @@ umask 077
 INSTALL_DIR="/opt/techtim/valheim"
 PANEL_IMAGE="${PANEL_IMAGE:-ghcr.io/kortechtim/valheim-panel:latest}"
 RUNTIME_IMAGE="${VALHEIM_RUNTIME_IMAGE:-ghcr.io/kortechtim/valheim-runtime:latest}"
-VERIFY_API="https://techtim.kr/api/install/verify"
+VERIFY_API="https://www.techtim.kr/api/install/verify"
 METADATA_ROOT="http://metadata.google.internal/computeMetadata/v1/instance/attributes"
 
 if [ "$(id -u)" -ne 0 ]; then echo 'Run this installer as root.' >&2; exit 1; fi
@@ -30,7 +30,7 @@ INSTALL_CODE="${INSTALL_CODE:-$(curl -fsS --connect-timeout 5 --max-time 10 -H '
 if [[ ! "$INSTALL_CODE" =~ ^[A-Za-z0-9_-]{4,128}$ ]]; then
   echo 'A valid install-code metadata value is required.'; exit 1
 fi
-VERIFY_RESULT=$(curl -fsS --connect-timeout 10 --max-time 30 --get \
+VERIFY_RESULT=$(curl -fsSL --connect-timeout 10 --max-time 30 --get \
   --data-urlencode 'game=valheim' --data-urlencode "code=$INSTALL_CODE" "$VERIFY_API" || true)
 if [ "$VERIFY_RESULT" != OK ]; then
   echo 'Valheim install code verification failed. Configure game=valheim in the TechTim verification service.'
