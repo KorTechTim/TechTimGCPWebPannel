@@ -6,6 +6,7 @@ let logKind = 'server';
 let connectionMode = 'invite';
 let permissionLists = {};
 let panelUpdating = false;
+let activeDetail = null;
 let lastJob = '';
 let toastTimer;
 const polls = new Set();
@@ -83,8 +84,56 @@ $('confirm-ok').onclick = () => $('confirm-dialog').close('yes');
 $('confirm-cancel').onclick = () => $('confirm-dialog').close('cancel');
 document.querySelectorAll('[data-close]').forEach(button => button.addEventListener('click', event => {
   event.preventDefault();
-  button.closest('dialog').close('cancel');
+  const dialog = button.closest('dialog');
+  if (dialog?.classList.contains('detail-page')) closeDetail();
+  else dialog?.close('cancel');
 }));
+
+function setSidebarCurrent(item) {
+  document.querySelectorAll('.sidebar-nav .sidebar-link').forEach(link => link.removeAttribute('aria-current'));
+  if (item) item.setAttribute('aria-current', 'page');
+}
+
+function parkActiveDetail() {
+  if (!activeDetail) return;
+  const dialog = activeDetail;
+  activeDetail = null;
+  if (dialog.open) dialog.close('cancel');
+  dialog.classList.remove('detail-page');
+  document.body.append(dialog);
+}
+
+function closeDetail(scroll = true) {
+  if (!activeDetail) return;
+  parkActiveDetail();
+  $('detail-view').hidden = true;
+  $('dashboard-view').hidden = false;
+  $('topbar-page-title').textContent = '서버 관리';
+  setSidebarCurrent(document.querySelector('.sidebar-nav .sidebar-link[href="#overview"]'));
+  if (scroll) window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+async function openDetail(id, loader) {
+  try {
+    if (loader) await loader();
+    parkActiveDetail();
+    const dialog = $(id);
+    $('dashboard-view').hidden = true;
+    $('detail-view').hidden = false;
+    dialog.classList.add('detail-page');
+    $('detail-content').replaceChildren(dialog);
+    dialog.show();
+    activeDetail = dialog;
+    $('topbar-page-title').textContent = dialog.querySelector('.dialog-head h2')?.textContent || '상세 관리';
+    const menu = id === 'settings-dialog' ? $('sidebar-settings') : document.querySelector(`.sidebar-link[data-open="${id}"]`);
+    setSidebarCurrent(menu);
+    updateControls();
+    window.scrollTo({top: 0, behavior: 'smooth'});
+  } catch (error) { toast(error.message); }
+}
+
+$('detail-back').onclick = () => closeDetail();
+document.querySelectorAll('.sidebar-brand,.sidebar-link[href^="#"]').forEach(link => link.addEventListener('click', () => closeDetail(false)));
 
 function writable() { return state?.docker_available && !state.busy && !uiBusy && !runningStates.has(state.server_status); }
 function updateControls() {
@@ -205,26 +254,22 @@ $('copy-address').onclick = async () => {
 };
 
 const integerFields = ['port', 'save_interval', 'backups', 'backup_short', 'backup_long'];
-async function openSettings() {
-  try {
-    const [config, data] = await Promise.all([api('/api/config'), api('/api/worlds')]);
-    const form = $('settings-form');
-    for (const [key, value] of Object.entries(config)) {
-      const field = form.elements.namedItem(key);
-      if (!field) continue;
-      if (field.type === 'checkbox') field.checked = value; else field.value = value;
-    }
-    form.elements.password.value = '';
-    form.elements.password.required = !config.password_set;
-    $('password-hint').textContent = config.password_set ? '변경할 때만 입력하세요. 비우면 기존 비밀번호를 유지합니다.' : '최초 시작 전 5자 이상으로 설정해주세요.';
-    $('world-names').replaceChildren(...data.worlds.filter(w => w.complete).map(world => { const option = document.createElement('option'); option.value = world.name; return option; }));
-    message('settings-message', '');
-    updateControls();
-    $('settings-dialog').showModal();
-  } catch (error) { toast(error.message); }
+async function loadSettings() {
+  const [config, data] = await Promise.all([api('/api/config'), api('/api/worlds')]);
+  const form = $('settings-form');
+  for (const [key, value] of Object.entries(config)) {
+    const field = form.elements.namedItem(key);
+    if (!field) continue;
+    if (field.type === 'checkbox') field.checked = value; else field.value = value;
+  }
+  form.elements.password.value = '';
+  form.elements.password.required = !config.password_set;
+  $('password-hint').textContent = config.password_set ? '변경할 때만 입력하세요. 비우면 기존 비밀번호를 유지합니다.' : '최초 시작 전 5자 이상으로 설정해주세요.';
+  $('world-names').replaceChildren(...data.worlds.filter(w => w.complete).map(world => { const option = document.createElement('option'); option.value = world.name; return option; }));
+  message('settings-message', '');
 }
-$('open-settings').onclick = openSettings;
-$('sidebar-settings').onclick = openSettings;
+$('open-settings').onclick = () => openDetail('settings-dialog', loadSettings);
+$('sidebar-settings').onclick = () => openDetail('settings-dialog', loadSettings);
 $('settings-form').onsubmit = async event => {
   event.preventDefault();
   const form = event.currentTarget;
@@ -374,8 +419,7 @@ const loaders = {'worlds-dialog': loadWorlds, 'backups-dialog': loadBackups, 'pe
   'schedule-dialog': loadSchedule, 'modifiers-dialog': loadModifiers, 'mods-dialog': async () => {},
   'discord-dialog': async () => {}, 'panel-update-dialog': loadPanelUpdate};
 document.querySelectorAll('[data-open]').forEach(button => button.onclick = async () => {
-  try { await loaders[button.dataset.open](); updateControls(); $(button.dataset.open).showModal(); }
-  catch (error) { toast(error.message); }
+  await openDetail(button.dataset.open, loaders[button.dataset.open]);
 });
 
 const sidebarMenuItems = [...document.querySelectorAll('.sidebar-nav .sidebar-link')];

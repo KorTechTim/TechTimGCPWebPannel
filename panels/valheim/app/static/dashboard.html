@@ -4,14 +4,14 @@
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="dark"><title>TechTim · Valheim Server</title>
   <link rel="icon" href="/static/rune.svg?v=2" type="image/svg+xml">
-  <link rel="stylesheet" href="/static/app.css?v=1.0.8">
-  <script src="/static/app.js?v=1.0.3" defer></script>
+  <link rel="stylesheet" href="/static/app.css?v=1.0.11">
+  <script src="/static/app.js?v=1.0.4" defer></script>
 </head>
 <body>
   <div class="ambient" aria-hidden="true"></div>
   <div class="app-frame">
     <aside class="sidebar" aria-label="메인 메뉴">
-      <a class="brand sidebar-brand" href="#overview"><img class="sidebar-avatar" src="/static/techtim-avatar.png?v=1" alt=""><span>TechTim<small>VALHEIM SERVER PANEL</small></span></a>
+      <a class="brand sidebar-brand" href="#overview"><img class="sidebar-avatar" src="/static/techtim-avatar.png?v=2" alt=""><span>TechTim<small>VALHEIM SERVER PANEL</small></span></a>
       <nav class="sidebar-nav">
         <div class="sidebar-group">
           <p class="sidebar-label">MAIN</p>
@@ -45,10 +45,11 @@
     <div class="panel-content">
       <div class="shell">
         <header class="topbar">
-          <div class="topbar-context"><p class="eyebrow">VALHEIM DEDICATED SERVER</p><strong>서버 관리</strong></div>
+          <div class="topbar-context"><p class="eyebrow">VALHEIM DEDICATED SERVER</p><strong id="topbar-page-title">서버 관리</strong></div>
           <span class="topbar-platform">GCP · LINUX</span>
         </header>
     <main>
+      <div id="dashboard-view">
       <section class="hero" id="overview">
         <div class="hero-copy"><p class="eyebrow"><span class="gold-rule"></span> DEDICATED SERVER · 1.0</p>
           <h1>VALHEIM<span>우리의 열 번째 세계</span></h1>
@@ -117,6 +118,11 @@
         <div class="resource"><span>메모리</span><strong id="memory">—</strong><div class="meter"><i id="memory-meter"></i></div></div>
         <div class="resource"><span>호스트 디스크</span><strong id="disk">—</strong><div class="meter"><i id="disk-meter"></i></div></div>
         <div class="resource"><span>네트워크</span><strong id="network">—</strong><small>다운로드 ↓ · 업로드 ↑</small></div>
+      </section>
+      </div>
+      <section id="detail-view" class="detail-view" hidden>
+        <div class="detail-toolbar"><button id="detail-back" class="detail-back" type="button"><span aria-hidden="true">←</span>기본 대시보드</button><span class="tiny-label">DETAIL PAGE</span></div>
+        <div id="detail-content" class="detail-content"></div>
       </section>
     </main>
         <footer><span>TechTim <span class="footer-divider">/</span> VALHEIM SERVER PANEL</span><span>Valheim © Iron Gate AB · TechTim 비공식 관리 도구</span></footer>
