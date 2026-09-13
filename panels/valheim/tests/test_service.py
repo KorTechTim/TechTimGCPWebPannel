@@ -79,6 +79,19 @@ class LifecycleTests(ServiceCase):
         self.assertFalse(self.service.lock.locked())
         self.assertEqual(read_json(self.service.job_file, {})["status"], "failed")
 
+    def test_panel_update_preparation_failure_is_visible_in_update_status(self):
+        self.docker.containers.add(self.settings.panel_container)
+
+        def fail_pull(_image):
+            raise RuntimeError("registry unavailable")
+
+        self.docker.images.pull = fail_pull
+        with self.assertRaises(RuntimeError):
+            self.service.update_panel()
+        status = read_json(self.service.root / "panel-update-status.json", {})
+        self.assertEqual(status["status"], "failed")
+        self.assertIn("registry unavailable", status["message"])
+
     def test_ready_state_survives_log_rotation_but_not_process_restart(self):
         server = self.docker.containers.add()
         self.assertTrue(self.service.status()["ready"])
@@ -86,6 +99,19 @@ class LifecycleTests(ServiceCase):
         self.assertTrue(self.service.status()["ready"])
         server.attrs["State"]["StartedAt"] = "a new start"
         self.assertFalse(self.service.status()["ready"])
+
+    def test_join_code_is_extracted_cached_and_reset_per_server_start(self):
+        server = self.docker.containers.add()
+        server.output = b'Session "TechTim" with join code 482731 and IP 1.2.3.4:2456 is active\n'
+        self.assertEqual(self.service.status()["join_code"], "482731")
+        server.output = b"Later log lines after rotation\n"
+        self.assertEqual(self.service.status()["join_code"], "482731")
+        server.attrs["State"]["StartedAt"] = "a new start"
+        self.assertEqual(self.service.status()["join_code"], "")
+        server.output = b'Session "TechTim" registered with join code AB12CD\n'
+        self.assertEqual(self.service.status()["join_code"], "AB12CD")
+        server.status = "exited"
+        self.assertEqual(self.service.status()["join_code"], "")
 
     def test_schedule_runs_once_per_slot_and_does_not_start_offline_server(self):
         write_json(self.service.schedule_file, {"enabled": True, "times": ["04:00", "12:00"]})

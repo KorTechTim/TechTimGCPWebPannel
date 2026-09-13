@@ -44,6 +44,8 @@ class PanelService:
         self.resource_lock = threading.Lock()
         self.network_sample = None
         self.ready_identity = None
+        self.join_code_identity = None
+        self.join_code = ""
         self.stop_event = threading.Event()
         self.scheduler = None
         for path in (self.root, self.server, self.saves / "worlds_local", self.backups, self.exports):
@@ -170,7 +172,7 @@ class PanelService:
         config = self.config()
         result = {"engine": self.engine(), "panel_version": PANEL_VERSION,
                   "world": config.world, "crossplay": config.crossplay,
-                  "port": config.port, "max_players": 10,
+                  "port": config.port, "join_code": "", "max_players": 10,
                   "operation": read_json(self.job_file, {"status": "idle"}),
                   "server_status": "missing", "ready": False, "busy": self.lock.locked()}
         try:
@@ -186,9 +188,17 @@ class PanelService:
                     result["server_status"] = server.status
                     logs = server.logs(tail=150).decode(errors="replace")
                     identity = (server.id, server.attrs.get("State", {}).get("StartedAt"))
+                    if self.join_code_identity != identity:
+                        self.join_code_identity = identity
+                        self.join_code = ""
+                    codes = re.findall(r"\bjoin code\s+[\"']?([A-Z0-9]{4,12})\b", logs, re.I)
+                    if codes:
+                        self.join_code = codes[-1]
                     if server.status == "running" and "Game server connected" in logs:
                         self.ready_identity = identity
                     result["ready"] = server.status == "running" and self.ready_identity == identity
+                    if server.status == "running" and config.crossplay:
+                        result["join_code"] = self.join_code
                     version = re.search(r"Valheim version[:\s]+([\d.]+)", logs, re.I)
                     result["game_version"] = version.group(1) if version else ""
                     result["oom_killed"] = bool(server.attrs.get("State", {}).get("OOMKilled"))
@@ -459,26 +469,31 @@ class PanelService:
         return result
 
     def update_panel(self):
-        self.require_stopped()
-        write_json(self.root / "panel-update-status.json", {"status": "running", "message": "최신 패널 이미지를 확인하고 있습니다."})
-        with self.client() as client:
-            current = client.containers.get(self.settings.panel_container)
-            current_image = current.image.id
-            latest = client.images.pull(self.settings.panel_image)
-            if latest.id == current_image:
-                self.log("웹패널이 이미 최신 버전입니다.")
-                write_json(self.root / "panel-update-status.json", {"status": "completed", "message": "이미 최신 웹패널입니다."})
-                return
-            old = self.container(client, self.update_name)
-            if old:
-                old.remove()
-            write_json(self.root / "panel-update-status.json", {"status": "running", "message": "웹패널을 교체하고 있습니다."})
-            client.containers.run(
-                latest.id, command=["python", "-m", "app.self_update"], name=self.update_name,
-                detach=True, auto_remove=True, labels=LABELS,
-                environment={"TARGET_CONTAINER": self.settings.panel_container,
-                             "PROXY_CONTAINER": self.settings.proxy_container,
-                             "TARGET_IMAGE": latest.id},
-                volumes={"/var/run/docker.sock": {"bind": "/var/run/docker.sock", "mode": "rw"},
-                         str(self.settings.host_data_dir): {"bind": "/update-data", "mode": "rw"}},
-            )
+        status_file = self.root / "panel-update-status.json"
+        try:
+            self.require_stopped()
+            write_json(status_file, {"status": "running", "message": "최신 패널 이미지를 확인하고 있습니다."})
+            with self.client() as client:
+                current = client.containers.get(self.settings.panel_container)
+                current_image = current.image.id
+                latest = client.images.pull(self.settings.panel_image)
+                if latest.id == current_image:
+                    self.log("웹패널이 이미 최신 버전입니다.")
+                    write_json(status_file, {"status": "completed", "message": "이미 최신 웹패널입니다."})
+                    return
+                old = self.container(client, self.update_name)
+                if old:
+                    old.remove()
+                write_json(status_file, {"status": "running", "message": "웹패널을 교체하고 있습니다."})
+                client.containers.run(
+                    latest.id, command=["python", "-m", "app.self_update"], name=self.update_name,
+                    detach=True, auto_remove=True, labels=LABELS,
+                    environment={"TARGET_CONTAINER": self.settings.panel_container,
+                                 "PROXY_CONTAINER": self.settings.proxy_container,
+                                 "TARGET_IMAGE": latest.id},
+                    volumes={"/var/run/docker.sock": {"bind": "/var/run/docker.sock", "mode": "rw"},
+                             str(self.settings.host_data_dir): {"bind": "/update-data", "mode": "rw"}},
+                )
+        except Exception as error:
+            write_json(status_file, {"status": "failed", "message": f"구동기 업데이트를 시작하지 못했습니다: {error}"})
+            raise

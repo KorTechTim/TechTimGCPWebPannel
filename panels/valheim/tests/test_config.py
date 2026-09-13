@@ -24,6 +24,21 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(args[args.index("-public") + 1], "0")
         self.assertEqual(args[-2:], ["-preset", "hard"])
 
+    def test_world_modifiers_and_rules_are_official_arguments(self):
+        config = ServerConfig(password="private-secret", preset="hard", combat="veryhard",
+                              death_penalty="casual", resources="most", raids="none",
+                              portals="hard", no_build_cost=True, player_events=True,
+                              passive_mobs=True, no_map=True)
+        args = server_arguments(config)
+        self.assertLess(args.index("-preset"), args.index("-modifier"))
+        for pair in (("combat", "veryhard"), ("deathpenalty", "casual"),
+                     ("resources", "most"), ("raids", "none"), ("portals", "hard")):
+            self.assertIn(["-modifier", *pair], [args[i:i + 3] for i in range(len(args) - 2)])
+        for rule in ("nobuildcost", "playerevents", "passivemobs", "nomap"):
+            self.assertIn(["-setkey", rule], [args[i:i + 2] for i in range(len(args) - 1)])
+        with self.assertRaises(ValidationError):
+            ServerConfig(combat="impossible")
+
     def test_world_paths_control_characters_and_unsupported_fields_are_rejected(self):
         for value in ("../world", "a/b", "a\\b", "..", "a\n", " world", "a:"):
             with self.subTest(value=value), self.assertRaises(ValidationError):

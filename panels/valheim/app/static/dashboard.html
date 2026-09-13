@@ -4,33 +4,37 @@
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="dark"><title>TechTim · Valheim Server</title>
   <link rel="icon" href="/static/rune.svg?v=2" type="image/svg+xml">
-  <link rel="stylesheet" href="/static/app.css?v=1.0.3">
-  <script src="/static/app.js?v=1.0.1" defer></script>
+  <link rel="stylesheet" href="/static/app.css?v=1.0.8">
+  <script src="/static/app.js?v=1.0.3" defer></script>
 </head>
 <body>
   <div class="ambient" aria-hidden="true"></div>
   <div class="app-frame">
     <aside class="sidebar" aria-label="메인 메뉴">
-      <a class="brand sidebar-brand" href="#overview"><img src="/static/rune.svg?v=2" alt=""><span>TechTim<small>VALHEIM SERVER PANEL</small></span></a>
+      <a class="brand sidebar-brand" href="#overview"><img class="sidebar-avatar" src="/static/techtim-avatar.png?v=1" alt=""><span>TechTim<small>VALHEIM SERVER PANEL</small></span></a>
       <nav class="sidebar-nav">
         <div class="sidebar-group">
           <p class="sidebar-label">MAIN</p>
-          <a class="sidebar-link" href="#overview" aria-current="page"><span aria-hidden="true">⌂</span>서버 개요</a>
-          <a class="sidebar-link" href="#server-control"><span aria-hidden="true">▶</span>서버 제어</a>
-          <a class="sidebar-link" href="#server-console"><span aria-hidden="true">▤</span>서버 로그</a>
+          <a class="sidebar-link" href="#overview" aria-current="page"><span aria-hidden="true">⌂</span>기본 대시보드</a>
+          <a class="sidebar-link" href="#server-control"><span aria-hidden="true">↓</span>설치 · 업데이트</a>
           <button class="sidebar-link" id="sidebar-settings" type="button"><span aria-hidden="true">⚙</span>서버 설정</button>
+          <a class="sidebar-link" id="sidebar-connection" href="#overview"><span aria-hidden="true">⌁</span>코드 접속 · 원격</a>
         </div>
         <div class="sidebar-group">
           <p class="sidebar-label">WORLD</p>
-          <button class="sidebar-link" type="button" data-open="worlds-dialog"><span aria-hidden="true">◈</span>월드 파일</button>
-          <button class="sidebar-link" type="button" data-open="backups-dialog"><span aria-hidden="true">▦</span>백업과 복원</button>
-          <button class="sidebar-link" type="button" data-open="permissions-dialog"><span aria-hidden="true">♜</span>플레이어 권한</button>
-          <button class="sidebar-link" type="button" data-open="schedule-dialog"><span aria-hidden="true">◷</span>예약 재시작</button>
+          <button class="sidebar-link" type="button" data-open="modifiers-dialog"><span aria-hidden="true">◇</span>월드 · 배율 설정</button>
+          <button class="sidebar-link" type="button" data-open="worlds-dialog"><span aria-hidden="true">◈</span>월드 관리</button>
+          <button class="sidebar-link" type="button" data-open="permissions-dialog"><span aria-hidden="true">♜</span>플레이어 관리</button>
+          <button class="sidebar-link" type="button" data-open="mods-dialog"><span aria-hidden="true">◉</span>모드 관리</button>
+          <button class="sidebar-link" type="button" data-open="backups-dialog"><span aria-hidden="true">▦</span>백업 · 복원</button>
+          <button class="sidebar-link" type="button" data-open="schedule-dialog"><span aria-hidden="true">◷</span>예약 · 자동화</button>
         </div>
         <div class="sidebar-group">
           <p class="sidebar-label">SYSTEM</p>
+          <a class="sidebar-link" href="#server-console"><span aria-hidden="true">▤</span>콘솔 · 진단</a>
           <a class="sidebar-link" href="#resources"><span aria-hidden="true">◫</span>서버 리소스</a>
-          <button class="sidebar-link" id="panel-update" type="button"><span aria-hidden="true">↻</span>패널 업데이트</button>
+          <button class="sidebar-link" type="button" data-open="discord-dialog"><span aria-hidden="true">◌</span>디스코드 연동</button>
+          <button class="sidebar-link update-link" id="panel-update" type="button" data-open="panel-update-dialog"><span aria-hidden="true">↻</span>구동기 업데이트</button>
         </div>
       </nav>
       <div class="sidebar-footer">
@@ -51,7 +55,16 @@
           <p class="hero-description">모험이 이어지는 곳.<br>월드와 서버의 모든 여정을 여기에서 관리하세요.</p>
           <div class="hero-meta"><span>GCP · Linux</span><i></i><span>최대 10명</span><i></i><span id="hero-crossplay">크로스플레이</span></div>
         </div>
-        <div class="connection-card"><span class="tiny-label">SERVER CONNECTION</span><div id="connection-address">접속 정보 확인 중</div><button id="copy-address" class="quiet">주소 복사 <span aria-hidden="true">↗</span></button></div>
+        <div class="connection-card">
+          <div class="connection-modes" role="tablist" aria-label="접속 방식">
+            <button id="connection-invite" type="button" role="tab" aria-selected="true">초대 코드</button>
+            <button id="connection-ip" type="button" role="tab" aria-selected="false">IP 주소</button>
+          </div>
+          <span class="tiny-label" id="connection-label">INVITE CODE</span>
+          <div id="connection-address">초대 코드 확인 중</div>
+          <p class="connection-note" id="connection-note">서버가 실행되면 초대 코드가 표시됩니다.</p>
+          <button id="copy-address" class="quiet">초대 코드 복사 <span aria-hidden="true">↗</span></button>
+        </div>
       </section>
 
       <section class="status-strip" aria-label="서버 요약">
@@ -90,9 +103,11 @@
       <section class="management-section" aria-labelledby="management-title">
         <div class="section-head"><div><p class="eyebrow">YOUR WORLD, YOUR RULES</p><h2 id="management-title">월드 관리</h2></div><span class="subtle">게임 서버가 중지된 상태에서 변경할 수 있습니다.</span></div>
         <div class="management-grid">
+          <button class="management-card" data-open="modifiers-dialog"><span class="feature-icon" aria-hidden="true">◇</span><span><b>월드 · 배율 설정</b><small>난이도 · 자원 · 습격 · 포탈</small></span><span class="arrow" aria-hidden="true">↗</span></button>
           <button class="management-card" data-open="worlds-dialog"><span class="feature-icon" aria-hidden="true">◈</span><span><b>월드 파일</b><small>월드 가져오기 · 다운로드</small></span><span class="arrow" aria-hidden="true">↗</span></button>
           <button class="management-card" data-open="backups-dialog"><span class="feature-icon" aria-hidden="true">▤</span><span><b>백업과 복원</b><small>모험의 기록을 안전하게</small></span><span class="arrow" aria-hidden="true">↗</span></button>
           <button class="management-card" data-open="permissions-dialog"><span class="feature-icon" aria-hidden="true">♜</span><span><b>플레이어 권한</b><small>관리자 · 차단 · 허용 목록</small></span><span class="arrow" aria-hidden="true">↗</span></button>
+          <button class="management-card" data-open="mods-dialog"><span class="feature-icon" aria-hidden="true">◉</span><span><b>모드 관리</b><small>바닐라 · BepInEx 호환 상태</small></span><span class="arrow" aria-hidden="true">↗</span></button>
           <button class="management-card" data-open="schedule-dialog"><span class="feature-icon" aria-hidden="true">◷</span><span><b>예약 재시작</b><small id="schedule-summary">한국 시간 기준 운영</small></span><span class="arrow" aria-hidden="true">↗</span></button>
         </div>
       </section>
@@ -133,6 +148,30 @@
     </div><div class="dialog-foot"><button type="button" data-close>닫기</button><button class="primary" type="submit" data-writable>설정 저장</button></div></form>
   </dialog>
 
+  <dialog id="modifiers-dialog" class="wide-dialog">
+    <div class="dialog-head"><div><p class="eyebrow">WORLD MODIFIERS</p><h2>월드 · 배율 설정</h2></div><button data-close aria-label="닫기">×</button></div>
+    <form id="modifiers-form"><div class="dialog-body">
+      <p class="callout">Valheim 공식 프리셋과 월드 옵션입니다. 저장한 값은 다음 서버 시작부터 적용됩니다.</p>
+      <fieldset class="field-grid" data-writable><legend>플레이 프리셋</legend>
+        <label class="span-two">월드 프리셋<select name="preset"><option value="">현재 월드 설정 유지</option><option value="normal">Normal · 보통</option><option value="casual">Casual · 캐주얼</option><option value="easy">Easy · 쉬움</option><option value="hard">Hard · 어려움</option><option value="hardcore">Hardcore · 하드코어</option><option value="immersive">Immersive · 몰입</option><option value="hammer">Hammer · 건축</option></select><small>프리셋 적용 후 아래 상세 옵션을 이어서 적용합니다.</small></label>
+      </fieldset>
+      <fieldset class="field-grid" data-writable><legend>상세 난이도 · 배율</legend>
+        <label>전투 난이도<select name="combat"><option value="">기본값</option><option value="veryeasy">매우 쉬움</option><option value="easy">쉬움</option><option value="hard">어려움</option><option value="veryhard">매우 어려움</option></select></label>
+        <label>사망 불이익<select name="death_penalty"><option value="">기본값</option><option value="casual">캐주얼</option><option value="veryeasy">매우 낮음</option><option value="easy">낮음</option><option value="hard">높음</option><option value="hardcore">하드코어</option></select></label>
+        <label>자원 획득량<select name="resources"><option value="">기본값</option><option value="muchless">매우 적음</option><option value="less">적음</option><option value="more">많음</option><option value="muchmore">매우 많음</option><option value="most">최대</option></select></label>
+        <label>습격 빈도<select name="raids"><option value="">기본값</option><option value="none">없음</option><option value="muchless">매우 적음</option><option value="less">적음</option><option value="more">많음</option><option value="muchmore">매우 많음</option></select></label>
+        <label>포탈 제한<select name="portals"><option value="">기본값</option><option value="casual">캐주얼</option><option value="hard">어려움</option><option value="veryhard">매우 어려움</option></select></label>
+      </fieldset>
+      <fieldset class="field-grid rule-grid" data-writable><legend>플레이 규칙</legend>
+        <label class="switch-row"><span>건설 비용 없음<small>재료 없이 건설</small></span><input name="no_build_cost" type="checkbox" role="switch"></label>
+        <label class="switch-row"><span>플레이어 기반 이벤트<small>접속자 진행도 기준</small></span><input name="player_events" type="checkbox" role="switch"></label>
+        <label class="switch-row"><span>적 비공격적<small>먼저 공격하기 전까지 평화</small></span><input name="passive_mobs" type="checkbox" role="switch"></label>
+        <label class="switch-row"><span>지도 사용 안 함<small>월드 지도 비활성화</small></span><input name="no_map" type="checkbox" role="switch"></label>
+      </fieldset>
+      <p id="modifiers-message" class="form-message" role="status"></p>
+    </div><div class="dialog-foot"><button type="button" data-close>닫기</button><button type="button" id="modifiers-reset" data-writable>기본값</button><button class="primary" type="submit" data-writable>배율 저장</button></div></form>
+  </dialog>
+
   <dialog id="worlds-dialog" class="wide-dialog"><div class="dialog-head"><div><p class="eyebrow">WORLD FILES</p><h2>월드 파일</h2></div><button data-close aria-label="닫기">×</button></div>
     <div class="dialog-body"><div id="world-list" class="file-list"></div>
       <form id="world-upload-form"><fieldset data-writable><legend>기존 월드 가져오기</legend><p class="subtle">이름이 같은 .db와 .fwl 파일을 함께 선택하세요. Steam 클라우드 월드는 게임에서 로컬로 옮긴 뒤 가져와주세요.</p><div class="field-grid"><label>월드 데이터 · .db<input name="db" type="file" accept=".db" required></label><label>월드 정보 · .fwl<input name="fwl" type="file" accept=".fwl" required></label></div><label class="compact-toggle"><input name="overwrite" type="checkbox">같은 이름의 기존 월드 덮어쓰기</label><p class="micro">기존 월드가 있으면 먼저 ZIP 백업을 만듭니다. 업로드 후 서버 설정에서 월드를 선택해주세요.</p><button type="submit" class="primary">월드 업로드</button></fieldset><p id="worlds-message" class="form-message" role="status"></p></form>
@@ -149,6 +188,18 @@
 
   <dialog id="schedule-dialog"><div class="dialog-head"><div><p class="eyebrow">SCHEDULED RESTART</p><h2>예약 재시작</h2></div><button data-close aria-label="닫기">×</button></div>
     <form id="schedule-form"><div class="dialog-body"><p class="callout">실행 중인 서버만 정상 종료한 뒤 다시 시작합니다. 꺼진 서버는 자동으로 켜지지 않습니다.</p><fieldset data-writable><label class="switch-row"><span>매일 예약 재시작<small>Asia/Seoul · 한국 시간</small></span><input name="enabled" type="checkbox" role="switch"></label><label>재시작 시각 · 최대 3개<input name="times" placeholder="04:00, 12:00" required><small>여러 시각은 쉼표로 구분하세요.</small></label></fieldset><p id="schedule-result" class="subtle"></p><p id="schedule-message" class="form-message" role="status"></p></div><div class="dialog-foot"><button type="button" data-close>닫기</button><button type="submit" class="primary" data-writable>예약 저장</button></div></form>
+  </dialog>
+
+  <dialog id="mods-dialog" class="wide-dialog"><div class="dialog-head"><div><p class="eyebrow">MOD MANAGEMENT</p><h2>모드 관리</h2></div><button data-close aria-label="닫기">×</button></div>
+    <div class="dialog-body"><div class="feature-status"><span class="feature-icon" aria-hidden="true">◉</span><div><span class="tiny-label">CURRENT PROFILE</span><strong>바닐라 · 기본 서버</strong><p>현재 GCP 서버는 공식 전용 서버 구성으로 실행됩니다.</p></div></div><p class="callout">Valheim은 공식 모드와 Steam Workshop을 제공하지 않습니다. BepInEx 로더와 로컬 패키지는 게임 버전·클라이언트 호환성 검증 후 별도 구성으로 지원됩니다.</p><div class="feature-list"><span>모드 로더</span><strong>미설치</strong><span>활성 모드</span><strong>0개</strong><span>크로스플레이 호환성</span><strong>바닐라</strong></div></div><div class="dialog-foot"><button data-close>닫기</button></div>
+  </dialog>
+
+  <dialog id="discord-dialog"><div class="dialog-head"><div><p class="eyebrow">DISCORD INTEGRATION</p><h2>디스코드 연동</h2></div><button data-close aria-label="닫기">×</button></div>
+    <div class="dialog-body"><div class="feature-status"><span class="feature-icon" aria-hidden="true">◌</span><div><span class="tiny-label">WEBHOOK STATUS</span><strong>연동 안 됨</strong><p>서버 시작·종료, 백업과 오류 알림을 위한 메뉴입니다.</p></div></div><p class="callout">Webhook 암호화 저장과 전송 범위 검증을 마친 뒤 활성화됩니다. 현재 서버 동작에는 영향을 주지 않습니다.</p></div><div class="dialog-foot"><button data-close>닫기</button></div>
+  </dialog>
+
+  <dialog id="panel-update-dialog"><div class="dialog-head"><div><p class="eyebrow">LAUNCHER UPDATE</p><h2>구동기 업데이트</h2></div><button data-close aria-label="닫기">×</button></div>
+    <div class="dialog-body"><div class="feature-status update-status"><span class="feature-icon" aria-hidden="true">↻</span><div><span class="tiny-label">CURRENT VERSION</span><strong id="panel-update-current">확인 중</strong><p>TechTim GCP Valheim 웹 구동기</p></div></div><p class="callout">게임 서버 엔진 업데이트와 별개로 웹 구동기 자체를 최신 이미지로 교체합니다. 서버가 중지된 상태에서만 진행할 수 있습니다.</p><div class="update-progress" id="panel-update-progress" data-status="idle"><i></i></div><p id="panel-update-message" class="form-message" role="status">업데이트 상태를 확인하고 있습니다.</p></div><div class="dialog-foot"><button data-close>닫기</button><button class="primary" id="panel-update-action" type="button">업데이트 확인 및 설치</button></div>
   </dialog>
 
   <dialog id="confirm-dialog" class="confirm-dialog"><div class="dialog-head"><h2 id="confirm-title">작업 확인</h2><button data-close aria-label="닫기">×</button></div><p id="confirm-text" class="dialog-body"></p><div class="dialog-foot"><button id="confirm-cancel">취소</button><button id="confirm-ok" class="primary">진행</button></div></dialog>

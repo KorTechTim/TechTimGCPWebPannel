@@ -3,6 +3,7 @@ const $ = id => document.getElementById(id);
 let state = null;
 let uiBusy = false;
 let logKind = 'server';
+let connectionMode = 'invite';
 let permissionLists = {};
 let panelUpdating = false;
 let lastJob = '';
@@ -43,6 +44,32 @@ function bytes(value) {
   return `${value.toFixed(i > 1 ? 1 : 0)} ${units[i]}`;
 }
 
+function connectionDetails() {
+  const host = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname) ? 'VM 공개 IP' : location.hostname;
+  if (connectionMode === 'ip') {
+    return {label: 'IP ADDRESS', value: `${host}:${state?.port || 2456}`, note: '직접 접속할 때 사용하는 공개 IP 주소입니다.', copy: 'IP 주소 복사', ready: host !== 'VM 공개 IP'};
+  }
+  if (!state?.crossplay) {
+    return {label: 'INVITE CODE', value: '크로스플레이 필요', note: '서버 설정에서 크로스플레이를 켜면 초대 코드가 발급됩니다.', copy: '초대 코드 복사', ready: false};
+  }
+  if (state?.join_code) {
+    return {label: 'INVITE CODE', value: state.join_code, note: '게임의 참가 코드 입력란에 사용하세요.', copy: '초대 코드 복사', ready: true};
+  }
+  const running = runningStates.has(state?.server_status);
+  return {label: 'INVITE CODE', value: running ? '초대 코드 준비 중' : '서버 시작 후 표시', note: running ? 'PlayFab에서 코드를 발급받고 있습니다.' : '서버가 실행되면 초대 코드가 표시됩니다.', copy: '초대 코드 복사', ready: false};
+}
+
+function renderConnection() {
+  const details = connectionDetails();
+  $('connection-invite').setAttribute('aria-selected', String(connectionMode === 'invite'));
+  $('connection-ip').setAttribute('aria-selected', String(connectionMode === 'ip'));
+  $('connection-label').textContent = details.label;
+  $('connection-address').textContent = details.value;
+  $('connection-note').textContent = details.note;
+  $('copy-address').firstChild.textContent = `${details.copy} `;
+  $('copy-address').disabled = !details.ready;
+}
+
 function confirmAction(title, text, button = '진행') {
   const dialog = $('confirm-dialog');
   $('confirm-title').textContent = title;
@@ -70,7 +97,7 @@ function updateControls() {
   $('install').disabled = !available || running;
   $('open-settings').disabled = !state;
   $('sidebar-settings').disabled = !state;
-  $('panel-update').disabled = !available || running;
+  $('panel-update-action').disabled = !available || running;
   $('install-label').textContent = state?.engine.installed ? '서버 업데이트' : '엔진 설치';
   $('control-hint').textContent = !state?.docker_available ? '서버 제어를 위해 Docker 연결이 필요합니다.'
     : state.busy || uiBusy ? '현재 작업이 끝나면 다음 작업을 진행할 수 있습니다.'
@@ -95,8 +122,8 @@ async function refreshStatus() {
     $('engine-status').textContent = state.engine.installed ? `설치 완료${state.engine.build_id ? ' · '+state.engine.build_id : ''}` : '설치 필요';
     $('panel-version').textContent = state.panel_version;
     $('hero-crossplay').textContent = state.crossplay ? '크로스플레이 ON' : 'Steam 전용';
-    const host = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname) ? 'VM 공개 IP' : location.hostname;
-    $('connection-address').textContent = `${host}:${state.port}`;
+    renderConnection();
+    if ($('panel-update-dialog').open) await loadPanelUpdate();
     $('connection-error').hidden = state.docker_available;
     $('connection-error').textContent = 'Docker에 연결할 수 없습니다. VM의 Docker 서비스와 패널 연결 설정을 확인해주세요.';
     const job = state.operation;
@@ -162,16 +189,19 @@ $('start').onclick = () => perform('/api/server/start', '서버 시작');
 $('stop').onclick = () => perform('/api/server/stop', '서버 중지', '접속 중인 플레이어의 연결이 종료됩니다. 월드 저장이 끝날 때까지 기다린 뒤 서버를 중지합니다.');
 $('restart').onclick = () => perform('/api/server/restart', '서버 재시작', '현재 월드를 저장하고 서버를 다시 시작합니다. 접속 중인 플레이어는 다시 접속해야 합니다.');
 $('install').onclick = () => perform('/api/install', state?.engine.installed ? '서버 업데이트' : '엔진 설치', 'Steam 정식 서버를 다운로드합니다. 기존 월드가 있으면 업데이트 전에 백업을 만듭니다.');
-$('panel-update').onclick = () => perform('/api/panel/update', '패널 업데이트', '최신 TechTim 웹패널로 교체합니다. 잠시 연결이 끊길 수 있으며 실패하면 이전 패널로 복구를 시도합니다.');
 $('logout').onclick = async () => { try { await api('/api/auth/logout', {method: 'POST'}); location.assign('/login'); } catch (error) { toast(error.message); } };
+$('connection-invite').onclick = () => { connectionMode = 'invite'; renderConnection(); };
+$('connection-ip').onclick = () => { connectionMode = 'ip'; renderConnection(); };
+$('sidebar-connection').onclick = () => { connectionMode = 'invite'; renderConnection(); };
 $('copy-address').onclick = async () => {
-  const value = $('connection-address').textContent;
-  if (value.startsWith('VM 공개 IP')) { toast('실제 VM의 공개 IP로 접속해주세요.'); return; }
+  const details = connectionDetails();
+  if (!details.ready) { toast(details.note); return; }
+  const value = details.value;
   try {
     if (navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(value);
     else { const area = document.createElement('textarea'); area.value = value; document.body.append(area); area.select(); const copied = document.execCommand('copy'); area.remove(); if (!copied) throw new Error(); }
-    toast('접속 주소를 복사했습니다.');
-  } catch { toast(`접속 주소: ${value}`); }
+    toast(connectionMode === 'invite' ? '초대 코드를 복사했습니다.' : 'IP 주소를 복사했습니다.');
+  } catch { toast(`${connectionMode === 'invite' ? '초대 코드' : 'IP 주소'}: ${value}`); }
 };
 
 const integerFields = ['port', 'save_interval', 'backups', 'backup_short', 'backup_long'];
@@ -206,6 +236,48 @@ $('settings-form').onsubmit = async event => {
   try { await jsonPost('/api/config', config); form.elements.password.value = ''; form.elements.password.required = false; message('settings-message', '설정을 저장했습니다. 다음 서버 시작에 적용됩니다.'); await refreshStatus(); }
   catch (error) { message('settings-message', error.message, true); }
   finally { uiBusy = false; updateControls(); }
+};
+
+const modifierFields = ['preset', 'combat', 'death_penalty', 'resources', 'raids', 'portals'];
+const modifierFlags = ['no_build_cost', 'player_events', 'passive_mobs', 'no_map'];
+async function loadModifiers() {
+  const config = await api('/api/config');
+  const form = $('modifiers-form');
+  modifierFields.forEach(key => { form.elements.namedItem(key).value = config[key] || ''; });
+  modifierFlags.forEach(key => { form.elements.namedItem(key).checked = Boolean(config[key]); });
+  message('modifiers-message', '');
+}
+$('modifiers-reset').onclick = () => {
+  const form = $('modifiers-form');
+  modifierFields.forEach(key => { form.elements.namedItem(key).value = ''; });
+  modifierFlags.forEach(key => { form.elements.namedItem(key).checked = false; });
+  message('modifiers-message', '공식 기본값으로 되돌렸습니다. 저장하면 다음 서버 시작에 적용됩니다.');
+};
+$('modifiers-form').onsubmit = async event => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const config = Object.fromEntries(new FormData(form));
+  modifierFlags.forEach(key => { config[key] = form.elements.namedItem(key).checked; });
+  uiBusy = true; updateControls();
+  try { await jsonPost('/api/config', config); message('modifiers-message', '월드 배율과 플레이 규칙을 저장했습니다. 다음 서버 시작에 적용됩니다.'); await refreshStatus(); }
+  catch (error) { message('modifiers-message', error.message, true); }
+  finally { uiBusy = false; updateControls(); }
+};
+
+function renderPanelUpdate(info = {status: 'idle'}) {
+  const running = info.status === 'running' || panelUpdating;
+  $('panel-update-current').textContent = state?.panel_version || '확인 대기';
+  $('panel-update-progress').dataset.status = running ? 'running' : info.status || 'idle';
+  $('panel-update-message').textContent = info.message || (running ? '최신 구동기 이미지를 확인하고 있습니다.' : '업데이트 확인을 누르면 최신 버전을 확인합니다.');
+}
+async function loadPanelUpdate() {
+  try { renderPanelUpdate(await api('/api/panel/update/status')); }
+  catch (error) { renderPanelUpdate({status: 'idle', message: error.message}); }
+}
+$('panel-update-action').onclick = async () => {
+  renderPanelUpdate({status: 'running', message: '업데이트 요청을 준비하고 있습니다.'});
+  await perform('/api/panel/update', '구동기 업데이트', '최신 TechTim GCP 웹 구동기로 교체합니다. 잠시 연결이 끊길 수 있으며 실패하면 이전 버전으로 복구를 시도합니다.');
+  if (!panelUpdating) await loadPanelUpdate();
 };
 
 function emptyList(root, text) { const empty = document.createElement('p'); empty.className = 'empty-state'; empty.textContent = text; root.replaceChildren(empty); }
@@ -298,16 +370,18 @@ $('schedule-form').onsubmit = async event => {
   finally { uiBusy = false; updateControls(); }
 };
 
-const loaders = {'worlds-dialog': loadWorlds, 'backups-dialog': loadBackups, 'permissions-dialog': loadPermissions, 'schedule-dialog': loadSchedule};
+const loaders = {'worlds-dialog': loadWorlds, 'backups-dialog': loadBackups, 'permissions-dialog': loadPermissions,
+  'schedule-dialog': loadSchedule, 'modifiers-dialog': loadModifiers, 'mods-dialog': async () => {},
+  'discord-dialog': async () => {}, 'panel-update-dialog': loadPanelUpdate};
 document.querySelectorAll('[data-open]').forEach(button => button.onclick = async () => {
   try { await loaders[button.dataset.open](); updateControls(); $(button.dataset.open).showModal(); }
   catch (error) { toast(error.message); }
 });
 
-const sidebarSectionLinks = [...document.querySelectorAll('.sidebar-link[href^="#"]')];
-sidebarSectionLinks.forEach(link => link.addEventListener('click', () => {
-  sidebarSectionLinks.forEach(item => item.removeAttribute('aria-current'));
-  link.setAttribute('aria-current', 'page');
+const sidebarMenuItems = [...document.querySelectorAll('.sidebar-nav .sidebar-link')];
+sidebarMenuItems.forEach(item => item.addEventListener('click', () => {
+  sidebarMenuItems.forEach(link => link.removeAttribute('aria-current'));
+  item.setAttribute('aria-current', 'page');
 }));
 
 function meter(id, used, total) { $(id).style.width = `${total > 0 ? Math.max(0, Math.min(100, used / total * 100)) : 0}%`; }

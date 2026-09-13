@@ -59,6 +59,15 @@ class ServerConfig(BaseModel):
     public: bool = True
     crossplay: bool = True
     preset: str = ""
+    combat: Literal["", "veryeasy", "easy", "hard", "veryhard"] = ""
+    death_penalty: Literal["", "casual", "veryeasy", "easy", "hard", "hardcore"] = ""
+    resources: Literal["", "muchless", "less", "more", "muchmore", "most"] = ""
+    raids: Literal["", "none", "muchless", "less", "more", "muchmore"] = ""
+    portals: Literal["", "casual", "hard", "veryhard"] = ""
+    no_build_cost: bool = False
+    player_events: bool = False
+    passive_mobs: bool = False
+    no_map: bool = False
     save_interval: int = Field(default=1800, ge=60, le=86400)
     backups: int = Field(default=4, ge=1, le=50)
     backup_short: int = Field(default=7200, ge=60, le=604800)
@@ -103,6 +112,17 @@ def server_arguments(config: ServerConfig) -> list[str]:
         args.append("-crossplay")
     if config.preset:
         args.extend(["-preset", config.preset])
+    for name, value in (("combat", config.combat), ("deathpenalty", config.death_penalty),
+                        ("resources", config.resources), ("raids", config.raids),
+                        ("portals", config.portals)):
+        if value:
+            args.extend(["-modifier", name, value])
+    for enabled, name in ((config.no_build_cost, "nobuildcost"),
+                          (config.player_events, "playerevents"),
+                          (config.passive_mobs, "passivemobs"),
+                          (config.no_map, "nomap")):
+        if enabled:
+            args.extend(["-setkey", name])
     return args
 
 
