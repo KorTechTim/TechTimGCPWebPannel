@@ -3,29 +3,54 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="dark"><title>TechTim · Valheim Server</title>
-  <link rel="icon" href="/static/rune.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/static/app.css?v=1.0.0">
-  <script src="/static/app.js?v=1.0.0" defer></script>
+  <link rel="icon" href="/static/rune.svg?v=2" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/app.css?v=1.0.3">
+  <script src="/static/app.js?v=1.0.1" defer></script>
 </head>
 <body>
   <div class="ambient" aria-hidden="true"></div>
-  <div class="shell">
-    <header class="topbar">
-      <a class="brand" href="/"><img src="/static/rune.svg" alt=""><span>TechTim<small>GAME SERVER PANEL</small></span></a>
-      <nav class="header-nav" aria-label="패널 메뉴">
-        <a href="https://www.valheimgame.com/support/a-guide-to-dedicated-servers/" target="_blank" rel="noopener noreferrer">공식 서버 가이드 <span aria-hidden="true">↗</span></a>
-        <button id="panel-update" class="quiet">패널 업데이트</button>
-        <button id="logout" class="quiet">로그아웃</button>
+  <div class="app-frame">
+    <aside class="sidebar" aria-label="메인 메뉴">
+      <a class="brand sidebar-brand" href="#overview"><img src="/static/rune.svg?v=2" alt=""><span>TechTim<small>VALHEIM SERVER PANEL</small></span></a>
+      <nav class="sidebar-nav">
+        <div class="sidebar-group">
+          <p class="sidebar-label">MAIN</p>
+          <a class="sidebar-link" href="#overview" aria-current="page"><span aria-hidden="true">⌂</span>서버 개요</a>
+          <a class="sidebar-link" href="#server-control"><span aria-hidden="true">▶</span>서버 제어</a>
+          <a class="sidebar-link" href="#server-console"><span aria-hidden="true">▤</span>서버 로그</a>
+          <button class="sidebar-link" id="sidebar-settings" type="button"><span aria-hidden="true">⚙</span>서버 설정</button>
+        </div>
+        <div class="sidebar-group">
+          <p class="sidebar-label">WORLD</p>
+          <button class="sidebar-link" type="button" data-open="worlds-dialog"><span aria-hidden="true">◈</span>월드 파일</button>
+          <button class="sidebar-link" type="button" data-open="backups-dialog"><span aria-hidden="true">▦</span>백업과 복원</button>
+          <button class="sidebar-link" type="button" data-open="permissions-dialog"><span aria-hidden="true">♜</span>플레이어 권한</button>
+          <button class="sidebar-link" type="button" data-open="schedule-dialog"><span aria-hidden="true">◷</span>예약 재시작</button>
+        </div>
+        <div class="sidebar-group">
+          <p class="sidebar-label">SYSTEM</p>
+          <a class="sidebar-link" href="#resources"><span aria-hidden="true">◫</span>서버 리소스</a>
+          <button class="sidebar-link" id="panel-update" type="button"><span aria-hidden="true">↻</span>패널 업데이트</button>
+        </div>
       </nav>
-    </header>
+      <div class="sidebar-footer">
+        <a class="sidebar-link" href="https://www.valheimgame.com/support/a-guide-to-dedicated-servers/" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">↗</span>공식 서버 가이드</a>
+        <button class="sidebar-link" id="logout" type="button"><span aria-hidden="true">⇥</span>로그아웃</button>
+      </div>
+    </aside>
+    <div class="panel-content">
+      <div class="shell">
+        <header class="topbar">
+          <div class="topbar-context"><p class="eyebrow">VALHEIM DEDICATED SERVER</p><strong>서버 관리</strong></div>
+          <span class="topbar-platform">GCP · LINUX</span>
+        </header>
     <main>
-      <section class="hero">
+      <section class="hero" id="overview">
         <div class="hero-copy"><p class="eyebrow"><span class="gold-rule"></span> DEDICATED SERVER · 1.0</p>
           <h1>VALHEIM<span>우리의 열 번째 세계</span></h1>
           <p class="hero-description">모험이 이어지는 곳.<br>월드와 서버의 모든 여정을 여기에서 관리하세요.</p>
           <div class="hero-meta"><span>GCP · Linux</span><i></i><span>최대 10명</span><i></i><span id="hero-crossplay">크로스플레이</span></div>
         </div>
-        <div class="hero-emblem" aria-hidden="true"><img src="/static/rune.svg" alt=""></div>
         <div class="connection-card"><span class="tiny-label">SERVER CONNECTION</span><div id="connection-address">접속 정보 확인 중</div><button id="copy-address" class="quiet">주소 복사 <span aria-hidden="true">↗</span></button></div>
       </section>
 
@@ -39,7 +64,7 @@
       <div id="connection-error" class="callout error" role="alert" hidden></div>
 
       <div class="console-layout">
-        <section class="card console-card" aria-labelledby="log-title">
+        <section class="card console-card" id="server-console" aria-labelledby="log-title">
           <div class="section-head"><div><p class="eyebrow">SERVER CONSOLE</p><h2 id="log-title">실시간 로그</h2></div><label class="compact-toggle"><input id="auto-scroll" type="checkbox" checked>자동 스크롤</label></div>
           <div class="log-tabs" role="tablist" aria-label="로그 종류">
             <button role="tab" aria-selected="true" data-log="server">서버 로그</button>
@@ -50,7 +75,7 @@
           <pre id="terminal" tabindex="0" aria-label="선택한 서버 로그">서버 상태를 확인하고 있습니다.</pre>
           <div class="console-foot"><span class="dot"></span><span id="console-hint">정상 접속 준비: Game server connected</span></div>
         </section>
-        <section class="card control-card" aria-labelledby="control-title">
+        <section class="card control-card" id="server-control" aria-labelledby="control-title">
           <div class="section-head"><div><p class="eyebrow">SERVER CONTROL</p><h2 id="control-title">서버 제어</h2></div><span class="ornament" aria-hidden="true">ᛟ</span></div>
           <p class="subtle" id="control-hint">엔진을 설치하고 서버 설정을 저장한 뒤 시작하세요.</p>
           <button class="primary action-start" id="start" disabled><span aria-hidden="true">▶</span>서버 시작</button>
@@ -71,7 +96,7 @@
           <button class="management-card" data-open="schedule-dialog"><span class="feature-icon" aria-hidden="true">◷</span><span><b>예약 재시작</b><small id="schedule-summary">한국 시간 기준 운영</small></span><span class="arrow" aria-hidden="true">↗</span></button>
         </div>
       </section>
-      <section class="card resources" aria-label="서버 리소스">
+      <section class="card resources" id="resources" aria-label="서버 리소스">
         <div class="resource-intro"><p class="eyebrow">RESOURCES</p><h2>서버 리소스</h2><span class="micro">게임 컨테이너 · 5초 갱신</span></div>
         <div class="resource"><span>CPU <small>1코어 = 100%</small></span><strong id="cpu">—</strong><div class="meter"><i id="cpu-meter"></i></div></div>
         <div class="resource"><span>메모리</span><strong id="memory">—</strong><div class="meter"><i id="memory-meter"></i></div></div>
@@ -79,7 +104,9 @@
         <div class="resource"><span>네트워크</span><strong id="network">—</strong><small>다운로드 ↓ · 업로드 ↑</small></div>
       </section>
     </main>
-    <footer><span>TechTim <span class="footer-divider">/</span> VALHEIM SERVER PANEL</span><span>Valheim © Iron Gate AB · TechTim 비공식 관리 도구</span></footer>
+        <footer><span>TechTim <span class="footer-divider">/</span> VALHEIM SERVER PANEL</span><span>Valheim © Iron Gate AB · TechTim 비공식 관리 도구</span></footer>
+      </div>
+    </div>
   </div>
 
   <dialog id="settings-dialog" class="wide-dialog">

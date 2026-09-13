@@ -69,6 +69,7 @@ function updateControls() {
   $('restart').disabled = !available || !running;
   $('install').disabled = !available || running;
   $('open-settings').disabled = !state;
+  $('sidebar-settings').disabled = !state;
   $('panel-update').disabled = !available || running;
   $('install-label').textContent = state?.engine.installed ? '서버 업데이트' : '엔진 설치';
   $('control-hint').textContent = !state?.docker_available ? '서버 제어를 위해 Docker 연결이 필요합니다.'
@@ -193,6 +194,7 @@ async function openSettings() {
   } catch (error) { toast(error.message); }
 }
 $('open-settings').onclick = openSettings;
+$('sidebar-settings').onclick = openSettings;
 $('settings-form').onsubmit = async event => {
   event.preventDefault();
   const form = event.currentTarget;
@@ -301,6 +303,12 @@ document.querySelectorAll('[data-open]').forEach(button => button.onclick = asyn
   try { await loaders[button.dataset.open](); updateControls(); $(button.dataset.open).showModal(); }
   catch (error) { toast(error.message); }
 });
+
+const sidebarSectionLinks = [...document.querySelectorAll('.sidebar-link[href^="#"]')];
+sidebarSectionLinks.forEach(link => link.addEventListener('click', () => {
+  sidebarSectionLinks.forEach(item => item.removeAttribute('aria-current'));
+  link.setAttribute('aria-current', 'page');
+}));
 
 function meter(id, used, total) { $(id).style.width = `${total > 0 ? Math.max(0, Math.min(100, used / total * 100)) : 0}%`; }
 async function refreshResources() {
