@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark"><title>TechTim · Valheim Server</title>
+  <link rel="icon" href="/static/rune.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/app.css?v=1.0.0">
+  <script src="/static/app.js?v=1.0.0" defer></script>
+</head>
+<body>
+  <div class="ambient" aria-hidden="true"></div>
+  <div class="shell">
+    <header class="topbar">
+      <a class="brand" href="/"><img src="/static/rune.svg" alt=""><span>TechTim<small>GAME SERVER PANEL</small></span></a>
+      <nav class="header-nav" aria-label="패널 메뉴">
+        <a href="https://www.valheimgame.com/support/a-guide-to-dedicated-servers/" target="_blank" rel="noopener noreferrer">공식 서버 가이드 <span aria-hidden="true">↗</span></a>
+        <button id="panel-update" class="quiet">패널 업데이트</button>
+        <button id="logout" class="quiet">로그아웃</button>
+      </nav>
+    </header>
+    <main>
+      <section class="hero">
+        <div class="hero-copy"><p class="eyebrow"><span class="gold-rule"></span> DEDICATED SERVER · 1.0</p>
+          <h1>VALHEIM<span>우리의 열 번째 세계</span></h1>
+          <p class="hero-description">모험이 이어지는 곳.<br>월드와 서버의 모든 여정을 여기에서 관리하세요.</p>
+          <div class="hero-meta"><span>GCP · Linux</span><i></i><span>최대 10명</span><i></i><span id="hero-crossplay">크로스플레이</span></div>
+        </div>
+        <div class="hero-emblem" aria-hidden="true"><img src="/static/rune.svg" alt=""></div>
+        <div class="connection-card"><span class="tiny-label">SERVER CONNECTION</span><div id="connection-address">접속 정보 확인 중</div><button id="copy-address" class="quiet">주소 복사 <span aria-hidden="true">↗</span></button></div>
+      </section>
+
+      <section class="status-strip" aria-label="서버 요약">
+        <div><span class="tiny-label">SERVER STATUS</span><strong id="server-status"><span class="dot"></span>상태 확인 중</strong></div>
+        <div><span class="tiny-label">ACTIVE WORLD</span><strong id="current-world">—</strong></div>
+        <div><span class="tiny-label">ENGINE</span><strong id="engine-status">설치 상태 확인 중</strong></div>
+        <div><span class="tiny-label">PANEL VERSION</span><strong id="panel-version">1.0.0</strong></div>
+      </section>
+      <div id="operation-banner" class="operation-banner" role="status" hidden></div>
+      <div id="connection-error" class="callout error" role="alert" hidden></div>
+
+      <div class="console-layout">
+        <section class="card console-card" aria-labelledby="log-title">
+          <div class="section-head"><div><p class="eyebrow">SERVER CONSOLE</p><h2 id="log-title">실시간 로그</h2></div><label class="compact-toggle"><input id="auto-scroll" type="checkbox" checked>자동 스크롤</label></div>
+          <div class="log-tabs" role="tablist" aria-label="로그 종류">
+            <button role="tab" aria-selected="true" data-log="server">서버 로그</button>
+            <button role="tab" aria-selected="false" data-log="install">설치 로그</button>
+            <button role="tab" aria-selected="false" data-log="control">작업 기록</button>
+            <span id="log-refresh" class="live-label">2초마다 갱신</span>
+          </div>
+          <pre id="terminal" tabindex="0" aria-label="선택한 서버 로그">서버 상태를 확인하고 있습니다.</pre>
+          <div class="console-foot"><span class="dot"></span><span id="console-hint">정상 접속 준비: Game server connected</span></div>
+        </section>
+        <section class="card control-card" aria-labelledby="control-title">
+          <div class="section-head"><div><p class="eyebrow">SERVER CONTROL</p><h2 id="control-title">서버 제어</h2></div><span class="ornament" aria-hidden="true">ᛟ</span></div>
+          <p class="subtle" id="control-hint">엔진을 설치하고 서버 설정을 저장한 뒤 시작하세요.</p>
+          <button class="primary action-start" id="start" disabled><span aria-hidden="true">▶</span>서버 시작</button>
+          <div class="control-pair"><button id="stop" disabled><span aria-hidden="true">■</span>중지</button><button id="restart" disabled><span aria-hidden="true">↻</span>재시작</button></div>
+          <div class="divider"></div>
+          <button id="install" class="outlined-gold" disabled><span aria-hidden="true">↓</span><span id="install-label">엔진 설치</span></button>
+          <p class="micro">Steam 정식 배포 서버를 설치합니다.<br>업데이트는 서버를 중지한 뒤 진행하세요.</p>
+          <button id="open-settings" class="settings-link" disabled>서버 설정 <span aria-hidden="true">⚙</span></button>
+        </section>
+      </div>
+
+      <section class="management-section" aria-labelledby="management-title">
+        <div class="section-head"><div><p class="eyebrow">YOUR WORLD, YOUR RULES</p><h2 id="management-title">월드 관리</h2></div><span class="subtle">게임 서버가 중지된 상태에서 변경할 수 있습니다.</span></div>
+        <div class="management-grid">
+          <button class="management-card" data-open="worlds-dialog"><span class="feature-icon" aria-hidden="true">◈</span><span><b>월드 파일</b><small>월드 가져오기 · 다운로드</small></span><span class="arrow" aria-hidden="true">↗</span></button>
+          <button class="management-card" data-open="backups-dialog"><span class="feature-icon" aria-hidden="true">▤</span><span><b>백업과 복원</b><small>모험의 기록을 안전하게</small></span><span class="arrow" aria-hidden="true">↗</span></button>
+          <button class="management-card" data-open="permissions-dialog"><span class="feature-icon" aria-hidden="true">♜</span><span><b>플레이어 권한</b><small>관리자 · 차단 · 허용 목록</small></span><span class="arrow" aria-hidden="true">↗</span></button>
+          <button class="management-card" data-open="schedule-dialog"><span class="feature-icon" aria-hidden="true">◷</span><span><b>예약 재시작</b><small id="schedule-summary">한국 시간 기준 운영</small></span><span class="arrow" aria-hidden="true">↗</span></button>
+        </div>
+      </section>
+      <section class="card resources" aria-label="서버 리소스">
+        <div class="resource-intro"><p class="eyebrow">RESOURCES</p><h2>서버 리소스</h2><span class="micro">게임 컨테이너 · 5초 갱신</span></div>
+        <div class="resource"><span>CPU <small>1코어 = 100%</small></span><strong id="cpu">—</strong><div class="meter"><i id="cpu-meter"></i></div></div>
+        <div class="resource"><span>메모리</span><strong id="memory">—</strong><div class="meter"><i id="memory-meter"></i></div></div>
+        <div class="resource"><span>호스트 디스크</span><strong id="disk">—</strong><div class="meter"><i id="disk-meter"></i></div></div>
+        <div class="resource"><span>네트워크</span><strong id="network">—</strong><small>다운로드 ↓ · 업로드 ↑</small></div>
+      </section>
+    </main>
+    <footer><span>TechTim <span class="footer-divider">/</span> VALHEIM SERVER PANEL</span><span>Valheim © Iron Gate AB · TechTim 비공식 관리 도구</span></footer>
+  </div>
+
+  <dialog id="settings-dialog" class="wide-dialog">
+    <div class="dialog-head"><div><p class="eyebrow">SERVER CONFIGURATION</p><h2>서버 설정</h2></div><button data-close aria-label="닫기">×</button></div>
+    <form id="settings-form"><div class="dialog-body">
+      <p class="callout">설정은 다음 서버 시작에 적용됩니다. 기존 월드는 같은 이름을 선택하면 이어서 사용할 수 있습니다.</p>
+      <fieldset class="field-grid" data-writable><legend>기본 설정</legend>
+        <label class="span-two">서버 이름<input name="server_name" maxlength="64" required></label>
+        <label>월드 이름<input name="world" list="world-names" maxlength="64" required><datalist id="world-names"></datalist><small>목록에 없는 이름은 새 월드로 생성됩니다.</small></label>
+        <label>게임 접속 비밀번호<input name="password" type="password" minlength="5" maxlength="128" autocomplete="new-password"><small id="password-hint">최초 시작 전 5자 이상으로 설정해주세요.</small></label>
+        <label>게임 포트<input name="port" type="number" min="1024" max="65534" required><small>입력한 UDP 포트와 다음 포트를 함께 사용합니다.</small></label>
+        <label>월드 프리셋<select name="preset"><option value="">현재 월드 설정 유지</option><option value="normal">Normal · 보통</option><option value="casual">Casual · 캐주얼</option><option value="easy">Easy · 쉬움</option><option value="hard">Hard · 어려움</option><option value="hardcore">Hardcore · 하드코어</option><option value="immersive">Immersive · 몰입</option><option value="hammer">Hammer · 건축</option></select><small>선택 시 시작할 때 월드 설정을 덮어씁니다.</small></label>
+        <label class="switch-row"><span>크로스플레이<small>다른 플랫폼 친구도 함께 접속</small></span><input name="crossplay" type="checkbox" role="switch"></label>
+        <label class="switch-row"><span>서버 목록에 공개<small>비공개 서버는 주소로 직접 접속</small></span><input name="public" type="checkbox" role="switch"></label>
+      </fieldset>
+      <p class="micro">크로스플레이는 공개 IP·참가 코드·서버 목록으로 접속합니다. 로컬 IP나 127.0.0.1로는 접속할 수 없습니다. 포트를 변경했다면 GCP 방화벽도 맞춰주세요.</p>
+      <fieldset class="field-grid" data-writable><legend>월드 자동 저장·백업</legend>
+        <label>저장 간격 · 초<input name="save_interval" type="number" min="60" max="86400" required></label>
+        <label>자동 백업 보관 수<input name="backups" type="number" min="1" max="50" required></label>
+        <label>첫 백업 간격 · 초<input name="backup_short" type="number" min="60" max="604800" required></label>
+        <label>이후 백업 간격 · 초<input name="backup_long" type="number" min="60" max="2592000" required></label>
+      </fieldset><p class="micro">게임 자체의 자동 저장·백업 설정입니다. 패널에서 만든 ZIP 백업은 별도로 보관됩니다.</p>
+      <p id="settings-message" class="form-message" role="status"></p>
+    </div><div class="dialog-foot"><button type="button" data-close>닫기</button><button class="primary" type="submit" data-writable>설정 저장</button></div></form>
+  </dialog>
+
+  <dialog id="worlds-dialog" class="wide-dialog"><div class="dialog-head"><div><p class="eyebrow">WORLD FILES</p><h2>월드 파일</h2></div><button data-close aria-label="닫기">×</button></div>
+    <div class="dialog-body"><div id="world-list" class="file-list"></div>
+      <form id="world-upload-form"><fieldset data-writable><legend>기존 월드 가져오기</legend><p class="subtle">이름이 같은 .db와 .fwl 파일을 함께 선택하세요. Steam 클라우드 월드는 게임에서 로컬로 옮긴 뒤 가져와주세요.</p><div class="field-grid"><label>월드 데이터 · .db<input name="db" type="file" accept=".db" required></label><label>월드 정보 · .fwl<input name="fwl" type="file" accept=".fwl" required></label></div><label class="compact-toggle"><input name="overwrite" type="checkbox">같은 이름의 기존 월드 덮어쓰기</label><p class="micro">기존 월드가 있으면 먼저 ZIP 백업을 만듭니다. 업로드 후 서버 설정에서 월드를 선택해주세요.</p><button type="submit" class="primary">월드 업로드</button></fieldset><p id="worlds-message" class="form-message" role="status"></p></form>
+    </div><div class="dialog-foot"><button data-close>닫기</button></div>
+  </dialog>
+
+  <dialog id="backups-dialog" class="wide-dialog"><div class="dialog-head"><div><p class="eyebrow">WORLD BACKUPS</p><h2>백업과 복원</h2></div><button data-close aria-label="닫기">×</button></div>
+    <div class="dialog-body"><p class="callout">ZIP 백업에는 월드와 권한 목록이 포함됩니다. 복원 전 현재 월드를 한 번 더 백업합니다.</p><div class="list-toolbar"><span class="subtle">패널 수동 백업 · 날짜순</span><button class="primary" id="backup-now" data-writable>현재 월드 백업</button></div><div id="backup-list" class="file-list"></div><p id="backups-message" class="form-message" role="status"></p></div><div class="dialog-foot"><button data-close>닫기</button></div>
+  </dialog>
+
+  <dialog id="permissions-dialog"><div class="dialog-head"><div><p class="eyebrow">PLAYER ACCESS</p><h2>플레이어 권한</h2></div><button data-close aria-label="닫기">×</button></div>
+    <form id="permissions-form"><div class="dialog-body"><fieldset data-writable><label>관리할 목록<select id="permission-kind"><option value="admin">관리자 목록</option><option value="banned">차단 목록</option><option value="permitted">접속 허용 목록</option></select></label><label>플랫폼 사용자 ID<textarea id="permission-ids" rows="8" spellcheck="false" placeholder="Steam_76561198000000000"></textarea><small>게임 F2 화면 또는 서버 로그의 Platform_UserID를 한 줄에 하나씩 입력하세요.</small></label></fieldset><p id="permission-warning" class="callout" hidden>허용 목록에 한 명이라도 등록하면 이 목록에 없는 플레이어는 접속할 수 없습니다.</p><p id="permissions-message" class="form-message" role="status"></p></div><div class="dialog-foot"><button type="button" data-close>닫기</button><button type="submit" class="primary" data-writable>목록 저장</button></div></form>
+  </dialog>
+
+  <dialog id="schedule-dialog"><div class="dialog-head"><div><p class="eyebrow">SCHEDULED RESTART</p><h2>예약 재시작</h2></div><button data-close aria-label="닫기">×</button></div>
+    <form id="schedule-form"><div class="dialog-body"><p class="callout">실행 중인 서버만 정상 종료한 뒤 다시 시작합니다. 꺼진 서버는 자동으로 켜지지 않습니다.</p><fieldset data-writable><label class="switch-row"><span>매일 예약 재시작<small>Asia/Seoul · 한국 시간</small></span><input name="enabled" type="checkbox" role="switch"></label><label>재시작 시각 · 최대 3개<input name="times" placeholder="04:00, 12:00" required><small>여러 시각은 쉼표로 구분하세요.</small></label></fieldset><p id="schedule-result" class="subtle"></p><p id="schedule-message" class="form-message" role="status"></p></div><div class="dialog-foot"><button type="button" data-close>닫기</button><button type="submit" class="primary" data-writable>예약 저장</button></div></form>
+  </dialog>
+
+  <dialog id="confirm-dialog" class="confirm-dialog"><div class="dialog-head"><h2 id="confirm-title">작업 확인</h2><button data-close aria-label="닫기">×</button></div><p id="confirm-text" class="dialog-body"></p><div class="dialog-foot"><button id="confirm-cancel">취소</button><button id="confirm-ok" class="primary">진행</button></div></dialog>
+  <div id="toast" class="toast" role="status" hidden></div>
+</body></html>
