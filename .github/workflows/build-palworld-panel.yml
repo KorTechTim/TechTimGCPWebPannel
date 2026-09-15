@@ -69,7 +69,13 @@ jobs:
           push: true
           tags: |
             ${{ env.IMAGE_PREFIX }}/palworld-runtime:latest
+            ${{ env.IMAGE_PREFIX }}/palworld-runtime:steamcmd-nonroot-v1
             ${{ env.IMAGE_PREFIX }}/palworld-runtime:${{ github.sha }}
+
+      - name: Verify Palworld runtime drops root privileges
+        run: |
+          docker pull "${IMAGE_PREFIX}/palworld-runtime:${GITHUB_SHA}"
+          docker run --rm "${IMAGE_PREFIX}/palworld-runtime:${GITHUB_SHA}" check-user
 
       - name: Build and push Palworld panel image
         uses: docker/build-push-action@v6

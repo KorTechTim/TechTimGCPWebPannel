@@ -41,13 +41,14 @@ PANEL_CONTAINER_NAME = os.getenv("PANEL_CONTAINER_NAME", "palworld-panel")
 PANEL_PROXY_CONTAINER = os.getenv("PANEL_PROXY_CONTAINER", "palworld-panel-proxy")
 PANEL_IMAGE = os.getenv("PANEL_IMAGE", "ghcr.io/kortechtim/palworld-panel:latest")
 PALWORLD_STEAM_APP_ID = "2394010"
-DEFAULT_PALWORLD_RUNTIME_IMAGE = "ghcr.io/kortechtim/palworld-runtime:latest"
+DEFAULT_PALWORLD_RUNTIME_IMAGE = "ghcr.io/kortechtim/palworld-runtime:steamcmd-nonroot-v1"
 LEGACY_PALWORLD_RUNTIME_IMAGE = "ghcr.io/pocketpairjp/palserver:latest"
+LEGACY_TECHTIM_RUNTIME_IMAGE = "ghcr.io/kortechtim/palworld-runtime:latest"
 
 
 def resolve_palworld_runtime_image(configured_image: str | None) -> str:
     normalized = str(configured_image or "").strip()
-    if not normalized or normalized == LEGACY_PALWORLD_RUNTIME_IMAGE:
+    if normalized in {"", LEGACY_PALWORLD_RUNTIME_IMAGE, LEGACY_TECHTIM_RUNTIME_IMAGE}:
         return DEFAULT_PALWORLD_RUNTIME_IMAGE
     return normalized
 

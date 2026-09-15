@@ -26,6 +26,7 @@ drop_root_privileges "$@"
 install_server() {
   mkdir -p /server
   rm -f "$INSTALL_MARKER"
+  echo "Running SteamCMD as $(id -un) (uid=$(id -u))."
 
   /opt/steamcmd/steamcmd.sh +@sSteamCmdForcePlatformType linux \
     +force_install_dir /server +login anonymous +app_update "$APP_ID" validate +quit
@@ -57,12 +58,21 @@ run_server() {
   fi
 
   cd /server
+  echo "Starting Palworld as $(id -un) (uid=$(id -u))."
   exec ./PalServer.sh "$@"
 }
 
 case "${1:-serve}" in
   install)
     install_server
+    ;;
+  check-user)
+    if [ "$(id -u)" -eq 0 ]; then
+      echo "Palworld runtime is still running as root." >&2
+      exit 1
+    fi
+
+    echo "Palworld runtime user check passed: $(id -un) (uid=$(id -u))."
     ;;
   *)
     run_server "$@"

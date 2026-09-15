@@ -52,6 +52,13 @@ class EngineUpdateTests(unittest.TestCase):
             main.DEFAULT_PALWORLD_RUNTIME_IMAGE,
         )
 
+    def test_legacy_techtim_latest_tag_migrates_to_nonroot_runtime(self):
+        self.assertEqual(
+            main.resolve_palworld_runtime_image(main.LEGACY_TECHTIM_RUNTIME_IMAGE),
+            main.DEFAULT_PALWORLD_RUNTIME_IMAGE,
+        )
+        self.assertIn("steamcmd-nonroot", main.DEFAULT_PALWORLD_RUNTIME_IMAGE)
+
     def test_legacy_install_is_recognized_but_requires_update(self):
         main.INSTALL_REQUEST_FILE.write_text(
             "distribution=pocketpair-official-docker\n",
@@ -96,6 +103,8 @@ class EngineUpdateTests(unittest.TestCase):
         self.assertIn('exec gosu "$PALWORLD_USER"', entrypoint)
         self.assertIn('chown -R "$PALWORLD_USER:$PALWORLD_USER" /server', entrypoint)
         self.assertIn('exec ./PalServer.sh "$@"', entrypoint)
+        self.assertIn("check-user)", entrypoint)
+        self.assertIn('echo "Starting Palworld as $(id -un) (uid=$(id -u))."', entrypoint)
         self.assertNotIn("/root/.steam", entrypoint)
 
 

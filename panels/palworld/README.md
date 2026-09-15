@@ -20,7 +20,7 @@ Palworld Dedicated Server를 GCP VM에서 관리하기 위한 TechTim Web UI 패
 필요한 SteamCMD와 Linux 라이브러리는 다음 TechTim 런타임 이미지로 제공합니다.
 
 ```text
-ghcr.io/kortechtim/palworld-runtime:latest
+ghcr.io/kortechtim/palworld-runtime:steamcmd-nonroot-v1
 ```
 
 게임 엔진은 호스트의 `/opt/techtim/palworld/data/server`에 설치됩니다. 설정과
