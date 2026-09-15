@@ -5,8 +5,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libicu74 libpulse0 libsdl2-2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
-RUN groupadd --gid 1000 palworld \
-    && useradd --uid 1000 --gid palworld --create-home --shell /bin/bash palworld \
+RUN groupadd --system palworld \
+    && useradd --system --gid palworld --create-home --home-dir /home/palworld \
+       --shell /bin/bash palworld \
     && mkdir -p /opt/steamcmd /home/palworld/.steam/sdk64 /server \
     && curl --fail --show-error --location --retry 3 \
        https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz \

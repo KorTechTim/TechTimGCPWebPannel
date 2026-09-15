@@ -92,7 +92,7 @@ class EngineUpdateTests(unittest.TestCase):
         entrypoint = (runtime_root / "entrypoint.sh").read_text(encoding="utf-8")
 
         self.assertIn("gosu", dockerfile)
-        self.assertIn("useradd --uid 1000", dockerfile)
+        self.assertIn("useradd --system --gid palworld", dockerfile)
         self.assertIn('exec gosu "$PALWORLD_USER"', entrypoint)
         self.assertIn('chown -R "$PALWORLD_USER:$PALWORLD_USER" /server', entrypoint)
         self.assertIn('exec ./PalServer.sh "$@"', entrypoint)
