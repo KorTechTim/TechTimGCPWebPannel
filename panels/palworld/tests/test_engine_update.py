@@ -86,6 +86,18 @@ class EngineUpdateTests(unittest.TestCase):
         self.assertIn('APP_ID="2394010"', entrypoint)
         self.assertIn('+app_update "$APP_ID" validate +quit', entrypoint)
 
+    def test_runtime_drops_root_before_starting_palworld(self):
+        runtime_root = Path(main.__file__).resolve().parents[1] / "runtime"
+        dockerfile = (runtime_root / "Dockerfile").read_text(encoding="utf-8")
+        entrypoint = (runtime_root / "entrypoint.sh").read_text(encoding="utf-8")
+
+        self.assertIn("gosu", dockerfile)
+        self.assertIn("useradd --uid 1000", dockerfile)
+        self.assertIn('exec gosu "$PALWORLD_USER"', entrypoint)
+        self.assertIn('chown -R "$PALWORLD_USER:$PALWORLD_USER" /server', entrypoint)
+        self.assertIn('exec ./PalServer.sh "$@"', entrypoint)
+        self.assertNotIn("/root/.steam", entrypoint)
+
 
 if __name__ == "__main__":
     unittest.main()

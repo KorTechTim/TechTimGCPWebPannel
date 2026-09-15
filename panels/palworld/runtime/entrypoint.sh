@@ -3,6 +3,25 @@ set -euo pipefail
 
 APP_ID="2394010"
 INSTALL_MARKER="/server/.techtim-installed.json"
+PALWORLD_USER="palworld"
+PALWORLD_HOME="/home/palworld"
+
+drop_root_privileges() {
+  if [ "$(id -u)" -ne 0 ]; then
+    return
+  fi
+
+  mkdir -p /server "$PALWORLD_HOME/.steam/sdk64"
+  chown -R "$PALWORLD_USER:$PALWORLD_USER" /server "$PALWORLD_HOME"
+
+  exec gosu "$PALWORLD_USER" env \
+    HOME="$PALWORLD_HOME" \
+    USER="$PALWORLD_USER" \
+    LOGNAME="$PALWORLD_USER" \
+    /usr/local/bin/palworld-entrypoint "$@"
+}
+
+drop_root_privileges "$@"
 
 install_server() {
   mkdir -p /server
@@ -31,10 +50,10 @@ run_server() {
     exit 1
   fi
 
-  mkdir -p /server/Pal/Saved /root/.steam/sdk64
+  mkdir -p /server/Pal/Saved "$PALWORLD_HOME/.steam/sdk64"
 
   if [ -s /server/linux64/steamclient.so ]; then
-    ln -sf /server/linux64/steamclient.so /root/.steam/sdk64/steamclient.so
+    ln -sf /server/linux64/steamclient.so "$PALWORLD_HOME/.steam/sdk64/steamclient.so"
   fi
 
   cd /server

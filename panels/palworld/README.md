@@ -25,6 +25,8 @@ ghcr.io/kortechtim/palworld-runtime:latest
 
 게임 엔진은 호스트의 `/opt/techtim/palworld/data/server`에 설치됩니다. 설정과
 세이브는 그 아래 `Pal/Saved`에 유지되며, 업데이트 시에도 삭제되지 않습니다.
+게임 서버 프로세스는 컨테이너 안의 `palworld` 전용 사용자로 실행되며, 기존
+설치 파일이 root 소유인 경우 시작 시 권한을 자동으로 보정합니다.
 기존 Pocketpair Docker 이미지 방식으로 설치된 서버는 Web GUI에서 `서버 업데이트`를
 한 번 실행하면 SteamCMD 방식으로 자동 전환됩니다.
 
