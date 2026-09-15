@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - "panels/palworld/**"
+      - "palworld/**"
       - ".github/workflows/build-palworld-panel.yml"
 
   workflow_dispatch:
@@ -15,10 +16,36 @@ permissions:
   packages: write
 
 env:
-  IMAGE_NAME: ghcr.io/kortechtim/palworld-panel
+  IMAGE_PREFIX: ghcr.io/kortechtim
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install test dependencies
+        run: pip install -r panels/palworld/requirements.txt
+
+      - name: Run Palworld tests
+        env:
+          PYTHONPATH: .
+        run: python -m unittest discover -s panels/palworld/tests -v
+
+      - name: Check shell scripts
+        run: |
+          bash -n palworld/palworld-webui-install.sh
+          bash -n panels/palworld/runtime/entrypoint.sh
+
   build:
+    needs: test
     runs-on: ubuntu-latest
 
     steps:
@@ -35,12 +62,20 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Build and push Palworld runtime image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./panels/palworld/runtime
+          push: true
+          tags: |
+            ${{ env.IMAGE_PREFIX }}/palworld-runtime:latest
+            ${{ env.IMAGE_PREFIX }}/palworld-runtime:${{ github.sha }}
+
       - name: Build and push Palworld panel image
         uses: docker/build-push-action@v6
         with:
           context: ./panels/palworld
-          file: ./panels/palworld/Dockerfile
           push: true
           tags: |
-            ${{ env.IMAGE_NAME }}:latest
-            ${{ env.IMAGE_NAME }}:${{ github.sha }}
+            ${{ env.IMAGE_PREFIX }}/palworld-panel:latest
+            ${{ env.IMAGE_PREFIX }}/palworld-panel:${{ github.sha }}

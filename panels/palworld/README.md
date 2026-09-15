@@ -6,8 +6,8 @@ Palworld Dedicated Server를 GCP VM에서 관리하기 위한 TechTim Web UI 패
 
 - FastAPI 기반 Web UI
 - admin/admin 최초 로그인 및 비밀번호 변경 강제
-- Pocketpair 공식 Palworld 1.0 Docker 이미지 기반 엔진 설치
-- 최초 설치 후 `엔진 설치` 버튼을 `서버 업데이트`로 전환하고 공식 latest 이미지 Pull
+- 공식 SteamCMD AppID `2394010` 기반 엔진 설치 및 검증
+- 최초 설치 후 `엔진 설치` 버튼을 `서버 업데이트`로 전환하고 Steam 정식 배포 빌드 갱신
 - 상단 톱니바퀴 메뉴에서 TechTim 웹패널 컨테이너 자체 업데이트 및 실패 시 자동 복구
 - PalWorldSettings.ini 조회/저장
 - Community Server 공개 ON/OFF 토글 및 `-publiclobby` 실행 인수 지원
@@ -16,15 +16,17 @@ Palworld Dedicated Server를 GCP VM에서 관리하기 위한 TechTim Web UI 패
 - 설치 로그와 서버 로그 자동 갱신 및 자동 스크롤
 - Pal/Saved 서버 디렉토리 탐색기, 파일/폴더 구조 업로드, 선택 폴더 ZIP 다운로드
 
-게임 서버 런타임 이미지는 Pocketpair 공식 최신 태그를 사용합니다.
+게임 서버 파일은 SteamCMD가 공식 AppID `2394010`에서 직접 내려받습니다. 실행에
+필요한 SteamCMD와 Linux 라이브러리는 다음 TechTim 런타임 이미지로 제공합니다.
 
 ```text
-ghcr.io/pocketpairjp/palserver:latest
+ghcr.io/kortechtim/palworld-runtime:latest
 ```
 
-설정과 세이브는 호스트의
-`/opt/techtim/palworld/data/server/Pal/Saved`에 유지되며, 공식 컨테이너의
-`/pal/Package/Pal/Saved`에 마운트됩니다.
+게임 엔진은 호스트의 `/opt/techtim/palworld/data/server`에 설치됩니다. 설정과
+세이브는 그 아래 `Pal/Saved`에 유지되며, 업데이트 시에도 삭제되지 않습니다.
+기존 Pocketpair Docker 이미지 방식으로 설치된 서버는 Web GUI에서 `서버 업데이트`를
+한 번 실행하면 SteamCMD 방식으로 자동 전환됩니다.
 
 자동 재시작 예약은 `/opt/techtim/palworld/data/restart-schedule.json`에
 저장됩니다. 예약 시각에 게임 서버가 중지 상태라면 서버를 자동으로

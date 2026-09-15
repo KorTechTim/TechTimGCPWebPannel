@@ -36,17 +36,32 @@ DATA_DIR = Path(os.getenv("DATA_DIR", "/data"))
 HOST_DATA_DIR = Path(os.getenv("HOST_DATA_DIR", "/opt/techtim/palworld/data"))
 
 PALWORLD_SERVER_CONTAINER = os.getenv("PALWORLD_SERVER_CONTAINER", "palworld-server")
+PALWORLD_INSTALLER_CONTAINER = os.getenv("PALWORLD_INSTALLER_CONTAINER", "palworld-server-installer")
 PANEL_CONTAINER_NAME = os.getenv("PANEL_CONTAINER_NAME", "palworld-panel")
 PANEL_PROXY_CONTAINER = os.getenv("PANEL_PROXY_CONTAINER", "palworld-panel-proxy")
 PANEL_IMAGE = os.getenv("PANEL_IMAGE", "ghcr.io/kortechtim/palworld-panel:latest")
-PALWORLD_RUNTIME_IMAGE = os.getenv(
-    "PALWORLD_UPDATE_IMAGE",
-    "ghcr.io/pocketpairjp/palserver:latest",
+PALWORLD_STEAM_APP_ID = "2394010"
+DEFAULT_PALWORLD_RUNTIME_IMAGE = "ghcr.io/kortechtim/palworld-runtime:latest"
+LEGACY_PALWORLD_RUNTIME_IMAGE = "ghcr.io/pocketpairjp/palserver:latest"
+
+
+def resolve_palworld_runtime_image(configured_image: str | None) -> str:
+    normalized = str(configured_image or "").strip()
+    if not normalized or normalized == LEGACY_PALWORLD_RUNTIME_IMAGE:
+        return DEFAULT_PALWORLD_RUNTIME_IMAGE
+    return normalized
+
+
+configured_runtime_image = (
+    os.getenv("PALWORLD_RUNTIME_IMAGE")
+    or os.getenv("PALWORLD_UPDATE_IMAGE")
 )
+PALWORLD_RUNTIME_IMAGE = resolve_palworld_runtime_image(configured_runtime_image)
 SERVER_PORT = int(os.getenv("SERVER_PORT", "8211"))
 RCON_PORT = int(os.getenv("RCON_PORT", "25575"))
 SERVER_STOP_GRACE_SECONDS = int(os.getenv("SERVER_STOP_GRACE_SECONDS", "5"))
 DOCKER_PULL_HEARTBEAT_SECONDS = max(1, int(os.getenv("DOCKER_PULL_HEARTBEAT_SECONDS", "10")))
+PALWORLD_INSTALL_TIMEOUT_SECONDS = max(300, int(os.getenv("PALWORLD_INSTALL_TIMEOUT_SECONDS", "3600")))
 
 INSTALL_REQUEST_FILE = DATA_DIR / "install-request.txt"
 INSTALL_LOG_FILE = DATA_DIR / "install.log"
@@ -56,8 +71,8 @@ PANEL_UPDATE_STATUS_FILE = DATA_DIR / "panel-update-status.json"
 SERVER_CONTROL_LOG_FILE = DATA_DIR / "server-control.log"
 RESTART_SCHEDULE_FILE = DATA_DIR / "restart-schedule.json"
 SERVER_LAUNCH_SETTINGS_FILE = DATA_DIR / "server-launch-settings.json"
-RUNTIME_HELPER_FILE = DATA_DIR / "palworld-runtime-helper.sh"
-HOST_RUNTIME_HELPER_FILE = HOST_DATA_DIR / "palworld-runtime-helper.sh"
+STEAM_INSTALL_MARKER_FILE = DATA_DIR / "server" / ".techtim-installed.json"
+STEAM_APP_MANIFEST_FILE = DATA_DIR / "server" / "steamapps" / f"appmanifest_{PALWORLD_STEAM_APP_ID}.acf"
 
 SAVED_ROOT_DIR = DATA_DIR / "server" / "Pal" / "Saved"
 SAVED_WORLDS_DIR = SAVED_ROOT_DIR / "SaveGames"
@@ -278,17 +293,6 @@ def container_resource_usage(container) -> dict[str, Any]:
         "network_received_per_second": round(received_per_second),
         "network_sent_per_second": round(sent_per_second),
     }
-
-
-def ensure_official_runtime_files() -> None:
-    ensure_data_dirs()
-    RUNTIME_HELPER_FILE.write_text(
-        "#!/bin/sh\n"
-        "sudo chown -R user:usergroup /pal/Package/Pal/Saved\n"
-        "exec /bin/sh /pal/Package/PalServer.sh \"$@\"\n",
-        encoding="utf-8",
-    )
-    RUNTIME_HELPER_FILE.chmod(0o755)
 
 
 def password_hash(password: str, salt: str) -> str:
@@ -535,7 +539,7 @@ def pull_docker_image_with_progress(client, image: str) -> None:
 
     write_log("[docker] 모든 레이어 처리가 끝났습니다. 로컬 이미지 등록 상태를 확인합니다.")
     client.images.get(image)
-    write_log("[docker] 공식 Palworld 이미지가 Docker Engine에 정상 등록되었습니다.")
+    write_log("[docker] Palworld 런타임 이미지가 Docker Engine에 정상 등록되었습니다.")
 
 
 def format_storage_bytes(value: int) -> str:
@@ -1134,8 +1138,10 @@ def has_official_runtime_install_marker() -> bool:
         return False
 
     return (
-        "distribution=pocketpair-official-docker" in marker
+        "distribution=steamcmd-official" in marker
+        and f"app_id={PALWORLD_STEAM_APP_ID}" in marker
         and f"runtime_image={PALWORLD_RUNTIME_IMAGE}" in marker
+        and steamcmd_engine_installed()
     )
 
 
@@ -1144,9 +1150,40 @@ def has_any_official_runtime_install_marker() -> bool:
         return False
 
     try:
-        return "distribution=pocketpair-official-docker" in INSTALL_REQUEST_FILE.read_text(encoding="utf-8")
+        marker = INSTALL_REQUEST_FILE.read_text(encoding="utf-8")
+        return (
+            "distribution=pocketpair-official-docker" in marker
+            or "distribution=steamcmd-official" in marker
+        )
     except OSError:
         return False
+
+
+def steamcmd_engine_installed() -> bool:
+    launcher = DATA_DIR / "server" / "PalServer.sh"
+
+    if not launcher.is_file() or launcher.stat().st_size <= 0 or not STEAM_INSTALL_MARKER_FILE.is_file():
+        return False
+
+    try:
+        marker = json.loads(STEAM_INSTALL_MARKER_FILE.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+
+    return str(marker.get("app_id") or "") == PALWORLD_STEAM_APP_ID
+
+
+def installed_steam_build_id() -> str:
+    if not STEAM_APP_MANIFEST_FILE.is_file():
+        return ""
+
+    try:
+        manifest = STEAM_APP_MANIFEST_FILE.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return ""
+
+    match = re.search(r'"buildid"\s+"(\d+)"', manifest)
+    return match.group(1) if match else ""
 
 
 def get_effective_install_status() -> str:
@@ -1789,7 +1826,7 @@ def server_container_uses_official_runtime(container) -> bool:
 
     return (
         config.get("Image") == PALWORLD_RUNTIME_IMAGE
-        and "/pal/helper.sh" in entrypoint
+        and "/usr/local/bin/palworld-entrypoint" in entrypoint
     )
 
 
@@ -2027,6 +2064,79 @@ def require_server_stopped_for_file_access() -> None:
         )
 
 
+def run_steamcmd_installer(client) -> None:
+    installer = None
+    server_root = DATA_DIR / "server"
+    server_root.mkdir(parents=True, exist_ok=True)
+    STEAM_INSTALL_MARKER_FILE.unlink(missing_ok=True)
+
+    try:
+        stale_installer = client.containers.get(PALWORLD_INSTALLER_CONTAINER)
+        stale_installer.reload()
+        stale_installer.remove(force=True)
+        write_log("이전에 남은 설치 컨테이너를 정리했습니다.")
+    except docker.errors.NotFound:
+        pass
+
+    write_log(f"SteamCMD AppID {PALWORLD_STEAM_APP_ID} 설치·검증을 시작합니다.")
+    installer = client.containers.run(
+        PALWORLD_RUNTIME_IMAGE,
+        command=["install"],
+        name=PALWORLD_INSTALLER_CONTAINER,
+        detach=True,
+        init=True,
+        volumes={
+            str(HOST_DATA_DIR / "server"): {
+                "bind": "/server",
+                "mode": "rw",
+            },
+        },
+    )
+    deadline = time.monotonic() + PALWORLD_INSTALL_TIMEOUT_SECONDS
+    log_cursor = 0
+
+    try:
+        while True:
+            output = installer.logs(stdout=True, stderr=True)
+
+            if len(output) < log_cursor:
+                log_cursor = 0
+
+            if len(output) > log_cursor:
+                chunk = sanitize_log_text(output[log_cursor:].decode("utf-8", errors="replace")).strip()
+
+                if chunk:
+                    write_log(f"[steamcmd] {chunk}")
+
+                log_cursor = len(output)
+
+            installer.reload()
+
+            if installer.status not in {"running", "created", "restarting"}:
+                exit_code = int(installer.attrs.get("State", {}).get("ExitCode", -1))
+
+                if exit_code != 0:
+                    raise RuntimeError(f"SteamCMD 설치 컨테이너가 종료 코드 {exit_code}로 실패했습니다.")
+
+                break
+
+            if time.monotonic() >= deadline:
+                installer.remove(force=True)
+                installer = None
+                raise RuntimeError("SteamCMD 설치 제한 시간을 초과했습니다. 설치 로그를 확인해주세요.")
+
+            time.sleep(2)
+
+        if not steamcmd_engine_installed():
+            raise RuntimeError("SteamCMD가 PalServer.sh 또는 설치 완료 정보를 만들지 못했습니다.")
+    finally:
+        if installer is not None:
+            try:
+                installer.remove(force=True)
+            except docker.errors.NotFound:
+                pass
+
+
 def install_palworld_job() -> None:
     global INSTALL_JOB_ACTIVE
 
@@ -2035,6 +2145,7 @@ def install_palworld_job() -> None:
 
     ensure_data_dirs()
     is_update = has_any_official_runtime_install_marker()
+    previous_build_id = installed_steam_build_id()
 
     INSTALL_LOG_FILE.write_text("", encoding="utf-8")
     set_status("running")
@@ -2042,8 +2153,8 @@ def install_palworld_job() -> None:
 
     operation_name = "서버 업데이트" if is_update else "최초 엔진 설치"
     write_log(f"Palworld Dedicated Server {operation_name} 작업을 시작합니다.")
-    write_log("Pocketpair 공식 Palworld Docker 이미지의 latest 태그를 사용합니다.")
-    write_log(f"공식 런타임 이미지: {PALWORLD_RUNTIME_IMAGE}")
+    write_log(f"공식 SteamCMD AppID: {PALWORLD_STEAM_APP_ID}")
+    write_log(f"SteamCMD 실행용 런타임 이미지: {PALWORLD_RUNTIME_IMAGE}")
 
     try:
         if is_update and is_server_container_running():
@@ -2054,57 +2165,44 @@ def install_palworld_job() -> None:
 
         client = docker.from_env()
         write_log("Docker Engine 연결 성공.")
-
-        previous_image_id = ""
-
-        try:
-            previous_image_id = client.images.get(PALWORLD_RUNTIME_IMAGE).id
-            write_log(f"현재 latest 이미지 ID: {previous_image_id}")
-        except docker.errors.ImageNotFound:
-            write_log("로컬에 latest 이미지가 없어 새로 다운로드합니다.")
-
         max_attempts = 3
         image_ready = False
 
         for attempt in range(1, max_attempts + 1):
-            write_log(f"공식 이미지 다운로드 시도 {attempt}/{max_attempts}")
-            write_log("공식 서버 이미지 용량에 따라 수 분 이상 걸릴 수 있습니다.")
+            write_log(f"SteamCMD 런타임 이미지 다운로드 시도 {attempt}/{max_attempts}")
 
             try:
                 pull_docker_image_with_progress(client, PALWORLD_RUNTIME_IMAGE)
                 image_ready = True
-                write_log(f"공식 이미지 다운로드 시도 {attempt}/{max_attempts} 성공")
+                write_log(f"SteamCMD 런타임 이미지 다운로드 시도 {attempt}/{max_attempts} 성공")
                 break
             except Exception as attempt_error:
-                write_log(f"WARNING: 공식 이미지 다운로드 시도 {attempt}/{max_attempts} 실패: {attempt_error}")
+                write_log(f"WARNING: 런타임 이미지 다운로드 시도 {attempt}/{max_attempts} 실패: {attempt_error}")
 
             if attempt < max_attempts:
                 time.sleep(20)
 
         if not image_ready:
-            write_log(f"ERROR: 공식 Palworld 이미지를 {max_attempts}회 모두 다운로드하지 못했습니다.")
-            write_log("GHCR 연결 상태와 Docker Engine 로그를 확인해주세요.")
-            set_install_result("update_failed" if is_update else "install_failed")
-            set_status("completed" if is_update else "failed")
-            return
+            raise RuntimeError(f"SteamCMD 런타임 이미지를 {max_attempts}회 모두 다운로드하지 못했습니다.")
 
         installed_image = client.images.get(PALWORLD_RUNTIME_IMAGE)
         installed_image_id = installed_image.id
+        run_steamcmd_installer(client)
+        installed_build_id = installed_steam_build_id()
 
-        if is_update and previous_image_id and previous_image_id == installed_image_id:
-            write_log("이미 최신버전이므로 업데이트가 필요하지 않습니다.")
+        if not installed_build_id:
+            raise RuntimeError("Steam App manifest에서 설치된 Palworld 서버 빌드 ID를 확인할 수 없습니다.")
+
+        if is_update and previous_build_id and previous_build_id == installed_build_id:
+            write_log(f"Steam 빌드 {installed_build_id}: 이미 최신 버전입니다.")
             set_install_result("not_required")
         elif is_update:
-            write_log(f"새로운 서버 엔진 이미지로 업데이트되었습니다: {installed_image_id}")
+            previous_label = previous_build_id or "기존 Docker 배포본"
+            write_log(f"Palworld 서버 엔진 업데이트 완료: {previous_label} -> Steam 빌드 {installed_build_id}")
             set_install_result("updated")
         else:
-            write_log(f"서버 엔진 이미지 설치 완료: {installed_image_id}")
+            write_log(f"Palworld 서버 엔진 설치 완료: Steam 빌드 {installed_build_id}")
             set_install_result("installed")
-
-        write_log("공식 이미지 검증이 완료되었습니다.")
-        write_log("공식 런타임 helper 스크립트를 준비합니다.")
-        ensure_official_runtime_files()
-        write_log(f"런타임 helper 준비 완료: {RUNTIME_HELPER_FILE}")
 
         write_log(f"세이브 및 설정 디렉토리를 확인합니다: {SAVED_ROOT_DIR}")
         config_existed = get_config_path().exists()
@@ -2115,13 +2213,13 @@ def install_palworld_job() -> None:
         else:
             write_log(f"기본 PalWorldSettings.ini를 생성했습니다: {get_config_path()}")
 
-        write_log(f"{operation_name} 완료 정보를 기록합니다.")
-
         INSTALL_REQUEST_FILE.write_text(
             "TechTim Palworld Dedicated Server install or update completed.\n"
             f"game={GAME_CODE}\n"
             f"panel_version={PANEL_VERSION}\n"
-            "distribution=pocketpair-official-docker\n"
+            "distribution=steamcmd-official\n"
+            f"app_id={PALWORLD_STEAM_APP_ID}\n"
+            f"steam_build_id={installed_build_id}\n"
             f"runtime_image={PALWORLD_RUNTIME_IMAGE}\n"
             f"runtime_image_id={installed_image_id}\n"
             f"completed_at={datetime.now().isoformat(timespec='seconds')}\n",
@@ -2132,10 +2230,7 @@ def install_palworld_job() -> None:
             write_log("업데이트 완료 후 사용하지 않는 Docker 데이터를 정리합니다.")
 
             try:
-                cleanup_result = cleanup_obsolete_palworld_runtime_data(
-                    client,
-                    installed_image_id,
-                )
+                cleanup_result = cleanup_obsolete_palworld_runtime_data(client, installed_image_id)
 
                 if cleanup_result["container_removed"]:
                     write_log("이전 게임 이미지가 연결된 중지 컨테이너를 제거했습니다.")
@@ -2145,16 +2240,16 @@ def install_palworld_job() -> None:
                     f"이미지 항목 {cleanup_result['images_deleted']}개, "
                     f"확보 공간 {format_storage_bytes(cleanup_result['space_reclaimed'])}"
                 )
-                write_log("세이브 데이터와 Docker 볼륨은 정리 대상에서 제외했습니다.")
+                write_log("세이브 데이터와 게임 엔진 디렉토리는 정리 대상에서 제외했습니다.")
             except Exception as cleanup_error:
                 write_log(
                     "WARNING: 서버 업데이트는 완료되었지만 미사용 Docker 데이터 정리에 실패했습니다: "
                     f"{cleanup_error}"
                 )
 
-        write_log(f"Pocketpair 공식 Palworld 서버 {operation_name}가 완료되었습니다.")
+        write_log(f"공식 Steam 배포 Palworld 서버 {operation_name}가 완료되었습니다.")
+        write_log(f"설치된 Steam 빌드 ID: {installed_build_id}")
         write_log(f"세이브 및 설정 경로: {SAVED_ROOT_DIR}")
-        write_log("Web GUI에서 서버를 시작하면 최신 이미지로 게임 컨테이너가 생성됩니다.")
         set_status("completed")
 
     except Exception as e:
@@ -5852,10 +5947,9 @@ def start_server(request: Request):
         if get_effective_install_status() != "completed":
             raise HTTPException(
                 status_code=409,
-                detail="공식 Palworld 최신 서버 이미지가 준비되지 않았습니다. 서버 업데이트를 먼저 진행해주세요.",
+                detail="최신 Palworld 서버 엔진이 준비되지 않았습니다. 서버 업데이트를 먼저 진행해주세요.",
             )
 
-        ensure_official_runtime_files()
         config_path = create_default_config()
         server_config = read_config()
         advanced_options = server_config.get("AdvancedOptions") or {}
@@ -5911,10 +6005,10 @@ def start_server(request: Request):
         try:
             client.images.get(PALWORLD_RUNTIME_IMAGE)
         except docker.errors.ImageNotFound:
-            write_server_control_log("공식 Palworld 서버 이미지가 없어 시작을 중단했습니다.")
+            write_server_control_log("Palworld SteamCMD 런타임 이미지가 없어 시작을 중단했습니다.")
             return {
                 "status": "install_required",
-                "message": "공식 Palworld 최신 이미지가 없습니다. 서버 업데이트를 먼저 진행해주세요.",
+                "message": "Palworld 실행 환경이 없습니다. 서버 업데이트를 먼저 진행해주세요.",
             }
 
         ports = {
@@ -5927,25 +6021,19 @@ def start_server(request: Request):
         if rest_api_enabled:
             ports[f"{effective_rest_port}/tcp"] = effective_rest_port
 
-        host_saved_root = HOST_DATA_DIR / "server" / "Pal" / "Saved"
-
         container = client.containers.run(
             PALWORLD_RUNTIME_IMAGE,
-            entrypoint=["/pal/helper.sh"],
             command=server_command,
             name=PALWORLD_SERVER_CONTAINER,
-            working_dir="/pal/Package",
+            working_dir="/server",
             detach=True,
             stdin_open=True,
+            init=True,
             restart_policy={"Name": "unless-stopped"},
             volumes={
-                str(host_saved_root): {
-                    "bind": "/pal/Package/Pal/Saved",
+                str(HOST_DATA_DIR / "server"): {
+                    "bind": "/server",
                     "mode": "rw",
-                },
-                str(HOST_RUNTIME_HELPER_FILE): {
-                    "bind": "/pal/helper.sh",
-                    "mode": "ro",
                 },
             },
             ports=ports,

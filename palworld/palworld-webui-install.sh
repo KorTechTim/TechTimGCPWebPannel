@@ -186,8 +186,7 @@ services:
       - PANEL_IMAGE=${PANEL_IMAGE}
       - DATA_DIR=/data
       - HOST_DATA_DIR=${INSTALL_DIR}/data
-      - PALWORLD_RUNTIME_IMAGE=ghcr.io/pocketpairjp/palserver:latest
-      - PALWORLD_UPDATE_IMAGE=ghcr.io/pocketpairjp/palserver:latest
+      - PALWORLD_RUNTIME_IMAGE=ghcr.io/kortechtim/palworld-runtime:latest
       - SERVER_PORT=8211
       - RCON_PORT=25575
       - PALWORLD_SERVER_CONTAINER=palworld-server
