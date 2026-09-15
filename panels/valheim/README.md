@@ -36,7 +36,7 @@
 | `app/auth.py` | 인증과 세션 |
 | `app/self_update.py` | 별도 컨테이너에서 패널 교체·복구 |
 | `app/static/` | HTML, CSS, JavaScript, TechTim용 룬 아이콘 |
-| `runtime/` | Ubuntu 24.04 및 SteamCMD 기반 게임 실행 환경 |
+| `runtime/` | Ubuntu 24.04, SteamCMD 및 비-root 게임 실행 환경 |
 | `../../valheim/` | GCP VM 생성 스크립트와 VM 초기 설치 스크립트 |
 
 기본 영구 저장 루트는 `/opt/techtim/valheim/data`입니다.
@@ -67,7 +67,7 @@ docker compose -f panels/valheim/compose.local.yml up --build -d
 
 GCP 배포 준비와 실행 순서는 다음과 같습니다.
 
-1. `.github/workflows/build-valheim-panel.yml`의 검사와 두 이미지 빌드가 통과해야 합니다. `main` 반영 후 `ghcr.io/kortechtim/valheim-panel:latest`와 `ghcr.io/kortechtim/valheim-runtime:latest`가 게시됩니다. PR에서는 빌드만 수행합니다. VM이 로그인 없이 받을 수 있도록 새 GHCR 패키지의 가시성도 확인합니다.
+1. `.github/workflows/build-valheim-panel.yml`의 검사와 두 이미지 빌드가 통과해야 합니다. `main` 반영 후 `ghcr.io/kortechtim/valheim-panel:latest`와 `ghcr.io/kortechtim/valheim-runtime:steamcmd-nonroot-v1`이 게시됩니다. 런타임은 실제 컨테이너 UID 검사도 통과해야 합니다. PR에서는 빌드만 수행합니다. VM이 로그인 없이 받을 수 있도록 새 GHCR 패키지의 가시성도 확인합니다.
 2. 기존 TechTim 설치 코드 검증 서비스가 `game=valheim`과 발급한 코드를 받아 `OK`를 반환하도록 연동합니다. 그 API의 구현은 이 저장소에 포함돼 있지 않습니다. 새 게임 등록 전에는 초기 설치 스크립트가 의도적으로 중단됩니다.
 3. 대상 프로젝트에서 Compute Engine API를 활성화하고 Google Cloud CLI로 로그인합니다. VM 및 방화벽을 생성할 수 있는 계정이 필요합니다. 아래 스크립트를 실행하면 실제 유료 리소스가 생성됩니다.
 

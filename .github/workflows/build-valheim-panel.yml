@@ -61,3 +61,14 @@ jobs:
           tags: |
             ghcr.io/kortechtim/${{ matrix.image }}:latest
             ghcr.io/kortechtim/${{ matrix.image }}:${{ github.sha }}
+      - name: Publish non-root Valheim runtime channel
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && matrix.image == 'valheim-runtime'
+        run: |
+          docker buildx imagetools create \
+            --tag ghcr.io/kortechtim/valheim-runtime:steamcmd-nonroot-v1 \
+            ghcr.io/kortechtim/valheim-runtime:${GITHUB_SHA}
+      - name: Verify Valheim runtime drops root privileges
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && matrix.image == 'valheim-runtime'
+        run: |
+          docker pull "ghcr.io/kortechtim/valheim-runtime:${GITHUB_SHA}"
+          docker run --rm "ghcr.io/kortechtim/valheim-runtime:${GITHUB_SHA}" check-user

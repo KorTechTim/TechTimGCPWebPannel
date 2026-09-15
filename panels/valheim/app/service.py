@@ -160,7 +160,13 @@ class PanelService:
     def engine(self):
         marker = self.server / ".techtim-installed.json"
         binary = self.server / "valheim_server.x86_64"
-        installed = marker.is_file() and binary.is_file() and binary.stat().st_size > 0
+        marker_data = read_json(marker, {}) if marker.is_file() else {}
+        installed = (
+            binary.is_file()
+            and binary.stat().st_size > 0
+            and str(marker_data.get("app_id") or "") == "896660"
+            and str(marker_data.get("runtime_user") or "") == "valheim"
+        )
         build_id = ""
         manifest = self.server / "steamapps" / "appmanifest_896660.acf"
         if manifest.is_file():

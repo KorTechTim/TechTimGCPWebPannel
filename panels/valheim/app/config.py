@@ -8,14 +8,23 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 PANEL_VERSION = "1.0.0"
 STEAM_APP_ID = "896660"
+DEFAULT_RUNTIME_IMAGE = "ghcr.io/kortechtim/valheim-runtime:steamcmd-nonroot-v1"
+LEGACY_RUNTIME_IMAGE = "ghcr.io/kortechtim/valheim-runtime:latest"
 PRESETS = ("", "normal", "casual", "easy", "hard", "hardcore", "immersive", "hammer")
+
+
+def resolve_runtime_image(value: str | None) -> str:
+    normalized = str(value or "").strip()
+    if normalized in {"", LEGACY_RUNTIME_IMAGE}:
+        return DEFAULT_RUNTIME_IMAGE
+    return normalized
 
 
 @dataclass(frozen=True)
 class Settings:
     data_dir: Path
     host_data_dir: Path
-    runtime_image: str = "ghcr.io/kortechtim/valheim-runtime:latest"
+    runtime_image: str = DEFAULT_RUNTIME_IMAGE
     panel_image: str = "ghcr.io/kortechtim/valheim-panel:latest"
     server_container: str = "valheim-server"
     panel_container: str = "valheim-panel"
@@ -31,7 +40,7 @@ class Settings:
         return cls(
             data_dir=Path(os.getenv("DATA_DIR", "/data")),
             host_data_dir=Path(os.getenv("HOST_DATA_DIR", "/opt/techtim/valheim/data")),
-            runtime_image=os.getenv("VALHEIM_RUNTIME_IMAGE", cls.runtime_image),
+            runtime_image=resolve_runtime_image(os.getenv("VALHEIM_RUNTIME_IMAGE")),
             panel_image=os.getenv("PANEL_IMAGE", cls.panel_image),
             server_container=os.getenv("VALHEIM_SERVER_CONTAINER", cls.server_container),
             panel_container=os.getenv("PANEL_CONTAINER_NAME", cls.panel_container),

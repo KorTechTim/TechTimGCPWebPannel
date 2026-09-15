@@ -142,9 +142,8 @@ services:
       - PANEL_VERSION=${PANEL_VERSION}
       - DATA_DIR=/data
       - HOST_DATA_DIR=${INSTALL_DIR}/data
-      - STEAMCMD_IMAGE=steamcmd/steamcmd:ubuntu
+      - ROMESTEAD_RUNTIME_IMAGE=ghcr.io/kortechtim/romestead-runtime:steamcmd-nonroot-v1
       - ROMESTEAD_APP_ID=4763510
-      - DOTNET_IMAGE=mcr.microsoft.com/dotnet/runtime:8.0
       - SERVER_PORT=8050
       - ROMESTEAD_SERVER_CONTAINER=romestead-server
     volumes:

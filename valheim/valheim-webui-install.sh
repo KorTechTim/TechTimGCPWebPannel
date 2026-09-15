@@ -4,7 +4,7 @@ umask 077
 
 INSTALL_DIR="/opt/techtim/valheim"
 PANEL_IMAGE="${PANEL_IMAGE:-ghcr.io/kortechtim/valheim-panel:latest}"
-RUNTIME_IMAGE="${VALHEIM_RUNTIME_IMAGE:-ghcr.io/kortechtim/valheim-runtime:latest}"
+RUNTIME_IMAGE="${VALHEIM_RUNTIME_IMAGE:-ghcr.io/kortechtim/valheim-runtime:steamcmd-nonroot-v1}"
 VERIFY_API="https://www.techtim.kr/api/install/verify"
 METADATA_ROOT="http://metadata.google.internal/computeMetadata/v1/instance/attributes"
 

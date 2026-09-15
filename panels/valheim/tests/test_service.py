@@ -63,6 +63,21 @@ class LifecycleTests(ServiceCase):
         with self.assertRaises(RuntimeError): self.service.install()
         self.assertFalse(self.service.engine()["installed"])
 
+    def test_legacy_runtime_marker_requires_engine_update(self):
+        (self.service.server / "valheim_server.x86_64").write_bytes(b"fake executable")
+        write_json(self.service.server / ".techtim-installed.json", {"app_id": "896660"})
+
+        self.assertFalse(self.service.engine()["installed"])
+
+    def test_custom_runtime_marker_is_accepted_after_nonroot_install(self):
+        (self.service.server / "valheim_server.x86_64").write_bytes(b"fake executable")
+        write_json(
+            self.service.server / ".techtim-installed.json",
+            {"app_id": "896660", "runtime_user": "valheim"},
+        )
+
+        self.assertTrue(self.service.engine()["installed"])
+
     def test_foreground_jobs_and_surviving_helpers_exclude_conflicting_operations(self):
         with self.service.operation("first"):
             with self.assertRaises(BusyError): self.service.reserve("second")

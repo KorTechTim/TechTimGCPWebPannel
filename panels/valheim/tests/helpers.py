@@ -65,13 +65,17 @@ class FakeContainers:
             if self.parent.install_success:
                 self.parent.engine_dir.mkdir(exist_ok=True)
                 (self.parent.engine_dir / "valheim_server.x86_64").write_bytes(b"fake executable")
-                write_json(self.parent.engine_dir / ".techtim-installed.json", {"app_id": "896660"})
+                write_json(
+                    self.parent.engine_dir / ".techtim-installed.json",
+                    {"app_id": "896660", "runtime_user": "valheim"},
+                )
         return value
 
 
 class FakeDocker:
-    def __init__(self, engine_dir):
+    def __init__(self, engine_dir, runtime_image):
         self.engine_dir = engine_dir
+        self.runtime_image = runtime_image
         self.install_success = True
         self.containers = FakeContainers(self)
         self.images = SimpleNamespace(get=lambda image: SimpleNamespace(id="runtime-image"),
@@ -88,12 +92,15 @@ class ServiceCase(unittest.TestCase):
         self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name)
         self.settings = Settings(self.root, self.root / "host", scheduler_enabled=False, stop_timeout=0)
-        self.docker = FakeDocker(self.root / "server")
+        self.docker = FakeDocker(self.root / "server", self.settings.runtime_image)
         self.service = PanelService(self.settings, lambda: self.docker)
 
     def installed(self):
         (self.service.server / "valheim_server.x86_64").write_bytes(b"fake executable")
-        write_json(self.service.server / ".techtim-installed.json", {"app_id": "896660"})
+        write_json(
+            self.service.server / ".techtim-installed.json",
+            {"app_id": "896660", "runtime_user": "valheim"},
+        )
         write_json(self.service.config_file, ServerConfig(password="viking-secret").model_dump())
 
     def world(self, name="Dedicated", data=b"original db"):

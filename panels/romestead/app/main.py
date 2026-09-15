@@ -29,11 +29,13 @@ PANEL_VERSION = os.getenv("PANEL_VERSION", "1.0.0")
 DATA_DIR = Path(os.getenv("DATA_DIR", "/data"))
 HOST_DATA_DIR = Path(os.getenv("HOST_DATA_DIR", "/opt/techtim/romestead/data"))
 
-STEAMCMD_IMAGE = os.getenv("STEAMCMD_IMAGE", "steamcmd/steamcmd:ubuntu")
 ROMESTEAD_APP_ID = os.getenv("ROMESTEAD_APP_ID", "4763510")
+ROMESTEAD_RUNTIME_IMAGE = os.getenv(
+    "ROMESTEAD_RUNTIME_IMAGE",
+    "ghcr.io/kortechtim/romestead-runtime:steamcmd-nonroot-v1",
+)
 
 ROMESTEAD_SERVER_CONTAINER = os.getenv("ROMESTEAD_SERVER_CONTAINER", "romestead-server")
-DOTNET_IMAGE = os.getenv("DOTNET_IMAGE", "mcr.microsoft.com/dotnet/runtime:8.0")
 SERVER_PORT = int(os.getenv("SERVER_PORT", "8050"))
 SERVER_STOP_GRACE_SECONDS = int(os.getenv("SERVER_STOP_GRACE_SECONDS", "5"))
 
@@ -401,6 +403,19 @@ def server_container_keeps_stdin_open(container) -> bool:
     return bool(config.get("OpenStdin"))
 
 
+def server_container_uses_nonroot_runtime(container) -> bool:
+    config = container.attrs.get("Config", {})
+    entrypoint = config.get("Entrypoint") or []
+
+    if isinstance(entrypoint, str):
+        entrypoint = [entrypoint]
+
+    return (
+        config.get("Image") == ROMESTEAD_RUNTIME_IMAGE
+        and "/usr/local/bin/romestead-entrypoint" in entrypoint
+    )
+
+
 def is_server_container_running() -> bool:
     try:
         client = docker.from_env()
@@ -535,23 +550,16 @@ def install_romestead_job() -> None:
 
         write_log(f"패널 내부 서버 경로: {server_dir}")
         write_log(f"호스트 서버 경로: {host_server_dir}")
-        write_log(f"SteamCMD 이미지: {STEAMCMD_IMAGE}")
+        write_log(f"SteamCMD 및 .NET 비-root 런타임 이미지: {ROMESTEAD_RUNTIME_IMAGE}")
 
         client = docker.from_env()
 
         write_log("Docker Engine 연결 성공.")
         write_log("SteamCMD 이미지를 확인합니다. 최초 실행 시 pull 시간이 걸릴 수 있습니다.")
-        client.images.pull(STEAMCMD_IMAGE)
+        client.images.pull(ROMESTEAD_RUNTIME_IMAGE)
 
         write_log("SteamCMD 이미지 준비 완료.")
         write_log("Romestead 서버 파일 다운로드를 시작합니다.")
-
-        steamcmd_command = [
-            "+force_install_dir", "/server",
-            "+login", "anonymous",
-            "+app_update", ROMESTEAD_APP_ID, "validate",
-            "+quit",
-        ]
 
         max_attempts = 3
         exit_code = -1
@@ -565,8 +573,8 @@ def install_romestead_job() -> None:
 
             try:
                 container = client.containers.run(
-                    STEAMCMD_IMAGE,
-                    command=steamcmd_command,
+                    ROMESTEAD_RUNTIME_IMAGE,
+                    command=["install"],
                     name=container_name,
                     detach=True,
                     remove=False,
@@ -632,6 +640,8 @@ def install_romestead_job() -> None:
             f"panel_version={PANEL_VERSION}\n"
             "steam_login=anonymous\n"
             f"app_id={ROMESTEAD_APP_ID}\n"
+            "distribution=steamcmd-nonroot\n"
+            f"runtime_image={ROMESTEAD_RUNTIME_IMAGE}\n"
             f"completed_at={datetime.now().isoformat(timespec='seconds')}\n",
             encoding="utf-8",
         )
@@ -2136,19 +2146,23 @@ def start_server(request: Request):
             if container.name == ROMESTEAD_SERVER_CONTAINER:
                 container.reload()
 
-                if container.status == "running" and server_container_keeps_stdin_open(container):
+                if container.status in {"running", "restarting", "paused"}:
                     return {
                         "status": "running",
-                        "message": "Romestead 서버가 이미 실행 중입니다.",
+                        "message": (
+                            "이전 root 런타임 서버가 실행 중입니다. 서버를 종료한 뒤 다시 시작해주세요."
+                            if not server_container_uses_nonroot_runtime(container)
+                            else "Romestead 서버가 이미 실행 중입니다."
+                        ),
                     }
 
                 container.remove(force=True)
 
-        client.images.pull(DOTNET_IMAGE)
+        client.images.pull(ROMESTEAD_RUNTIME_IMAGE)
 
         container = client.containers.run(
-            DOTNET_IMAGE,
-            command=["dotnet", "Server.dll"],
+            ROMESTEAD_RUNTIME_IMAGE,
+            command=["serve"],
             name=ROMESTEAD_SERVER_CONTAINER,
             working_dir="/server",
             detach=True,
@@ -2290,7 +2304,25 @@ def restart_server(request: Request):
 
         container.reload()
 
+        if not server_container_uses_nonroot_runtime(container):
+            if container.status in {"running", "restarting", "paused"}:
+                return {
+                    "status": "update_required",
+                    "message": "이전 root 런타임 서버를 먼저 종료한 뒤 다시 시작해주세요.",
+                    "container": container.name,
+                }
+
+            container.remove(force=True)
+            return start_server(request)
+
         if not server_container_keeps_stdin_open(container):
+            if container.status in {"running", "restarting", "paused"}:
+                return {
+                    "status": "update_required",
+                    "message": "현재 서버를 먼저 종료한 뒤 다시 시작해주세요.",
+                    "container": container.name,
+                }
+
             container.remove(force=True)
             return start_server(request)
 
@@ -2334,6 +2366,8 @@ def server_status(request: Request):
                     "status": container.status,
                     "container": container.name,
                     "image": container.image.tags[0] if container.image.tags else container.image.short_id,
+                    "runtime_current": server_container_uses_nonroot_runtime(container),
+                    "update_available": not server_container_uses_nonroot_runtime(container),
                 }
 
         return {

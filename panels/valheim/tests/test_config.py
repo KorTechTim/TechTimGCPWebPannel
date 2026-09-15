@@ -1,9 +1,21 @@
 import unittest
 from pydantic import ValidationError
-from app.config import Permissions, RestartSchedule, ServerConfig, server_arguments
+from app.config import (
+    DEFAULT_RUNTIME_IMAGE,
+    LEGACY_RUNTIME_IMAGE,
+    Permissions,
+    RestartSchedule,
+    ServerConfig,
+    resolve_runtime_image,
+    server_arguments,
+)
 
 
 class ConfigTests(unittest.TestCase):
+    def test_legacy_latest_runtime_migrates_to_nonroot_channel(self):
+        self.assertEqual(resolve_runtime_image(LEGACY_RUNTIME_IMAGE), DEFAULT_RUNTIME_IMAGE)
+        self.assertIn("steamcmd-nonroot", DEFAULT_RUNTIME_IMAGE)
+
     def test_official_arguments_and_default_save_options(self):
         args = server_arguments(ServerConfig(password="viking-secret"))
         self.assertEqual(args[args.index("-port") + 1], "2456")
