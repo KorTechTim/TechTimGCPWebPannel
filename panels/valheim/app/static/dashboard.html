@@ -3,76 +3,32 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="dark"><title>TechTim · Valheim Server</title>
-  <link rel="icon" href="/static/rune.svg?v=2" type="image/svg+xml">
-  <link rel="stylesheet" href="/static/app.css?v=1.0.11">
-  <script src="/static/app.js?v=1.0.4" defer></script>
+  <link rel="icon" href="/static/valheim-panel-mark-v2.png?v=1" type="image/png">
+  <link rel="stylesheet" href="/static/app.css?v=1.1.0">
+  <link rel="stylesheet" href="/static/valheim-palshell.css?v=1.1.0">
+  <script src="/static/app.js?v=1.1.0" defer></script>
 </head>
 <body>
   <div class="ambient" aria-hidden="true"></div>
-  <div class="app-frame">
-    <aside class="sidebar" aria-label="메인 메뉴">
-      <a class="brand sidebar-brand" href="#overview"><img class="sidebar-avatar" src="/static/techtim-avatar.png?v=2" alt=""><span>TechTim<small>VALHEIM SERVER PANEL</small></span></a>
-      <nav class="sidebar-nav">
-        <div class="sidebar-group">
-          <p class="sidebar-label">MAIN</p>
-          <a class="sidebar-link" href="#overview" aria-current="page"><span aria-hidden="true">⌂</span>기본 대시보드</a>
-          <a class="sidebar-link" href="#server-control"><span aria-hidden="true">↓</span>설치 · 업데이트</a>
-          <button class="sidebar-link" id="sidebar-settings" type="button"><span aria-hidden="true">⚙</span>서버 설정</button>
-          <a class="sidebar-link" id="sidebar-connection" href="#overview"><span aria-hidden="true">⌁</span>코드 접속 · 원격</a>
-        </div>
-        <div class="sidebar-group">
-          <p class="sidebar-label">WORLD</p>
-          <button class="sidebar-link" type="button" data-open="modifiers-dialog"><span aria-hidden="true">◇</span>월드 · 배율 설정</button>
-          <button class="sidebar-link" type="button" data-open="worlds-dialog"><span aria-hidden="true">◈</span>월드 관리</button>
-          <button class="sidebar-link" type="button" data-open="permissions-dialog"><span aria-hidden="true">♜</span>플레이어 관리</button>
-          <button class="sidebar-link" type="button" data-open="mods-dialog"><span aria-hidden="true">◉</span>모드 관리</button>
-          <button class="sidebar-link" type="button" data-open="backups-dialog"><span aria-hidden="true">▦</span>백업 · 복원</button>
-          <button class="sidebar-link" type="button" data-open="schedule-dialog"><span aria-hidden="true">◷</span>예약 · 자동화</button>
-        </div>
-        <div class="sidebar-group">
-          <p class="sidebar-label">SYSTEM</p>
-          <a class="sidebar-link" href="#server-console"><span aria-hidden="true">▤</span>콘솔 · 진단</a>
-          <a class="sidebar-link" href="#resources"><span aria-hidden="true">◫</span>서버 리소스</a>
-          <button class="sidebar-link" type="button" data-open="discord-dialog"><span aria-hidden="true">◌</span>디스코드 연동</button>
-          <button class="sidebar-link update-link" id="panel-update" type="button" data-open="panel-update-dialog"><span aria-hidden="true">↻</span>구동기 업데이트</button>
-        </div>
+  <div class="panel-wrap">
+    <header class="topbar">
+      <a class="brand" href="#overview" aria-label="Valheim 기본 대시보드">
+        <span class="brand-icon"><img src="/static/valheim-panel-mark-v2.png" alt=""></span>
+        <span class="brand-copy"><strong>TechTim Valheim Server Panel</strong><small>DEDICATED SERVER · GCP LINUX</small></span>
+      </a>
+      <nav class="top-links" aria-label="패널 바로가기">
+        <a class="icon-button" href="https://www.valheimgame.com/support/a-guide-to-dedicated-servers/" target="_blank" rel="noopener noreferrer" title="공식 서버 가이드" aria-label="공식 서버 가이드"><span aria-hidden="true">↗</span></a>
+        <button class="icon-button" type="button" data-open="panel-update-dialog" title="구동기 업데이트" aria-label="구동기 업데이트"><span aria-hidden="true">↻</span></button>
+        <button class="icon-button" id="logout" type="button" title="로그아웃" aria-label="로그아웃"><span aria-hidden="true">⇥</span></button>
       </nav>
-      <div class="sidebar-footer">
-        <a class="sidebar-link" href="https://www.valheimgame.com/support/a-guide-to-dedicated-servers/" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">↗</span>공식 서버 가이드</a>
-        <button class="sidebar-link" id="logout" type="button"><span aria-hidden="true">⇥</span>로그아웃</button>
-      </div>
-    </aside>
-    <div class="panel-content">
-      <div class="shell">
-        <header class="topbar">
-          <div class="topbar-context"><p class="eyebrow">VALHEIM DEDICATED SERVER</p><strong id="topbar-page-title">서버 관리</strong></div>
-          <span class="topbar-platform">GCP · LINUX</span>
-        </header>
+    </header>
     <main>
       <div id="dashboard-view">
-      <section class="hero" id="overview">
-        <div class="hero-copy"><p class="eyebrow"><span class="gold-rule"></span> DEDICATED SERVER · 1.0</p>
-          <h1>VALHEIM<span>우리의 열 번째 세계</span></h1>
-          <p class="hero-description">모험이 이어지는 곳.<br>월드와 서버의 모든 여정을 여기에서 관리하세요.</p>
-          <div class="hero-meta"><span>GCP · Linux</span><i></i><span>최대 10명</span><i></i><span id="hero-crossplay">크로스플레이</span></div>
-        </div>
-        <div class="connection-card">
-          <div class="connection-modes" role="tablist" aria-label="접속 방식">
-            <button id="connection-invite" type="button" role="tab" aria-selected="true">초대 코드</button>
-            <button id="connection-ip" type="button" role="tab" aria-selected="false">IP 주소</button>
-          </div>
-          <span class="tiny-label" id="connection-label">INVITE CODE</span>
-          <div id="connection-address">초대 코드 확인 중</div>
-          <p class="connection-note" id="connection-note">서버가 실행되면 초대 코드가 표시됩니다.</p>
-          <button id="copy-address" class="quiet">초대 코드 복사 <span aria-hidden="true">↗</span></button>
-        </div>
-      </section>
-
-      <section class="status-strip" aria-label="서버 요약">
-        <div><span class="tiny-label">SERVER STATUS</span><strong id="server-status"><span class="dot"></span>상태 확인 중</strong></div>
-        <div><span class="tiny-label">ACTIVE WORLD</span><strong id="current-world">—</strong></div>
-        <div><span class="tiny-label">ENGINE</span><strong id="engine-status">설치 상태 확인 중</strong></div>
-        <div><span class="tiny-label">PANEL VERSION</span><strong id="panel-version">1.0.0</strong></div>
+      <section class="status-grid" id="overview" aria-label="서버 요약">
+        <article class="status-card"><span class="status-icon game-mark"><img src="/static/valheim-panel-mark-v2.png" alt=""></span><span><small>게임</small><strong>Valheim</strong><em id="current-world">월드 확인 중</em></span></article>
+        <article class="status-card"><span class="status-icon install-mark" aria-hidden="true">ᛏ</span><span><small>설치 상태</small><strong id="engine-status">설치 상태 확인 중</strong><em>Steam 정식 서버</em></span></article>
+        <article class="status-card"><span class="status-icon server-mark" aria-hidden="true">ᛉ</span><span><small>서버 상태</small><strong id="server-status"><span class="dot"></span>상태 확인 중</strong><em id="hero-crossplay">크로스플레이</em></span></article>
+        <article class="status-card"><span class="status-icon version-mark" aria-hidden="true">ᚱ</span><span><small>패널 버전</small><strong id="panel-version">1.0.0</strong><em>TechTim GCP Panel</em></span></article>
       </section>
       <div id="operation-banner" class="operation-banner" role="status" hidden></div>
       <div id="connection-error" class="callout error" role="alert" hidden></div>
@@ -101,33 +57,64 @@
         </section>
       </div>
 
-      <section class="management-section" aria-labelledby="management-title">
-        <div class="section-head"><div><p class="eyebrow">YOUR WORLD, YOUR RULES</p><h2 id="management-title">월드 관리</h2></div><span class="subtle">게임 서버가 중지된 상태에서 변경할 수 있습니다.</span></div>
-        <div class="management-grid">
-          <button class="management-card" data-open="modifiers-dialog"><span class="feature-icon" aria-hidden="true">◇</span><span><b>월드 · 배율 설정</b><small>난이도 · 자원 · 습격 · 포탈</small></span><span class="arrow" aria-hidden="true">↗</span></button>
-          <button class="management-card" data-open="worlds-dialog"><span class="feature-icon" aria-hidden="true">◈</span><span><b>월드 파일</b><small>월드 가져오기 · 다운로드</small></span><span class="arrow" aria-hidden="true">↗</span></button>
-          <button class="management-card" data-open="backups-dialog"><span class="feature-icon" aria-hidden="true">▤</span><span><b>백업과 복원</b><small>모험의 기록을 안전하게</small></span><span class="arrow" aria-hidden="true">↗</span></button>
-          <button class="management-card" data-open="permissions-dialog"><span class="feature-icon" aria-hidden="true">♜</span><span><b>플레이어 권한</b><small>관리자 · 차단 · 허용 목록</small></span><span class="arrow" aria-hidden="true">↗</span></button>
-          <button class="management-card" data-open="mods-dialog"><span class="feature-icon" aria-hidden="true">◉</span><span><b>모드 관리</b><small>바닐라 · BepInEx 호환 상태</small></span><span class="arrow" aria-hidden="true">↗</span></button>
-          <button class="management-card" data-open="schedule-dialog"><span class="feature-icon" aria-hidden="true">◷</span><span><b>예약 재시작</b><small id="schedule-summary">한국 시간 기준 운영</small></span><span class="arrow" aria-hidden="true">↗</span></button>
+      <section class="quick-config" aria-labelledby="quick-config-title">
+        <div class="section-head"><div><p class="eyebrow">SERVER CONFIGURATION</p><h2 id="quick-config-title">서버 기본 설정</h2></div><span class="subtle">저장한 설정은 다음 서버 시작에 적용됩니다.</span></div>
+        <div class="quick-config-layout">
+          <form id="quick-settings-form" class="quick-settings-grid" data-writable>
+            <label>서버 이름<input name="server_name" maxlength="64" required></label>
+            <label>월드 이름<input name="world" list="world-names" maxlength="64" required></label>
+            <label>게임 접속 비밀번호<input name="password" type="password" minlength="5" maxlength="128" autocomplete="new-password" placeholder="변경할 때만 입력"></label>
+            <label>게임 포트<input name="port" type="number" min="1024" max="65534" required></label>
+            <label class="switch-row"><span>크로스플레이<small>초대 코드로 간편하게 접속</small></span><input name="crossplay" type="checkbox" role="switch"></label>
+            <label class="switch-row"><span>서버 목록 공개<small>공개 서버 목록에 표시</small></span><input name="public" type="checkbox" role="switch"></label>
+            <div class="quick-save-row"><p id="quick-settings-message" class="form-message" role="status"></p><button class="primary" type="submit">설정 저장</button></div>
+          </form>
+          <aside class="connection-card">
+            <div class="connection-modes" role="tablist" aria-label="접속 방식">
+              <button id="connection-invite" type="button" role="tab" aria-selected="true">초대 코드</button>
+              <button id="connection-ip" type="button" role="tab" aria-selected="false">IP 주소</button>
+            </div>
+            <span class="tiny-label" id="connection-label">INVITE CODE</span>
+            <div id="connection-address">초대 코드 확인 중</div>
+            <p class="connection-note" id="connection-note">서버가 실행되면 초대 코드가 표시됩니다.</p>
+            <button id="copy-address" class="connection-copy">초대 코드 복사 <span aria-hidden="true">↗</span></button>
+            <button id="sidebar-connection" class="connection-help" type="button">접속 안내</button>
+          </aside>
         </div>
       </section>
-      <section class="card resources" id="resources" aria-label="서버 리소스">
-        <div class="resource-intro"><p class="eyebrow">RESOURCES</p><h2>서버 리소스</h2><span class="micro">게임 컨테이너 · 5초 갱신</span></div>
-        <div class="resource"><span>CPU <small>1코어 = 100%</small></span><strong id="cpu">—</strong><div class="meter"><i id="cpu-meter"></i></div></div>
-        <div class="resource"><span>메모리</span><strong id="memory">—</strong><div class="meter"><i id="memory-meter"></i></div></div>
-        <div class="resource"><span>호스트 디스크</span><strong id="disk">—</strong><div class="meter"><i id="disk-meter"></i></div></div>
-        <div class="resource"><span>네트워크</span><strong id="network">—</strong><small>다운로드 ↓ · 업로드 ↑</small></div>
+
+      <section class="advanced-card" aria-labelledby="management-title">
+        <div class="settings-main-pane">
+          <div class="settings-primary-row">
+            <button id="sidebar-settings" class="advanced-button" type="button" data-open="settings-dialog" aria-label="Valheim 상세 서버 설정 열기"><img src="/static/valheim-settings-mark-v2.png" alt=""><span>설정하기</span></button>
+            <div class="advanced-copy"><h2 id="management-title">Valheim 서버 운영 관리</h2><p>Windows 구동기의 운영 흐름을 GCP에 맞게 구성했습니다. 월드와 플레이어, 백업과 자동화를 한곳에서 관리하세요.</p></div>
+          </div>
+          <nav class="management-shortcuts" aria-label="Valheim 운영 기능">
+            <button class="management-shortcut" type="button" data-open="modifiers-dialog"><span class="shortcut-rune" aria-hidden="true">ᛗ</span><span><b>월드 · 배율</b><small>난이도 · 자원 · 습격 · 포탈</small></span></button>
+            <button class="management-shortcut" type="button" data-open="worlds-dialog"><span class="shortcut-rune" aria-hidden="true">ᛟ</span><span><b>월드 파일</b><small>가져오기 · 다운로드 · 선택</small></span></button>
+            <button class="management-shortcut" type="button" data-open="backups-dialog"><span class="shortcut-rune" aria-hidden="true">ᛒ</span><span><b>백업 · 복원</b><small>보호 백업과 안전한 복원</small></span></button>
+            <button class="management-shortcut" type="button" data-open="permissions-dialog"><span class="shortcut-rune" aria-hidden="true">ᛉ</span><span><b>플레이어 권한</b><small>관리자 · 허용 · 차단 목록</small></span></button>
+            <button class="management-shortcut" type="button" data-open="schedule-dialog"><span class="shortcut-rune" aria-hidden="true">ᛞ</span><span><b>예약 · 자동화</b><small id="schedule-summary">한국 시간 기준 운영</small></span></button>
+            <button class="management-shortcut" type="button" data-open="mods-dialog"><span class="shortcut-rune" aria-hidden="true">ᚦ</span><span><b>모드 관리</b><small>바닐라 · BepInEx 상태</small></span></button>
+            <button class="management-shortcut" type="button" data-open="discord-dialog"><span class="shortcut-rune" aria-hidden="true">ᚨ</span><span><b>디스코드 연동</b><small>시작 · 종료 · 오류 알림</small></span></button>
+            <button class="management-shortcut" type="button" data-open="panel-update-dialog"><span class="shortcut-rune" aria-hidden="true">ᚱ</span><span><b>구동기 업데이트</b><small>웹패널 최신 이미지 적용</small></span></button>
+          </nav>
+        </div>
+        <aside class="resource-monitor" id="resources" aria-label="서버 리소스">
+          <div class="resource-intro"><div><p class="eyebrow">RESOURCES</p><h2>서버 리소스</h2></div><span class="micro">5초마다 갱신</span></div>
+          <div class="resource"><span>CPU <small>컨테이너 사용률</small></span><strong id="cpu">—</strong><div class="meter"><i id="cpu-meter"></i></div></div>
+          <div class="resource"><span>메모리</span><strong id="memory">—</strong><div class="meter"><i id="memory-meter"></i></div></div>
+          <div class="resource"><span>호스트 디스크</span><strong id="disk">—</strong><div class="meter"><i id="disk-meter"></i></div></div>
+          <div class="resource resource-network"><span>네트워크</span><strong id="network">—</strong><small>다운로드 ↓ · 업로드 ↑</small></div>
+        </aside>
       </section>
       </div>
       <section id="detail-view" class="detail-view" hidden>
-        <div class="detail-toolbar"><button id="detail-back" class="detail-back" type="button"><span aria-hidden="true">←</span>기본 대시보드</button><span class="tiny-label">DETAIL PAGE</span></div>
+        <div class="detail-toolbar"><button id="detail-back" class="detail-back" type="button"><span aria-hidden="true">←</span>기본 대시보드</button><span class="tiny-label" id="topbar-page-title">DETAIL PAGE</span></div>
         <div id="detail-content" class="detail-content"></div>
       </section>
     </main>
-        <footer><span>TechTim <span class="footer-divider">/</span> VALHEIM SERVER PANEL</span><span>Valheim © Iron Gate AB · TechTim 비공식 관리 도구</span></footer>
-      </div>
-    </div>
+    <footer><span>TechTim <span class="footer-divider">/</span> VALHEIM SERVER PANEL</span><span>Valheim © Iron Gate AB · TechTim 비공식 관리 도구</span></footer>
   </div>
 
   <dialog id="settings-dialog" class="wide-dialog">

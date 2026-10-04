@@ -90,7 +90,7 @@ document.querySelectorAll('[data-close]').forEach(button => button.addEventListe
 }));
 
 function setSidebarCurrent(item) {
-  document.querySelectorAll('.sidebar-nav .sidebar-link').forEach(link => link.removeAttribute('aria-current'));
+  document.querySelectorAll('[data-open]').forEach(link => link.removeAttribute('aria-current'));
   if (item) item.setAttribute('aria-current', 'page');
 }
 
@@ -109,7 +109,7 @@ function closeDetail(scroll = true) {
   $('detail-view').hidden = true;
   $('dashboard-view').hidden = false;
   $('topbar-page-title').textContent = '서버 관리';
-  setSidebarCurrent(document.querySelector('.sidebar-nav .sidebar-link[href="#overview"]'));
+  setSidebarCurrent(null);
   if (scroll) window.scrollTo({top: 0, behavior: 'smooth'});
 }
 
@@ -125,7 +125,7 @@ async function openDetail(id, loader) {
     dialog.show();
     activeDetail = dialog;
     $('topbar-page-title').textContent = dialog.querySelector('.dialog-head h2')?.textContent || '상세 관리';
-    const menu = id === 'settings-dialog' ? $('sidebar-settings') : document.querySelector(`.sidebar-link[data-open="${id}"]`);
+    const menu = id === 'settings-dialog' ? $('sidebar-settings') : document.querySelector(`[data-open="${id}"]`);
     setSidebarCurrent(menu);
     updateControls();
     window.scrollTo({top: 0, behavior: 'smooth'});
@@ -133,11 +133,15 @@ async function openDetail(id, loader) {
 }
 
 $('detail-back').onclick = () => closeDetail();
-document.querySelectorAll('.sidebar-brand,.sidebar-link[href^="#"]').forEach(link => link.addEventListener('click', () => closeDetail(false)));
+document.querySelectorAll('.brand').forEach(link => link.addEventListener('click', () => closeDetail(false)));
 
 function writable() { return state?.docker_available && !state.busy && !uiBusy && !runningStates.has(state.server_status); }
 function updateControls() {
-  document.querySelectorAll('[data-writable]').forEach(element => { element.disabled = !writable(); });
+  const disabled = !writable();
+  document.querySelectorAll('[data-writable]').forEach(element => {
+    if (element.matches('form')) element.querySelectorAll('input,select,textarea,button').forEach(control => { control.disabled = disabled; });
+    else element.disabled = disabled;
+  });
   const available = state?.docker_available && !state.busy && !uiBusy;
   const running = runningStates.has(state?.server_status);
   $('start').disabled = !available || running || !state.engine.installed;
@@ -254,6 +258,39 @@ $('copy-address').onclick = async () => {
 };
 
 const integerFields = ['port', 'save_interval', 'backups', 'backup_short', 'backup_long'];
+function fillWorldNames(worlds) {
+  $('world-names').replaceChildren(...worlds.filter(world => world.complete).map(world => {
+    const option = document.createElement('option'); option.value = world.name; return option;
+  }));
+}
+
+async function loadQuickSettings() {
+  const [config, data] = await Promise.all([api('/api/config'), api('/api/worlds')]);
+  const form = $('quick-settings-form');
+  ['server_name', 'world', 'port'].forEach(key => { form.elements.namedItem(key).value = config[key] ?? ''; });
+  ['crossplay', 'public'].forEach(key => { form.elements.namedItem(key).checked = Boolean(config[key]); });
+  form.elements.password.value = '';
+  fillWorldNames(data.worlds);
+  message('quick-settings-message', config.password_set ? '접속 비밀번호가 설정되어 있습니다.' : '최초 시작 전 비밀번호를 입력해주세요.');
+}
+
+$('quick-settings-form').onsubmit = async event => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const config = Object.fromEntries(new FormData(form));
+  config.port = Number(config.port);
+  ['crossplay', 'public'].forEach(key => { config[key] = form.elements.namedItem(key).checked; });
+  if (!config.password) delete config.password;
+  uiBusy = true; updateControls();
+  try {
+    await jsonPost('/api/config', config);
+    form.elements.password.value = '';
+    message('quick-settings-message', '기본 설정을 저장했습니다. 다음 서버 시작에 적용됩니다.');
+    await refreshStatus();
+  } catch (error) { message('quick-settings-message', error.message, true); }
+  finally { uiBusy = false; updateControls(); }
+};
+
 async function loadSettings() {
   const [config, data] = await Promise.all([api('/api/config'), api('/api/worlds')]);
   const form = $('settings-form');
@@ -265,7 +302,7 @@ async function loadSettings() {
   form.elements.password.value = '';
   form.elements.password.required = !config.password_set;
   $('password-hint').textContent = config.password_set ? '변경할 때만 입력하세요. 비우면 기존 비밀번호를 유지합니다.' : '최초 시작 전 5자 이상으로 설정해주세요.';
-  $('world-names').replaceChildren(...data.worlds.filter(w => w.complete).map(world => { const option = document.createElement('option'); option.value = world.name; return option; }));
+  fillWorldNames(data.worlds);
   message('settings-message', '');
 }
 $('open-settings').onclick = () => openDetail('settings-dialog', loadSettings);
@@ -278,7 +315,7 @@ $('settings-form').onsubmit = async event => {
   integerFields.forEach(key => { config[key] = Number(config[key]); });
   if (!config.password) delete config.password;
   uiBusy = true; updateControls();
-  try { await jsonPost('/api/config', config); form.elements.password.value = ''; form.elements.password.required = false; message('settings-message', '설정을 저장했습니다. 다음 서버 시작에 적용됩니다.'); await refreshStatus(); }
+  try { await jsonPost('/api/config', config); form.elements.password.value = ''; form.elements.password.required = false; message('settings-message', '설정을 저장했습니다. 다음 서버 시작에 적용됩니다.'); await Promise.all([refreshStatus(), loadQuickSettings()]); }
   catch (error) { message('settings-message', error.message, true); }
   finally { uiBusy = false; updateControls(); }
 };
@@ -415,14 +452,14 @@ $('schedule-form').onsubmit = async event => {
   finally { uiBusy = false; updateControls(); }
 };
 
-const loaders = {'worlds-dialog': loadWorlds, 'backups-dialog': loadBackups, 'permissions-dialog': loadPermissions,
+const loaders = {'settings-dialog': loadSettings, 'worlds-dialog': loadWorlds, 'backups-dialog': loadBackups, 'permissions-dialog': loadPermissions,
   'schedule-dialog': loadSchedule, 'modifiers-dialog': loadModifiers, 'mods-dialog': async () => {},
   'discord-dialog': async () => {}, 'panel-update-dialog': loadPanelUpdate};
 document.querySelectorAll('[data-open]').forEach(button => button.onclick = async () => {
   await openDetail(button.dataset.open, loaders[button.dataset.open]);
 });
 
-const sidebarMenuItems = [...document.querySelectorAll('.sidebar-nav .sidebar-link')];
+const sidebarMenuItems = [...document.querySelectorAll('[data-open]')];
 sidebarMenuItems.forEach(item => item.addEventListener('click', () => {
   sidebarMenuItems.forEach(link => link.removeAttribute('aria-current'));
   item.setAttribute('aria-current', 'page');
@@ -447,7 +484,7 @@ async function refreshResources() {
 
 async function initialize() {
   await refreshStatus();
-  await Promise.allSettled([refreshLogs(), refreshResources(), loadSchedule()]);
+  await Promise.allSettled([refreshLogs(), refreshResources(), loadSchedule(), loadQuickSettings()]);
   setInterval(() => { if (!document.hidden) refreshStatus(); }, 3000);
   setInterval(() => { if (!document.hidden) refreshLogs(); }, 2000);
   setInterval(() => { if (!document.hidden) refreshResources(); }, 5000);
