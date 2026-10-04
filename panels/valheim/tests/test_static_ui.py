@@ -39,6 +39,8 @@ class StaticUiTests(unittest.TestCase):
             self.assertIn(f"valheim-nav-{name}-v1.png", html)
         for label in ("공식 가이드", "패널 업데이트", "로그아웃"):
             self.assertIn(f'class="top-action-label">{label}', html)
+        self.assertIn('id="panel-update-notice"', html)
+        self.assertIn('id="panel-update-button"', html)
 
     def test_dashboard_keeps_palworld_style_operational_hub(self):
         html = self.read("dashboard.html")
@@ -70,6 +72,7 @@ class StaticUiTests(unittest.TestCase):
         self.assertIn("async function loadQuickSettings", script)
         self.assertIn("quick-settings-form", script)
         self.assertIn("['completed', 'failed'].includes(update.status)", script)
+        self.assertIn("async function checkPanelUpdate", script)
 
     def test_responsive_shell_has_mobile_breakpoints(self):
         css = self.read("valheim-palshell.css")

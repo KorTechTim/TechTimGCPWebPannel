@@ -50,10 +50,24 @@ class ApiTests(ServiceCase):
         for method, url, kwargs in [
             ('get', '/api/worlds', {}), ('get', '/api/server/status', {}), ('get', '/api/logs', {}),
             ('get', '/api/backups', {}), ('get', '/api/permissions', {}), ('get', '/api/restart-schedule', {}),
+            ('get', '/api/panel/update/check', {}),
             ('post', '/api/install', {}), ('post', '/api/panel/update', {}), ('post', '/api/server/start', {}),
             ('post', '/api/config', {'json': {}}),
         ]:
             with self.subTest(url=url): self.assertEqual(getattr(self.client, method)(url, **kwargs).status_code, 401)
+
+    def test_panel_update_check_reports_latest_registry_image(self):
+        self.authenticated()
+        self.docker.containers.add(self.settings.panel_container)
+
+        current = self.client.get('/api/panel/update/check').json()
+        self.assertEqual(current["status"], "ok")
+        self.assertFalse(current["update_available"])
+
+        self.docker.images.registry_digest = "sha256:new-image"
+        available = self.client.get('/api/panel/update/check?force=true').json()
+        self.assertEqual(available["status"], "ok")
+        self.assertTrue(available["update_available"])
 
     def test_start_rejects_missing_engine_before_queuing(self):
         self.authenticated()

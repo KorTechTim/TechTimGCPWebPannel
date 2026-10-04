@@ -99,6 +99,40 @@ body {
 .top-action:hover:not(:disabled) { border-color: transparent; background: transparent; color: var(--forest); }
 .top-action:hover:not(:disabled) .top-action-icon { border-color: #a07843; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .11), 0 7px 15px rgba(18, 42, 42, .22); transform: translateY(-1px); }
 .top-action:hover:not(:disabled) .top-action-label { color: var(--bronze-dark); }
+.panel-update-anchor { position: relative; display: inline-flex; }
+.panel-update-notice {
+  position: absolute;
+  z-index: 70;
+  top: calc(100% + 12px);
+  right: -8px;
+  box-sizing: border-box;
+  width: 250px;
+  padding: 12px 14px;
+  border: 1px solid #c99d58;
+  border-radius: 8px;
+  background: #12312f;
+  color: #fff8e8;
+  font-size: 13px;
+  font-weight: 750;
+  line-height: 1.45;
+  text-align: left;
+  box-shadow: 0 13px 30px rgba(9, 25, 27, .34), inset 0 0 0 1px rgba(255, 255, 255, .05);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-4px);
+  pointer-events: none;
+  transition: opacity .18s ease, transform .18s ease, visibility .18s;
+}
+.panel-update-notice::before,
+.panel-update-notice::after { position: absolute; right: 28px; bottom: 100%; width: 0; height: 0; content: ""; border-style: solid; }
+.panel-update-notice::before { border-width: 0 9px 9px; border-color: transparent transparent #c99d58; }
+.panel-update-notice::after { right: 29px; border-width: 0 8px 8px; border-color: transparent transparent #12312f; }
+.panel-update-notice.show { opacity: 1; visibility: visible; transform: translateY(0); }
+.top-action.update-available .top-action-icon {
+  border-color: #c99d58;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .12), 0 0 0 3px rgba(201, 157, 88, .16), 0 7px 16px rgba(18, 42, 42, .24);
+}
+.top-action.update-available .top-action-label { color: var(--bronze-dark); }
 
 main { padding-top: 24px; }
 h2 { color: var(--ink); font-size: 22px; font-weight: 750; }
@@ -421,6 +455,9 @@ dialog::backdrop { background: rgba(6, 15, 20, .7); }
   .top-action-icon { width: 38px; height: 38px; border-radius: 9px; }
   .top-action-icon img { width: 35px; height: 35px; }
   .top-action-label { font-size: 8px; }
+  .panel-update-notice { right: -52px; width: 220px; font-size: 12px; }
+  .panel-update-notice::before { right: 70px; }
+  .panel-update-notice::after { right: 71px; }
   .status-grid { grid-template-columns: 1fr 1fr; gap: 9px; }
   .status-card { min-height: 88px; gap: 10px; padding: 12px; }
   .status-icon { width: 42px; height: 42px; flex-basis: 42px; font-size: 22px; }

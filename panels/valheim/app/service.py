@@ -24,6 +24,10 @@ RUNTIME_BOOTSTRAP_CAPABILITIES = ["CHOWN", "DAC_OVERRIDE", "SETGID", "SETUID"]
 OPERATION_HANDOFF = object()
 
 
+def normalize_registry_digest(value):
+    return str(value or "").strip().rsplit("@", 1)[-1].lower()
+
+
 class BusyError(Exception):
     pass
 
@@ -44,6 +48,8 @@ class PanelService:
         self.docker_factory = docker_factory or (lambda: docker.from_env(timeout=30))
         self.lock = threading.Lock()
         self.resource_lock = threading.Lock()
+        self.panel_update_check_lock = threading.Lock()
+        self.panel_update_check_cache = {"expires_at": 0.0, "payload": None}
         self.network_sample = None
         self.ready_identity = None
         self.join_code_identity = None
@@ -638,3 +644,51 @@ class PanelService:
         except Exception as error:
             write_json(status_file, {"status": "failed", "message": f"구동기 업데이트를 시작하지 못했습니다: {error}"})
             raise
+
+    def panel_update_check(self, force=False):
+        now = time.monotonic()
+        with self.panel_update_check_lock:
+            cached = self.panel_update_check_cache["payload"]
+            if not force and cached and now < self.panel_update_check_cache["expires_at"]:
+                return dict(cached)
+
+            try:
+                with self.client() as client:
+                    current_container = client.containers.get(self.settings.panel_container)
+                    current_container.reload()
+                    current_image = current_container.image
+                    current_image.reload()
+                    current_digests = {
+                        normalize_registry_digest(value)
+                        for value in (current_image.attrs.get("RepoDigests") or [])
+                        if "@" in str(value)
+                    }
+                    latest_digest = normalize_registry_digest(
+                        client.images.get_registry_data(self.settings.panel_image).id
+                    )
+
+                if not latest_digest or not current_digests:
+                    raise RuntimeError("실행 중인 패널 이미지의 digest를 확인할 수 없습니다.")
+
+                payload = {
+                    "status": "ok",
+                    "update_available": latest_digest not in current_digests,
+                    "current_version": PANEL_VERSION,
+                    "current_image_id": current_image.id,
+                    "latest_image_id": latest_digest,
+                }
+                cache_seconds = 300
+            except Exception as error:
+                payload = {
+                    "status": "unavailable",
+                    "update_available": False,
+                    "current_version": PANEL_VERSION,
+                    "message": re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", str(error))[:500],
+                }
+                cache_seconds = 60
+
+            self.panel_update_check_cache = {
+                "expires_at": now + cache_seconds,
+                "payload": payload,
+            }
+            return dict(payload)

@@ -46,9 +46,9 @@ class SelfUpdateTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             operation = Path(temporary) / "operation.json"
             with patch("app.self_update.OPERATION", operation):
-                write_operation("completed", "웹패널 1.1.2 업데이트 완료")
+                write_operation("completed", "웹패널 1.2.0 업데이트 완료")
 
             payload = read_json(operation, {})
             self.assertEqual(payload["status"], "completed")
             self.assertEqual(payload["name"], "웹패널 업데이트")
-            self.assertIn("1.1.2", payload["message"])
+            self.assertIn("1.2.0", payload["message"])

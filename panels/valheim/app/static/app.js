@@ -9,6 +9,7 @@ let panelUpdating = false;
 let activeDetail = null;
 let lastJob = '';
 let toastTimer;
+let panelUpdateCheckTimer;
 const polls = new Set();
 const runningStates = new Set(['running', 'restarting', 'paused', 'removing']);
 
@@ -355,7 +356,35 @@ function renderPanelUpdate(info = {status: 'idle'}) {
   $('panel-update-progress').dataset.status = running ? 'running' : info.status || 'idle';
   $('panel-update-message').textContent = info.message || (running ? '최신 구동기 이미지를 확인하고 있습니다.' : '업데이트 확인을 누르면 최신 버전을 확인합니다.');
 }
+
+function setPanelUpdateNotice(available) {
+  const notice = $('panel-update-notice');
+  const button = $('panel-update-button');
+  notice.classList.toggle('show', available);
+  button.classList.toggle('update-available', available);
+  button.title = available ? '업데이트가 있습니다. 웹패널을 업그레이드하세요' : '패널 업데이트';
+  button.setAttribute('aria-label', available ? '패널 업데이트 있음' : '패널 업데이트');
+}
+
+function schedulePanelUpdateCheck(delay) {
+  clearTimeout(panelUpdateCheckTimer);
+  panelUpdateCheckTimer = setTimeout(() => checkPanelUpdate(true), delay);
+}
+
+async function checkPanelUpdate(force = false) {
+  try {
+    const info = await api(`/api/panel/update/check${force ? '?force=true' : ''}`);
+    if (info.status !== 'ok') throw new Error(info.message || '업데이트 정보를 확인할 수 없습니다.');
+    setPanelUpdateNotice(Boolean(info.update_available));
+    schedulePanelUpdateCheck(5 * 60 * 1000);
+  } catch {
+    setPanelUpdateNotice(false);
+    schedulePanelUpdateCheck(60 * 1000);
+  }
+}
+
 async function loadPanelUpdate() {
+  setPanelUpdateNotice(false);
   try {
     const info = await api('/api/panel/update/status');
     renderPanelUpdate(info);
@@ -367,6 +396,7 @@ async function loadPanelUpdate() {
   }
 }
 $('panel-update-action').onclick = async () => {
+  setPanelUpdateNotice(false);
   renderPanelUpdate({status: 'running', message: '업데이트 요청을 준비하고 있습니다.'});
   await perform('/api/panel/update', '구동기 업데이트', '최신 TechTim GCP 웹 구동기로 교체합니다. 잠시 연결이 끊길 수 있으며 실패하면 이전 버전으로 복구를 시도합니다.');
   if (!panelUpdating) await loadPanelUpdate();
@@ -502,6 +532,7 @@ async function refreshResources() {
 async function initialize() {
   await refreshStatus();
   await Promise.allSettled([refreshLogs(), refreshResources(), loadSchedule(), loadQuickSettings()]);
+  checkPanelUpdate();
   setInterval(() => { if (!document.hidden) refreshStatus(); }, 3000);
   setInterval(() => { if (!document.hidden) refreshLogs(); }, 2000);
   setInterval(() => { if (!document.hidden) refreshResources(); }, 5000);

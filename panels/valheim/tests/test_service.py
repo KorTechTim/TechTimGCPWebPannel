@@ -127,9 +127,32 @@ class LifecycleTests(ServiceCase):
 
         status = read_json(self.service.root / "panel-update-status.json", {})
         self.assertEqual(status["status"], "completed")
-        self.assertEqual(status["version"], "1.1.2")
+        self.assertEqual(status["version"], "1.2.0")
         self.assertEqual(status["image_id"], "runtime-imag")
-        self.assertIn("1.1.2", status["message"])
+        self.assertIn("1.2.0", status["message"])
+
+    def test_panel_update_check_uses_registry_digest_and_cache(self):
+        self.docker.containers.add(self.settings.panel_container)
+
+        current = self.service.panel_update_check()
+        self.assertEqual(current["status"], "ok")
+        self.assertFalse(current["update_available"])
+
+        self.docker.images.registry_digest = "ghcr.io/kortechtim/valheim-panel@sha256:new-image"
+        cached = self.service.panel_update_check()
+        refreshed = self.service.panel_update_check(force=True)
+        self.assertFalse(cached["update_available"])
+        self.assertTrue(refreshed["update_available"])
+
+    def test_panel_update_check_fails_closed_when_registry_is_unavailable(self):
+        self.docker.containers.add(self.settings.panel_container)
+        self.docker.images.get_registry_data = lambda _image: (_ for _ in ()).throw(RuntimeError("registry unavailable"))
+
+        result = self.service.panel_update_check(force=True)
+
+        self.assertEqual(result["status"], "unavailable")
+        self.assertFalse(result["update_available"])
+        self.assertIn("registry unavailable", result["message"])
 
     def test_panel_update_streams_pull_and_starts_latest_helper(self):
         self.docker.containers.add(self.settings.panel_container)

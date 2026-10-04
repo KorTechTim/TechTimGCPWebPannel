@@ -10,12 +10,20 @@ from app.service import LABELS, PanelService
 from app.storage import write_json
 
 
+class FakeImage:
+    def __init__(self, image_id="runtime-image", digest="sha256:runtime"):
+        self.id = image_id
+        self.attrs = {"RepoDigests": [f"ghcr.io/kortechtim/valheim-panel@{digest}"]}
+
+    def reload(self): pass
+
+
 class FakeContainer:
     def __init__(self, owner, name, status="exited", labels=None):
         self.owner, self.name, self.status = owner, name, status
         self.labels = dict(LABELS if labels is None else labels)
         self.id = name + "-id"
-        self.image = SimpleNamespace(id="runtime-image")
+        self.image = FakeImage()
         self.output = b"Valheim version: 1.0.12\nGame server connected\n"
         self.attrs = {"State": {"ExitCode": 0, "StartedAt": "2026-09-13T01:00:00Z"}}
         self.signals = []
@@ -76,6 +84,7 @@ class FakeImages:
     def __init__(self):
         self.prune_calls = 0
         self.prune_result = {"ImagesDeleted": [], "SpaceReclaimed": 0}
+        self.registry_digest = "sha256:runtime"
 
     @staticmethod
     def get(image):
@@ -84,6 +93,9 @@ class FakeImages:
     @staticmethod
     def pull(image):
         return SimpleNamespace(id="runtime-image")
+
+    def get_registry_data(self, image):
+        return SimpleNamespace(id=self.registry_digest)
 
     def prune(self, filters=None):
         self.prune_calls += 1

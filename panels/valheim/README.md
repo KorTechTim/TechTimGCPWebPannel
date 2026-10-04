@@ -1,6 +1,6 @@
 # TechTim Valheim Server Panel
 
-발헤임 정식 전용 서버를 GCP VM에서 설치하고 관리하는 한국어 웹패널입니다. 기존 TechTim 패널처럼 FastAPI와 Docker를 사용하며, 화면·설정·파일 관리·서버 제어를 모듈로 분리했습니다. 패널 버전은 `1.1.2`입니다.
+발헤임 정식 전용 서버를 GCP VM에서 설치하고 관리하는 한국어 웹패널입니다. 기존 TechTim 패널처럼 FastAPI와 Docker를 사용하며, 화면·설정·파일 관리·서버 제어를 모듈로 분리했습니다. 패널 버전은 `1.2.0`입니다.
 
 2026-09-13 기준으로 [Valheim 1.0 출시 발표](https://www.valheim.com/news/valheim-1-0-has-arrived-/), [1.0 FAQ](https://www.valheimgame.com/support/valheim-1-0-faq/), [9월 11일 핫픽스](https://www.valheimgame.com/news/hotfix-1-0-10-1-0-12/) 및 [공식 전용 서버 가이드](https://www.valheimgame.com/support/a-guide-to-dedicated-servers/)를 확인해 구현했습니다. Steam 정식 브랜치를 설치하므로 특정 핫픽스 번호를 고정하지 않습니다. 실제 설치된 Steam build ID를 상태 API에서 확인할 수 있습니다.
 
@@ -13,7 +13,7 @@
 - 게임 자체의 저장 간격과 자동 백업 개수·간격 설정.
 - `.db`/`.fwl` 월드 파일 쌍 업로드, 월드 ZIP 다운로드, 패널 ZIP 백업·복원·삭제.
 - 관리자·차단·접속 허용 목록, KST 기준 하루 최대 3회 예약 재시작.
-- 웹패널 자체 업데이트와 실패 시 이전 이미지 복구, 교체 후 HTTP 응답 확인.
+- 웹패널 새 이미지 자동 감지와 상단 안내 풍선, 자체 업데이트, 실패 시 이전 이미지 복구, 교체 후 HTTP 응답 확인.
 - 디스크 사용률 80% 도달 시 오래된 임시 파일·미사용 Docker 이미지·안전 백업을 정리하고 최신 백업 3개 보존.
 - 모바일 화면과 대화상자, 실행 중 쓰기 잠금, 설치·백업·복원·시작 간 작업 잠금.
 

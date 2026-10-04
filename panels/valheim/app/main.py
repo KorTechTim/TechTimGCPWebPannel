@@ -284,6 +284,11 @@ def create_app(settings=None, docker_factory=None):
         auth.require(request)
         return read_json(service.root / "panel-update-status.json", {"status": "idle"})
 
+    @app.get("/api/panel/update/check")
+    def panel_update_check(request: Request, force: bool = False):
+        auth.require(request)
+        return service.panel_update_check(force=force)
+
     return app
 
 
