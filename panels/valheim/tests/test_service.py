@@ -112,6 +112,17 @@ class LifecycleTests(ServiceCase):
         self.assertEqual(status["status"], "failed")
         self.assertIn("registry unavailable", status["message"])
 
+    def test_panel_update_reports_version_and_image_when_already_current(self):
+        self.docker.containers.add(self.settings.panel_container)
+
+        self.service.update_panel()
+
+        status = read_json(self.service.root / "panel-update-status.json", {})
+        self.assertEqual(status["status"], "completed")
+        self.assertEqual(status["version"], "1.1.0")
+        self.assertEqual(status["image_id"], "runtime-imag")
+        self.assertIn("1.1.0", status["message"])
+
     def test_ready_state_survives_log_rotation_but_not_process_restart(self):
         server = self.docker.containers.add()
         self.assertTrue(self.service.status()["ready"])

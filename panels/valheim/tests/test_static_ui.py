@@ -29,6 +29,8 @@ class StaticUiTests(unittest.TestCase):
                 self.assertEqual(asset.read_bytes()[:8], b"\x89PNG\r\n\x1a\n")
 
         html = self.read("dashboard.html")
+        self.assertIn('id="panel-version">확인 중', html)
+        self.assertNotIn('id="panel-version">1.0.0', html)
         self.assertIn('class="brand-icon profile-avatar"', html)
         self.assertIn('src="/static/techtim-avatar.png?v=1"', html)
         for name in ("install", "server", "panel"):

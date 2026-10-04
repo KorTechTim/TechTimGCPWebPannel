@@ -606,8 +606,11 @@ class PanelService:
                 current_image = current.image.id
                 latest = client.images.pull(self.settings.panel_image)
                 if latest.id == current_image:
-                    self.log("웹패널이 이미 최신 버전입니다.")
-                    write_json(status_file, {"status": "completed", "message": "이미 최신 웹패널입니다."})
+                    image_id = latest.id.removeprefix("sha256:")[:12]
+                    message = f"이미 최신 웹패널 {PANEL_VERSION}입니다. · 이미지 {image_id}"
+                    self.log(message)
+                    write_json(status_file, {"status": "completed", "message": message,
+                                             "version": PANEL_VERSION, "image_id": image_id})
                     return
                 old = self.container(client, self.update_name)
                 if old:

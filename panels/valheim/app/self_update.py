@@ -7,6 +7,7 @@ import time
 import docker
 from docker.types import LogConfig
 
+from .config import PANEL_VERSION
 from .storage import read_json, write_json
 
 STATUS = Path("/update-data/panel-update-status.json")
@@ -78,7 +79,13 @@ def main():
             replacement = client.containers.run(target_image, **options)
             wait_for_http(replacement)
             restart_proxy()
-            write_json(STATUS, {"status": "completed", "message": "웹패널 업데이트 및 HTTP 응답 확인 완료"})
+            image_id = target_image.removeprefix("sha256:")[:12]
+            write_json(STATUS, {
+                "status": "completed",
+                "message": f"웹패널 {PANEL_VERSION} 업데이트 완료 · 이미지 {image_id}",
+                "version": PANEL_VERSION,
+                "image_id": image_id,
+            })
         except Exception as error:
             try:
                 client.containers.get(target_name).remove(force=True)
