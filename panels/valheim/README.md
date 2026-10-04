@@ -1,6 +1,6 @@
 # TechTim Valheim Server Panel
 
-발헤임 정식 전용 서버를 GCP VM에서 설치하고 관리하는 한국어 웹패널입니다. 기존 TechTim 패널처럼 FastAPI와 Docker를 사용하며, 화면·설정·파일 관리·서버 제어를 모듈로 분리했습니다. 패널 버전은 `1.1.0`입니다.
+발헤임 정식 전용 서버를 GCP VM에서 설치하고 관리하는 한국어 웹패널입니다. 기존 TechTim 패널처럼 FastAPI와 Docker를 사용하며, 화면·설정·파일 관리·서버 제어를 모듈로 분리했습니다. 패널 버전은 `1.1.1`입니다.
 
 2026-09-13 기준으로 [Valheim 1.0 출시 발표](https://www.valheim.com/news/valheim-1-0-has-arrived-/), [1.0 FAQ](https://www.valheimgame.com/support/valheim-1-0-faq/), [9월 11일 핫픽스](https://www.valheimgame.com/news/hotfix-1-0-10-1-0-12/) 및 [공식 전용 서버 가이드](https://www.valheimgame.com/support/a-guide-to-dedicated-servers/)를 확인해 구현했습니다. Steam 정식 브랜치를 설치하므로 특정 핫픽스 번호를 고정하지 않습니다. 실제 설치된 Steam build ID를 상태 API에서 확인할 수 있습니다.
 

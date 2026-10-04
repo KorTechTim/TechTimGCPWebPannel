@@ -4,7 +4,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from app.config import ServerConfig
-from app.service import BusyError, KST, PanelService
+from app.service import BusyError, KST, OPERATION_HANDOFF, PanelService
 from app.storage import read_json, write_json
 from helpers import ServiceCase
 
@@ -99,6 +99,14 @@ class LifecycleTests(ServiceCase):
         self.assertFalse(self.service.lock.locked())
         self.assertEqual(read_json(self.service.job_file, {})["status"], "failed")
 
+    def test_panel_update_handoff_does_not_report_early_completion(self):
+        handle = self.service.reserve("웹패널 업데이트")
+
+        self.service.run_reserved(handle, "웹패널 업데이트", lambda: OPERATION_HANDOFF)
+
+        self.assertFalse(self.service.lock.locked())
+        self.assertEqual(read_json(self.service.job_file, {})["status"], "running")
+
     def test_panel_update_preparation_failure_is_visible_in_update_status(self):
         self.docker.containers.add(self.settings.panel_container)
 
@@ -119,9 +127,9 @@ class LifecycleTests(ServiceCase):
 
         status = read_json(self.service.root / "panel-update-status.json", {})
         self.assertEqual(status["status"], "completed")
-        self.assertEqual(status["version"], "1.1.0")
+        self.assertEqual(status["version"], "1.1.1")
         self.assertEqual(status["image_id"], "runtime-imag")
-        self.assertIn("1.1.0", status["message"])
+        self.assertIn("1.1.1", status["message"])
 
     def test_panel_update_streams_pull_and_starts_latest_helper(self):
         self.docker.containers.add(self.settings.panel_container)
@@ -134,8 +142,9 @@ class LifecycleTests(ServiceCase):
         self.docker.api.pull = stream_pull
         self.docker.images.get = lambda _image: SimpleNamespace(id="new-panel-image")
 
-        self.service.update_panel()
+        result = self.service.update_panel()
 
+        self.assertIs(result, OPERATION_HANDOFF)
         self.assertEqual(pulls[0][1], {"tag": "latest", "stream": True, "decode": True})
         image, options = self.docker.containers.runs[-1]
         self.assertEqual(image, "new-panel-image")

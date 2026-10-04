@@ -1,7 +1,10 @@
+from pathlib import Path
 from types import SimpleNamespace
+import tempfile
 import unittest
 from unittest.mock import patch
-from app.self_update import run_options, wait_for_http
+from app.self_update import run_options, wait_for_http, write_operation
+from app.storage import read_json
 
 
 class SelfUpdateTests(unittest.TestCase):
@@ -29,3 +32,14 @@ class SelfUpdateTests(unittest.TestCase):
         container = SimpleNamespace(status="running", reload=lambda: None,
                                     exec_run=lambda args: SimpleNamespace(exit_code=0))
         wait_for_http(container, timeout=5)
+
+    def test_handoff_writes_the_real_operation_completion(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            operation = Path(temporary) / "operation.json"
+            with patch("app.self_update.OPERATION", operation):
+                write_operation("completed", "웹패널 1.1.1 업데이트 완료")
+
+            payload = read_json(operation, {})
+            self.assertEqual(payload["status"], "completed")
+            self.assertEqual(payload["name"], "웹패널 업데이트")
+            self.assertIn("1.1.1", payload["message"])

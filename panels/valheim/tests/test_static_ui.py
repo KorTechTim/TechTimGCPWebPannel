@@ -69,6 +69,7 @@ class StaticUiTests(unittest.TestCase):
         self.assertIn("function closeDetail", script)
         self.assertIn("async function loadQuickSettings", script)
         self.assertIn("quick-settings-form", script)
+        self.assertIn("['completed', 'failed'].includes(update.status)", script)
 
     def test_responsive_shell_has_mobile_breakpoints(self):
         css = self.read("valheim-palshell.css")

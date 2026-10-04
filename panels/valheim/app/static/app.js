@@ -193,9 +193,12 @@ async function refreshStatus() {
       if ($('backups-dialog').open) await loadBackups();
       if ($('worlds-dialog').open) await loadWorlds();
     }
-    if (panelUpdating && !state.busy && ['completed', 'failed'].includes(job.status)) {
-      panelUpdating = false;
-      if (job.status === 'completed') location.reload();
+    if (panelUpdating) {
+      const update = await loadPanelUpdate();
+      if (['completed', 'failed'].includes(update.status)) {
+        panelUpdating = false;
+        if (update.status === 'completed') location.reload();
+      }
     }
   } catch (error) {
     $('connection-error').hidden = false;
@@ -353,8 +356,15 @@ function renderPanelUpdate(info = {status: 'idle'}) {
   $('panel-update-message').textContent = info.message || (running ? '최신 구동기 이미지를 확인하고 있습니다.' : '업데이트 확인을 누르면 최신 버전을 확인합니다.');
 }
 async function loadPanelUpdate() {
-  try { renderPanelUpdate(await api('/api/panel/update/status')); }
-  catch (error) { renderPanelUpdate({status: 'idle', message: error.message}); }
+  try {
+    const info = await api('/api/panel/update/status');
+    renderPanelUpdate(info);
+    return info;
+  } catch (error) {
+    const info = {status: 'idle', message: error.message};
+    renderPanelUpdate(info);
+    return info;
+  }
 }
 $('panel-update-action').onclick = async () => {
   renderPanelUpdate({status: 'running', message: '업데이트 요청을 준비하고 있습니다.'});

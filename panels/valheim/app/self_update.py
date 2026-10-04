@@ -1,4 +1,5 @@
 """Replace the panel from a helper container; retain the old image for rollback."""
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import fcntl
 import os
@@ -11,6 +12,17 @@ from .config import PANEL_VERSION
 from .storage import read_json, write_json
 
 STATUS = Path("/update-data/panel-update-status.json")
+OPERATION = Path("/update-data/operation.json")
+KST = timezone(timedelta(hours=9), name="KST")
+
+
+def write_operation(status, message):
+    write_json(OPERATION, {
+        "status": status,
+        "name": "웹패널 업데이트",
+        "message": message,
+        "updated_at": datetime.now(KST).isoformat(timespec="seconds"),
+    })
 
 
 def run_options(container):
@@ -89,6 +101,7 @@ def main():
                 "version": PANEL_VERSION,
                 "image_id": image_id,
             })
+            write_operation("completed", f"웹패널 {PANEL_VERSION} 업데이트 완료")
         except Exception as error:
             try:
                 client.containers.get(target_name).remove(force=True)
@@ -100,9 +113,11 @@ def main():
                 restart_proxy()
                 write_json(STATUS, {"status": "failed", "rollback": "completed",
                                     "message": f"업데이트 실패 후 이전 패널로 복구했습니다: {error}"})
+                write_operation("failed", f"웹패널 업데이트 실패 후 이전 버전으로 복구했습니다: {error}")
             except Exception as rollback_error:
                 write_json(STATUS, {"status": "failed", "rollback": "failed",
                                     "message": f"패널 복구 확인이 필요합니다: {rollback_error}"})
+                write_operation("failed", f"웹패널 업데이트 및 복구 실패: {rollback_error}")
                 raise
 
 
@@ -112,4 +127,5 @@ if __name__ == "__main__":
     except Exception as error:
         if read_json(STATUS, {}).get("status") != "failed":
             write_json(STATUS, {"status": "failed", "message": str(error)})
+        write_operation("failed", f"웹패널 업데이트 실패: {error}")
         raise

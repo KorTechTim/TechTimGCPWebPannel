@@ -21,6 +21,7 @@ LABELS = {"kr.techtim.game": "valheim", "kr.techtim.managed": "true"}
 RUNNING = {"running", "restarting", "paused", "removing"}
 PERMISSION_FILES = {"admin": "adminlist.txt", "banned": "bannedlist.txt", "permitted": "permittedlist.txt"}
 RUNTIME_BOOTSTRAP_CAPABILITIES = ["CHOWN", "DAC_OVERRIDE", "SETGID", "SETUID"]
+OPERATION_HANDOFF = object()
 
 
 class BusyError(Exception):
@@ -145,9 +146,10 @@ class PanelService:
     def run_reserved(self, handle, name, action):
         try:
             self.cleanup_storage_if_needed()
-            action()
+            result = action()
             self.cleanup_storage_if_needed()
-            self.job("completed", name, f"{name} 완료")
+            if result is not OPERATION_HANDOFF:
+                self.job("completed", name, f"{name} 완료")
         except Exception as error:
             self.log(f"{name} 실패: {error}")
             self.job("failed", name, str(error))
@@ -632,6 +634,7 @@ class PanelService:
                     volumes={"/var/run/docker.sock": {"bind": "/var/run/docker.sock", "mode": "rw"},
                              str(self.settings.host_data_dir): {"bind": "/update-data", "mode": "rw"}},
                 )
+                return OPERATION_HANDOFF
         except Exception as error:
             write_json(status_file, {"status": "failed", "message": f"구동기 업데이트를 시작하지 못했습니다: {error}"})
             raise
