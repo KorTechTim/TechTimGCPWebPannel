@@ -1,4 +1,6 @@
 from datetime import datetime
+import os
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from app.config import ServerConfig
@@ -159,6 +161,67 @@ class LifecycleTests(ServiceCase):
         self.assertEqual(result["cpu_percent"], 80)
         self.assertEqual(result["memory_used"], 800)
         self.assertEqual(result["network_rx"], 0)
+
+    def test_storage_cleanup_does_nothing_below_threshold(self):
+        with patch("app.service.shutil.disk_usage", return_value=SimpleNamespace(total=100, used=79, free=21)):
+            result = self.service.cleanup_storage_if_needed()
+
+        self.assertFalse(result["triggered"])
+        self.assertEqual(self.docker.images.prune_calls, 0)
+
+    def test_storage_cleanup_prunes_docker_and_keeps_three_newest_backups(self):
+        names = []
+        for index in range(5):
+            path = self.service.backups / f"backup-{index}.zip"
+            path.write_bytes(b"backup")
+            os.utime(path, (index + 1, index + 1))
+            names.append(path.name)
+        self.docker.images.prune_result = {
+            "ImagesDeleted": [{"Deleted": "sha256:old"}],
+            "SpaceReclaimed": 1024,
+        }
+        usage = [
+            SimpleNamespace(total=100, used=90, free=10),
+            SimpleNamespace(total=100, used=90, free=10),
+            SimpleNamespace(total=100, used=82, free=18),
+            SimpleNamespace(total=100, used=74, free=26),
+        ]
+
+        with patch("app.service.shutil.disk_usage", side_effect=usage):
+            result = self.service.cleanup_storage_if_needed()
+
+        self.assertTrue(result["triggered"])
+        self.assertEqual(result["backups_deleted"], 2)
+        self.assertEqual(result["images_deleted"], 1)
+        self.assertEqual(result["space_reclaimed"], 1024)
+        self.assertEqual(self.docker.images.prune_filters, {"dangling": True})
+        self.assertEqual(sorted(path.name for path in self.service.backups.glob("*.zip")), names[2:])
+
+    def test_storage_cleanup_prefers_automatic_safety_backups(self):
+        names = [
+            "valheim-20260101-000000-manual-000001.zip",
+            "valheim-20260102-000000-before-update-000002.zip",
+            "valheim-20260103-000000-manual-000003.zip",
+            "valheim-20260104-000000-manual-000004.zip",
+            "valheim-20260105-000000-manual-000005.zip",
+        ]
+        for index, name in enumerate(names):
+            path = self.service.backups / name
+            path.write_bytes(b"backup")
+            os.utime(path, (index + 1, index + 1))
+        usage = [
+            SimpleNamespace(total=100, used=90, free=10),
+            SimpleNamespace(total=100, used=90, free=10),
+            SimpleNamespace(total=100, used=74, free=26),
+            SimpleNamespace(total=100, used=74, free=26),
+        ]
+
+        with patch("app.service.shutil.disk_usage", side_effect=usage):
+            result = self.service.cleanup_storage_if_needed()
+
+        self.assertEqual(result["backups_deleted"], 1)
+        self.assertTrue((self.service.backups / names[0]).exists())
+        self.assertFalse((self.service.backups / names[1]).exists())
 
     def test_password_is_not_in_config_response_or_logs(self):
         self.installed()

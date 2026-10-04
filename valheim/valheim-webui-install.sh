@@ -82,6 +82,10 @@ services:
       PANEL_CONTAINER_NAME: valheim-panel
       PANEL_PROXY_CONTAINER: valheim-panel-proxy
       VALHEIM_SERVER_CONTAINER: valheim-server
+      STORAGE_CLEANUP_THRESHOLD_PERCENT: '80'
+      STORAGE_CLEANUP_TARGET_PERCENT: '75'
+      STORAGE_CLEANUP_INTERVAL_SECONDS: '300'
+      STORAGE_MIN_BACKUPS: '3'
     volumes:
       - ${INSTALL_DIR}/data:/data
       - /var/run/docker.sock:/var/run/docker.sock
@@ -100,6 +104,11 @@ services:
       - ${INSTALL_DIR}/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
       - valheim-panel
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
 COMPOSE
 
 # VPC ingress is configured separately by gcp-create.sh; only these game ports are needed.

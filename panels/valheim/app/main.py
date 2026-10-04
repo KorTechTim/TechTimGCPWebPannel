@@ -41,6 +41,8 @@ def create_app(settings=None, docker_factory=None):
         service.stop_event.set()
         if service.scheduler:
             service.scheduler.join(timeout=6)
+        if service.maintenance:
+            service.maintenance.join(timeout=6)
 
     app = FastAPI(title="TechTim Valheim Server Panel", version=PANEL_VERSION,
                   lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)

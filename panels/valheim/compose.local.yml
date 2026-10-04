@@ -12,6 +12,10 @@ services:
       VALHEIM_RUNTIME_IMAGE: techtim/valheim-runtime:local
       PULL_RUNTIME_IMAGE: '0'
       PANEL_IMAGE: techtim/valheim-panel:local
+      STORAGE_CLEANUP_THRESHOLD_PERCENT: '80'
+      STORAGE_CLEANUP_TARGET_PERCENT: '75'
+      STORAGE_CLEANUP_INTERVAL_SECONDS: '300'
+      STORAGE_MIN_BACKUPS: '3'
     volumes:
       - ${VALHEIM_DATA_DIR}:/data
       - /var/run/docker.sock:/var/run/docker.sock

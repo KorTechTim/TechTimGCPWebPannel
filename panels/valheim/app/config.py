@@ -34,9 +34,15 @@ class Settings:
     max_upload_bytes: int = 2 * 1024**3
     scheduler_enabled: bool = True
     pull_runtime: bool = True
+    storage_cleanup_threshold: int = 80
+    storage_cleanup_target: int = 75
+    storage_cleanup_interval: int = 300
+    storage_min_backups: int = 3
 
     @classmethod
     def from_env(cls):
+        cleanup_threshold = max(50, min(95, int(os.getenv("STORAGE_CLEANUP_THRESHOLD_PERCENT", "80"))))
+        cleanup_target = max(40, min(cleanup_threshold - 1, int(os.getenv("STORAGE_CLEANUP_TARGET_PERCENT", "75"))))
         return cls(
             data_dir=Path(os.getenv("DATA_DIR", "/data")),
             host_data_dir=Path(os.getenv("HOST_DATA_DIR", "/opt/techtim/valheim/data")),
@@ -48,6 +54,10 @@ class Settings:
             stop_timeout=max(30, int(os.getenv("SERVER_STOP_TIMEOUT", "120"))),
             scheduler_enabled=os.getenv("SCHEDULER_ENABLED", "1") == "1",
             pull_runtime=os.getenv("PULL_RUNTIME_IMAGE", "1") == "1",
+            storage_cleanup_threshold=cleanup_threshold,
+            storage_cleanup_target=cleanup_target,
+            storage_cleanup_interval=max(60, int(os.getenv("STORAGE_CLEANUP_INTERVAL_SECONDS", "300"))),
+            storage_min_backups=max(1, int(os.getenv("STORAGE_MIN_BACKUPS", "3"))),
         )
 
 

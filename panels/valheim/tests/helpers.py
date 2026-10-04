@@ -72,14 +72,32 @@ class FakeContainers:
         return value
 
 
+class FakeImages:
+    def __init__(self):
+        self.prune_calls = 0
+        self.prune_result = {"ImagesDeleted": [], "SpaceReclaimed": 0}
+
+    @staticmethod
+    def get(image):
+        return SimpleNamespace(id="runtime-image")
+
+    @staticmethod
+    def pull(image):
+        return SimpleNamespace(id="runtime-image")
+
+    def prune(self, filters=None):
+        self.prune_calls += 1
+        self.prune_filters = filters
+        return self.prune_result
+
+
 class FakeDocker:
     def __init__(self, engine_dir, runtime_image):
         self.engine_dir = engine_dir
         self.runtime_image = runtime_image
         self.install_success = True
         self.containers = FakeContainers(self)
-        self.images = SimpleNamespace(get=lambda image: SimpleNamespace(id="runtime-image"),
-                                      pull=lambda image: SimpleNamespace(id="runtime-image"))
+        self.images = FakeImages()
         self.api = SimpleNamespace(pull=lambda *args, **kwargs: iter([{"status": "Pull complete"}]))
 
     def ping(self): return True

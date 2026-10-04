@@ -48,6 +48,7 @@ class PanelService:
         self.join_code = ""
         self.stop_event = threading.Event()
         self.scheduler = None
+        self.maintenance = None
         for path in (self.root, self.server, self.saves / "worlds_local", self.backups, self.exports):
             path.mkdir(parents=True, exist_ok=True)
         if not self.config_file.exists():
@@ -142,7 +143,9 @@ class PanelService:
 
     def run_reserved(self, handle, name, action):
         try:
+            self.cleanup_storage_if_needed()
             action()
+            self.cleanup_storage_if_needed()
             self.job("completed", name, f"{name} 완료")
         except Exception as error:
             self.log(f"{name} 실패: {error}")
@@ -330,6 +333,108 @@ class PanelService:
                 for p in sorted(self.backups.glob("*.zip"), key=lambda p: p.stat().st_mtime, reverse=True)
                 if not p.is_symlink()]
 
+    def disk_usage_percent(self):
+        usage = shutil.disk_usage(self.root)
+        return (usage.used / usage.total * 100) if usage.total else 0
+
+    def cleanup_storage_if_needed(self):
+        before = self.disk_usage_percent()
+        result = {
+            "triggered": before >= self.settings.storage_cleanup_threshold,
+            "before_percent": round(before, 1),
+            "after_percent": round(before, 1),
+            "backups_deleted": 0,
+            "exports_deleted": 0,
+            "containers_deleted": 0,
+            "images_deleted": 0,
+            "space_reclaimed": 0,
+            "errors": [],
+        }
+        if not result["triggered"]:
+            return result
+
+        cutoff = time.time() - 24 * 3600
+        for path in self.exports.glob("*"):
+            try:
+                if path.is_file() and not path.is_symlink() and path.stat().st_mtime < cutoff:
+                    path.unlink()
+                    result["exports_deleted"] += 1
+            except OSError as error:
+                result["errors"].append(f"임시 파일 {path.name}: {error}")
+
+        try:
+            with self.client() as client:
+                try:
+                    desired_image = client.images.get(self.settings.runtime_image).id
+                except docker.errors.ImageNotFound:
+                    desired_image = ""
+                for name in (self.installer_name, self.update_name, self.settings.server_container):
+                    container = self.container(client, name)
+                    if not container or container.status in RUNNING:
+                        continue
+                    image_id = str(getattr(getattr(container, "image", None), "id", "") or "")
+                    if name == self.settings.server_container and (not desired_image or image_id == desired_image):
+                        continue
+                    container.remove()
+                    result["containers_deleted"] += 1
+                pruned = client.images.prune(filters={"dangling": True}) or {}
+                result["images_deleted"] = len(pruned.get("ImagesDeleted") or [])
+                result["space_reclaimed"] = max(0, int(pruned.get("SpaceReclaimed") or 0))
+        except Exception as error:
+            result["errors"].append(f"Docker 정리: {error}")
+
+        backups = sorted(
+            (path for path in self.backups.glob("*.zip") if path.is_file() and not path.is_symlink()),
+            key=lambda path: path.stat().st_mtime,
+        )
+        removable = backups[:-self.settings.storage_min_backups]
+        safety_markers = ("-before-update-", "-before-restore-", "-before-import-")
+        removable.sort(key=lambda path: (
+            not any(marker in path.name for marker in safety_markers),
+            path.stat().st_mtime,
+        ))
+        for path in removable:
+            if self.disk_usage_percent() < self.settings.storage_cleanup_target:
+                break
+            try:
+                path.unlink()
+                result["backups_deleted"] += 1
+            except OSError as error:
+                result["errors"].append(f"백업 {path.name}: {error}")
+
+        after = self.disk_usage_percent()
+        result["after_percent"] = round(after, 1)
+        summary = (
+            f"저장 공간 자동 정리: {result['before_percent']}% → {result['after_percent']}%, "
+            f"백업 {result['backups_deleted']}개, 임시 파일 {result['exports_deleted']}개, "
+            f"컨테이너 {result['containers_deleted']}개, Docker 이미지 {result['images_deleted']}개 삭제"
+        )
+        if result["errors"]:
+            summary += f" (일부 실패: {' / '.join(result['errors'])})"
+        try:
+            self.log(summary)
+        except OSError:
+            pass
+        return result
+
+    def run_storage_maintenance(self):
+        if self.disk_usage_percent() < self.settings.storage_cleanup_threshold:
+            return None
+        if not self.lock.acquire(blocking=False):
+            return None
+        handle = None
+        try:
+            handle = (self.root / ".maintenance.lock").open("a")
+            try:
+                fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                return None
+            return self.cleanup_storage_if_needed()
+        finally:
+            if handle:
+                handle.close()
+            self.lock.release()
+
     def restore(self, name):
         self.require_stopped()
         source = inside(self.backups, name, file_only=True)
@@ -427,6 +532,21 @@ class PanelService:
         if self.settings.scheduler_enabled:
             self.scheduler = threading.Thread(target=loop, name="valheim-scheduler", daemon=True)
             self.scheduler.start()
+
+        def maintenance_loop():
+            while not self.stop_event.is_set():
+                try:
+                    self.run_storage_maintenance()
+                except Exception as error:
+                    try:
+                        self.log(f"저장 공간 자동 정리 오류: {error}")
+                    except OSError:
+                        pass
+                if self.stop_event.wait(self.settings.storage_cleanup_interval):
+                    break
+
+        self.maintenance = threading.Thread(target=maintenance_loop, name="valheim-storage-maintenance", daemon=True)
+        self.maintenance.start()
 
     def logs(self, kind):
         if kind in {"control", "install"}:
