@@ -127,9 +127,9 @@ class LifecycleTests(ServiceCase):
 
         status = read_json(self.service.root / "panel-update-status.json", {})
         self.assertEqual(status["status"], "completed")
-        self.assertEqual(status["version"], "1.1.1")
+        self.assertEqual(status["version"], "1.1.2")
         self.assertEqual(status["image_id"], "runtime-imag")
-        self.assertIn("1.1.1", status["message"])
+        self.assertIn("1.1.2", status["message"])
 
     def test_panel_update_streams_pull_and_starts_latest_helper(self):
         self.docker.containers.add(self.settings.panel_container)

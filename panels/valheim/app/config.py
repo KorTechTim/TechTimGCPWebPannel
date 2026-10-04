@@ -6,7 +6,7 @@ import re
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-PANEL_VERSION = "1.1.1"
+PANEL_VERSION = "1.1.2"
 STEAM_APP_ID = "896660"
 DEFAULT_RUNTIME_IMAGE = "ghcr.io/kortechtim/valheim-runtime:steamcmd-nonroot-v1"
 LEGACY_RUNTIME_IMAGE = "ghcr.io/kortechtim/valheim-runtime:latest"

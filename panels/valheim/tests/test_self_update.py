@@ -2,12 +2,21 @@ from pathlib import Path
 from types import SimpleNamespace
 import tempfile
 import unittest
-from unittest.mock import patch
-from app.self_update import run_options, wait_for_http, write_operation
+from unittest.mock import Mock, patch
+from app.self_update import docker_client, run_options, wait_for_http, write_operation
 from app.storage import read_json
 
 
 class SelfUpdateTests(unittest.TestCase):
+    def test_docker_client_closes_without_native_context_manager_support(self):
+        client = SimpleNamespace(close=Mock())
+
+        with patch("app.self_update.docker.from_env", return_value=client):
+            with docker_client() as opened:
+                self.assertIs(opened, client)
+
+        client.close.assert_called_once_with()
+
     def test_compose_network_volumes_and_direct_port_bindings_are_preserved(self):
         container = SimpleNamespace(name="valheim-panel", attrs={
             "Config": {"Env": ["DATA_DIR=/data", "PANEL_VERSION=old"], "Labels": {"label": "value"},
@@ -37,9 +46,9 @@ class SelfUpdateTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             operation = Path(temporary) / "operation.json"
             with patch("app.self_update.OPERATION", operation):
-                write_operation("completed", "웹패널 1.1.1 업데이트 완료")
+                write_operation("completed", "웹패널 1.1.2 업데이트 완료")
 
             payload = read_json(operation, {})
             self.assertEqual(payload["status"], "completed")
             self.assertEqual(payload["name"], "웹패널 업데이트")
-            self.assertIn("1.1.1", payload["message"])
+            self.assertIn("1.1.2", payload["message"])

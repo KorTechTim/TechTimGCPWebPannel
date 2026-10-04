@@ -1,4 +1,5 @@
 """Replace the panel from a helper container; retain the old image for rollback."""
+from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import fcntl
@@ -14,6 +15,15 @@ from .storage import read_json, write_json
 STATUS = Path("/update-data/panel-update-status.json")
 OPERATION = Path("/update-data/operation.json")
 KST = timezone(timedelta(hours=9), name="KST")
+
+
+@contextmanager
+def docker_client():
+    client = docker.from_env(timeout=30)
+    try:
+        yield client
+    finally:
+        client.close()
 
 
 def write_operation(status, message):
@@ -72,7 +82,7 @@ def main():
     target_image = os.environ["TARGET_IMAGE"]
     proxy_name = os.getenv("PROXY_CONTAINER", "valheim-panel-proxy")
     time.sleep(2)
-    with Path("/update-data/.maintenance.lock").open("a") as lock, docker.from_env(timeout=30) as client:
+    with Path("/update-data/.maintenance.lock").open("a") as lock, docker_client() as client:
         fcntl.flock(lock, fcntl.LOCK_EX)
         target = client.containers.get(target_name)
         target.reload()
