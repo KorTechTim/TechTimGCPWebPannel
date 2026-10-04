@@ -102,10 +102,10 @@ class LifecycleTests(ServiceCase):
     def test_panel_update_preparation_failure_is_visible_in_update_status(self):
         self.docker.containers.add(self.settings.panel_container)
 
-        def fail_pull(_image):
+        def fail_pull(*_args, **_kwargs):
             raise RuntimeError("registry unavailable")
 
-        self.docker.images.pull = fail_pull
+        self.docker.api.pull = fail_pull
         with self.assertRaises(RuntimeError):
             self.service.update_panel()
         status = read_json(self.service.root / "panel-update-status.json", {})
@@ -122,6 +122,25 @@ class LifecycleTests(ServiceCase):
         self.assertEqual(status["version"], "1.1.0")
         self.assertEqual(status["image_id"], "runtime-imag")
         self.assertIn("1.1.0", status["message"])
+
+    def test_panel_update_streams_pull_and_starts_latest_helper(self):
+        self.docker.containers.add(self.settings.panel_container)
+        pulls = []
+
+        def stream_pull(repository, **options):
+            pulls.append((repository, options))
+            return iter([{"status": "Pull complete"}])
+
+        self.docker.api.pull = stream_pull
+        self.docker.images.get = lambda _image: SimpleNamespace(id="new-panel-image")
+
+        self.service.update_panel()
+
+        self.assertEqual(pulls[0][1], {"tag": "latest", "stream": True, "decode": True})
+        image, options = self.docker.containers.runs[-1]
+        self.assertEqual(image, "new-panel-image")
+        self.assertEqual(options["command"], ["python", "-m", "app.self_update"])
+        self.assertEqual(options["environment"]["TARGET_IMAGE"], self.settings.panel_image)
 
     def test_ready_state_survives_log_rotation_but_not_process_restart(self):
         server = self.docker.containers.add()

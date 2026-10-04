@@ -604,7 +604,14 @@ class PanelService:
             with self.client() as client:
                 current = client.containers.get(self.settings.panel_container)
                 current_image = current.image.id
-                latest = client.images.pull(self.settings.panel_image)
+                repository, tag = docker.utils.parse_repository_tag(self.settings.panel_image)
+                for event in client.api.pull(repository, tag=tag or "latest", stream=True, decode=True):
+                    if event.get("error"):
+                        raise RuntimeError(event["error"])
+                    status = str(event.get("status") or "").strip()
+                    if status in {"Pulling from kortechtim/valheim-panel", "Download complete", "Pull complete"}:
+                        write_json(status_file, {"status": "running", "message": f"최신 패널 이미지 다운로드 중 · {status}"})
+                latest = client.images.get(self.settings.panel_image)
                 if latest.id == current_image:
                     image_id = latest.id.removeprefix("sha256:")[:12]
                     message = f"이미 최신 웹패널 {PANEL_VERSION}입니다. · 이미지 {image_id}"
@@ -621,7 +628,7 @@ class PanelService:
                     detach=True, auto_remove=True, labels=LABELS,
                     environment={"TARGET_CONTAINER": self.settings.panel_container,
                                  "PROXY_CONTAINER": self.settings.proxy_container,
-                                 "TARGET_IMAGE": latest.id},
+                                 "TARGET_IMAGE": self.settings.panel_image},
                     volumes={"/var/run/docker.sock": {"bind": "/var/run/docker.sock", "mode": "rw"},
                              str(self.settings.host_data_dir): {"bind": "/update-data", "mode": "rw"}},
                 )

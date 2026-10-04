@@ -44,7 +44,8 @@ def wait_for_http(container, timeout=60):
     while time.monotonic() < deadline:
         container.reload()
         if container.status in {"dead", "exited"}:
-            raise RuntimeError("새 패널 프로세스가 종료되었습니다.")
+            logs = container.logs(tail=30).decode(errors="replace")
+            raise RuntimeError(f"새 패널 프로세스가 종료되었습니다: {logs[-1200:]}")
         if container.status == "running":
             probe = container.exec_run(["python", "-c",
                 "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=2)"])
@@ -64,6 +65,8 @@ def main():
         target = client.containers.get(target_name)
         target.reload()
         previous_image = target.image.id
+        latest_image = client.images.get(target_image)
+        latest_image_id = latest_image.id
         options = run_options(target)
         target.stop(timeout=30)
         target.remove()
@@ -76,10 +79,10 @@ def main():
             proxy.restart(timeout=10)
 
         try:
-            replacement = client.containers.run(target_image, **options)
+            replacement = client.containers.run(latest_image_id, **options)
             wait_for_http(replacement)
             restart_proxy()
-            image_id = target_image.removeprefix("sha256:")[:12]
+            image_id = latest_image_id.removeprefix("sha256:")[:12]
             write_json(STATUS, {
                 "status": "completed",
                 "message": f"웹패널 {PANEL_VERSION} 업데이트 완료 · 이미지 {image_id}",
