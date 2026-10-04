@@ -5,7 +5,7 @@
   <meta name="color-scheme" content="dark"><title>TechTim · Valheim Server</title>
   <link rel="icon" href="/static/valheim-panel-mark-v2.png?v=1" type="image/png">
   <link rel="stylesheet" href="/static/app.css?v=1.1.0">
-  <link rel="stylesheet" href="/static/valheim-palshell.css?v=1.1.0">
+  <link rel="stylesheet" href="/static/valheim-palshell.css?v=1.1.2">
   <script src="/static/app.js?v=1.1.0" defer></script>
 </head>
 <body>
@@ -17,18 +17,18 @@
         <span class="brand-copy"><strong>TechTim Valheim Server Panel</strong><small>DEDICATED SERVER · GCP LINUX</small></span>
       </a>
       <nav class="top-links" aria-label="패널 바로가기">
-        <a class="icon-button" href="https://www.valheimgame.com/support/a-guide-to-dedicated-servers/" target="_blank" rel="noopener noreferrer" title="공식 서버 가이드" aria-label="공식 서버 가이드"><span aria-hidden="true">↗</span></a>
-        <button class="icon-button" type="button" data-open="panel-update-dialog" title="구동기 업데이트" aria-label="구동기 업데이트"><span aria-hidden="true">↻</span></button>
-        <button class="icon-button" id="logout" type="button" title="로그아웃" aria-label="로그아웃"><span aria-hidden="true">⇥</span></button>
+        <a class="top-action" href="https://www.valheimgame.com/support/a-guide-to-dedicated-servers/" target="_blank" rel="noopener noreferrer" title="공식 서버 가이드" aria-label="공식 서버 가이드"><span class="top-action-icon" aria-hidden="true"><img src="/static/valheim-nav-guide-v1.png" alt=""></span><span class="top-action-label">공식 가이드</span></a>
+        <button class="top-action" type="button" data-open="panel-update-dialog" title="패널 업데이트" aria-label="패널 업데이트"><span class="top-action-icon" aria-hidden="true"><img src="/static/valheim-nav-update-v1.png" alt=""></span><span class="top-action-label">패널 업데이트</span></button>
+        <button class="top-action" id="logout" type="button" title="로그아웃" aria-label="로그아웃"><span class="top-action-icon" aria-hidden="true"><img src="/static/valheim-nav-logout-v1.png" alt=""></span><span class="top-action-label">로그아웃</span></button>
       </nav>
     </header>
     <main>
       <div id="dashboard-view">
       <section class="status-grid" id="overview" aria-label="서버 요약">
         <article class="status-card"><span class="status-icon game-mark"><img src="/static/valheim-panel-mark-v2.png" alt=""></span><span><small>게임</small><strong>Valheim</strong><em id="current-world">월드 확인 중</em></span></article>
-        <article class="status-card"><span class="status-icon install-mark" aria-hidden="true">ᛏ</span><span><small>설치 상태</small><strong id="engine-status">설치 상태 확인 중</strong><em>Steam 정식 서버</em></span></article>
-        <article class="status-card"><span class="status-icon server-mark" aria-hidden="true">ᛉ</span><span><small>서버 상태</small><strong id="server-status"><span class="dot"></span>상태 확인 중</strong><em id="hero-crossplay">크로스플레이</em></span></article>
-        <article class="status-card"><span class="status-icon version-mark" aria-hidden="true">ᚱ</span><span><small>패널 버전</small><strong id="panel-version">1.0.0</strong><em>TechTim GCP Panel</em></span></article>
+        <article class="status-card"><span class="status-icon install-mark" aria-hidden="true"><img src="/static/valheim-status-install-v1.png" alt=""></span><span><small>설치 상태</small><strong id="engine-status">설치 상태 확인 중</strong><em>Steam 정식 서버</em></span></article>
+        <article class="status-card"><span class="status-icon server-mark" aria-hidden="true"><img src="/static/valheim-status-server-v1.png" alt=""></span><span><small>서버 상태</small><strong id="server-status"><span class="dot"></span>상태 확인 중</strong><em id="hero-crossplay">크로스플레이</em></span></article>
+        <article class="status-card"><span class="status-icon version-mark" aria-hidden="true"><img src="/static/valheim-status-panel-v1.png" alt=""></span><span><small>패널 버전</small><strong id="panel-version">1.0.0</strong><em>TechTim GCP Panel</em></span></article>
       </section>
       <div id="operation-banner" class="operation-banner" role="status" hidden></div>
       <div id="connection-error" class="callout error" role="alert" hidden></div>

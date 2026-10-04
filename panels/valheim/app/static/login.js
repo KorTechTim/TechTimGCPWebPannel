@@ -3,12 +3,12 @@ const changingPassword = location.pathname === '/change-password';
 const form = document.getElementById('login-form');
 if (changingPassword) {
   document.getElementById('login-title').textContent = '새 패널 비밀번호 설정';
-  document.getElementById('login-description').textContent = '8자 이상의 새 비밀번호로 서버를 보호하세요.';
+  document.getElementById('login-description').textContent = '4자 이상의 새 비밀번호로 서버를 보호하세요.';
   document.getElementById('username-label').hidden = true;
   document.getElementById('username').required = false;
   document.getElementById('confirm-label').hidden = false;
   document.getElementById('confirm-password').required = true;
-  document.getElementById('password').minLength = 8;
+  document.getElementById('password').minLength = 4;
   document.getElementById('password').autocomplete = 'new-password';
   document.getElementById('login-submit').textContent = '비밀번호 저장';
   document.getElementById('initial-hint').hidden = true;

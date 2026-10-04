@@ -75,8 +75,8 @@ class Auth:
 
     def change_password(self, request, password):
         self.require(request, allow_initial=True)
-        if len(password) < 8 or len(password) > 128 or password == "admin":
-            raise HTTPException(400, "새 패널 비밀번호는 8~128자로 입력해주세요.")
+        if len(password) < 4 or len(password) > 128 or password == "admin":
+            raise HTTPException(400, "새 패널 비밀번호는 4~128자로 입력해주세요.")
         with self.lock:
             self.set_password(password)
             write_json(self.sessions_file, {})

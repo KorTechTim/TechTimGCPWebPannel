@@ -14,12 +14,26 @@ class StaticUiTests(unittest.TestCase):
             "valheim-panel-bg-v2.png",
             "valheim-panel-mark-v2.png",
             "valheim-settings-mark-v2.png",
+            "valheim-status-install-v1.png",
+            "valheim-status-server-v1.png",
+            "valheim-status-panel-v1.png",
+            "valheim-nav-guide-v1.png",
+            "valheim-nav-update-v1.png",
+            "valheim-nav-logout-v1.png",
         ):
             asset = STATIC_DIR / name
             with self.subTest(asset=name):
                 self.assertTrue(asset.is_file())
                 self.assertGreater(asset.stat().st_size, 1_000)
                 self.assertEqual(asset.read_bytes()[:8], b"\x89PNG\r\n\x1a\n")
+
+        html = self.read("dashboard.html")
+        for name in ("install", "server", "panel"):
+            self.assertIn(f"valheim-status-{name}-v1.png", html)
+        for name in ("guide", "update", "logout"):
+            self.assertIn(f"valheim-nav-{name}-v1.png", html)
+        for label in ("공식 가이드", "패널 업데이트", "로그아웃"):
+            self.assertIn(f'class="top-action-label">{label}', html)
 
     def test_dashboard_keeps_palworld_style_operational_hub(self):
         html = self.read("dashboard.html")
