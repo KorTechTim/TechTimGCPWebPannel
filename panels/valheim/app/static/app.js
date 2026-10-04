@@ -465,7 +465,13 @@ sidebarMenuItems.forEach(item => item.addEventListener('click', () => {
   item.setAttribute('aria-current', 'page');
 }));
 
-function meter(id, used, total) { $(id).style.width = `${total > 0 ? Math.max(0, Math.min(100, used / total * 100)) : 0}%`; }
+function meter(id, used, total) {
+  const percent = total > 0 ? Math.max(0, Math.min(100, used / total * 100)) : 0;
+  const bar = $(id);
+  bar.style.width = `${percent}%`;
+  const panel = bar.closest('.resource');
+  panel.dataset.level = percent >= 90 ? 'critical' : percent >= 75 ? 'warning' : 'normal';
+}
 async function refreshResources() {
   if (polls.has('resources')) return;
   polls.add('resources');
@@ -474,10 +480,11 @@ async function refreshResources() {
     $('cpu').textContent = data.available ? `${data.cpu_percent}%` : '—';
     $('memory').textContent = data.available ? `${bytes(data.memory_used)} / ${bytes(data.memory_total)}` : '—';
     $('disk').textContent = `${bytes(data.disk_used)} / ${bytes(data.disk_total)}`;
-    $('network').textContent = data.available ? `↓ ${bytes(data.network_rx)}/s · ↑ ${bytes(data.network_tx)}/s` : '—';
+    $('network-rx').textContent = data.available ? `${bytes(data.network_rx)}/s` : '—';
+    $('network-tx').textContent = data.available ? `${bytes(data.network_tx)}/s` : '—';
     meter('cpu-meter', data.cpu_percent || 0, 100); meter('memory-meter', data.memory_used || 0, data.memory_total || 0); meter('disk-meter', data.disk_used, data.disk_total);
   } catch {
-    ['cpu', 'memory', 'disk', 'network'].forEach(id => { $(id).textContent = '—'; });
+    ['cpu', 'memory', 'disk', 'network-rx', 'network-tx'].forEach(id => { $(id).textContent = '—'; });
     ['cpu-meter', 'memory-meter', 'disk-meter'].forEach(id => meter(id, 0, 1));
   } finally { polls.delete('resources'); }
 }

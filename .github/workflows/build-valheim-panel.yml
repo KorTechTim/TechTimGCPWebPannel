@@ -71,4 +71,11 @@ jobs:
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && matrix.image == 'valheim-runtime'
         run: |
           docker pull "ghcr.io/kortechtim/valheim-runtime:${GITHUB_SHA}"
-          docker run --rm "ghcr.io/kortechtim/valheim-runtime:${GITHUB_SHA}" check-user
+          docker run --rm \
+            --cap-drop ALL \
+            --cap-add CHOWN \
+            --cap-add DAC_OVERRIDE \
+            --cap-add SETGID \
+            --cap-add SETUID \
+            --security-opt no-new-privileges:true \
+            "ghcr.io/kortechtim/valheim-runtime:${GITHUB_SHA}" check-user

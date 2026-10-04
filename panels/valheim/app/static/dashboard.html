@@ -5,15 +5,15 @@
   <meta name="color-scheme" content="dark"><title>TechTim · Valheim Server</title>
   <link rel="icon" href="/static/valheim-panel-mark-v2.png?v=1" type="image/png">
   <link rel="stylesheet" href="/static/app.css?v=1.1.0">
-  <link rel="stylesheet" href="/static/valheim-palshell.css?v=1.1.2">
-  <script src="/static/app.js?v=1.1.0" defer></script>
+  <link rel="stylesheet" href="/static/valheim-palshell.css?v=1.1.4">
+  <script src="/static/app.js?v=1.1.1" defer></script>
 </head>
 <body>
   <div class="ambient" aria-hidden="true"></div>
   <div class="panel-wrap">
     <header class="topbar">
       <a class="brand" href="#overview" aria-label="Valheim 기본 대시보드">
-        <span class="brand-icon"><img src="/static/valheim-panel-mark-v2.png" alt=""></span>
+        <span class="brand-icon profile-avatar"><img src="/static/techtim-avatar.png?v=1" alt=""></span>
         <span class="brand-copy"><strong>TechTim Valheim Server Panel</strong><small>DEDICATED SERVER · GCP LINUX</small></span>
       </a>
       <nav class="top-links" aria-label="패널 바로가기">
@@ -48,11 +48,11 @@
         <section class="card control-card" id="server-control" aria-labelledby="control-title">
           <div class="section-head"><div><p class="eyebrow">SERVER CONTROL</p><h2 id="control-title">서버 제어</h2></div><span class="ornament" aria-hidden="true">ᛟ</span></div>
           <p class="subtle" id="control-hint">엔진을 설치하고 서버 설정을 저장한 뒤 시작하세요.</p>
-          <button class="primary action-start" id="start" disabled><span aria-hidden="true">▶</span>서버 시작</button>
-          <div class="control-pair"><button id="stop" disabled><span aria-hidden="true">■</span>중지</button><button id="restart" disabled><span aria-hidden="true">↻</span>재시작</button></div>
-          <div class="divider"></div>
           <button id="install" class="outlined-gold" disabled><span aria-hidden="true">↓</span><span id="install-label">엔진 설치</span></button>
           <p class="micro">Steam 정식 배포 서버를 설치합니다.<br>업데이트는 서버를 중지한 뒤 진행하세요.</p>
+          <div class="divider"></div>
+          <button class="primary action-start" id="start" disabled><span aria-hidden="true">▶</span>서버 시작</button>
+          <div class="control-pair"><button id="stop" disabled><span aria-hidden="true">■</span>중지</button><button id="restart" disabled><span aria-hidden="true">↻</span>재시작</button></div>
           <button id="open-settings" class="settings-link" disabled>서버 설정 <span aria-hidden="true">⚙</span></button>
         </section>
       </div>
@@ -101,11 +101,35 @@
           </nav>
         </div>
         <aside class="resource-monitor" id="resources" aria-label="서버 리소스">
-          <div class="resource-intro"><div><p class="eyebrow">RESOURCES</p><h2>서버 리소스</h2></div><span class="micro">5초마다 갱신</span></div>
-          <div class="resource"><span>CPU <small>컨테이너 사용률</small></span><strong id="cpu">—</strong><div class="meter"><i id="cpu-meter"></i></div></div>
-          <div class="resource"><span>메모리</span><strong id="memory">—</strong><div class="meter"><i id="memory-meter"></i></div></div>
-          <div class="resource"><span>호스트 디스크</span><strong id="disk">—</strong><div class="meter"><i id="disk-meter"></i></div></div>
-          <div class="resource resource-network"><span>네트워크</span><strong id="network">—</strong><small>다운로드 ↓ · 업로드 ↑</small></div>
+          <div class="resource-intro"><div><p class="eyebrow">SYSTEM MONITOR</p><h2>서버 리소스</h2></div><span class="resource-live"><i aria-hidden="true"></i>실시간 · 5초</span></div>
+          <div class="resource-grid">
+            <section class="resource resource-cpu" data-level="normal" aria-label="CPU 사용률">
+              <div class="resource-head"><span>CPU</span><small>CONTAINER</small></div>
+              <strong id="cpu">—</strong>
+              <div class="meter"><i id="cpu-meter"></i></div>
+              <p>컨테이너 사용률</p>
+            </section>
+            <section class="resource resource-memory" data-level="normal" aria-label="메모리 사용량">
+              <div class="resource-head"><span>메모리</span><small>WORKING SET</small></div>
+              <strong id="memory">—</strong>
+              <div class="meter"><i id="memory-meter"></i></div>
+              <p>사용량 / 할당량</p>
+            </section>
+            <section class="resource resource-disk" data-level="normal" aria-label="호스트 디스크 사용량">
+              <div class="resource-head"><span>호스트 디스크</span><small>STORAGE</small></div>
+              <strong id="disk">—</strong>
+              <div class="meter"><i id="disk-meter"></i></div>
+              <p>사용량 / 전체 용량</p>
+            </section>
+            <section class="resource resource-network" aria-label="네트워크 전송량">
+              <div class="resource-head"><span>네트워크</span><small>THROUGHPUT</small></div>
+              <div class="network-values">
+                <span><small>다운로드</small><strong id="network-rx">—</strong></span>
+                <span><small>업로드</small><strong id="network-tx">—</strong></span>
+              </div>
+              <p>초당 실시간 전송량</p>
+            </section>
+          </div>
         </aside>
       </section>
       </div>

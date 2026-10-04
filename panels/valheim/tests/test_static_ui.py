@@ -20,6 +20,7 @@ class StaticUiTests(unittest.TestCase):
             "valheim-nav-guide-v1.png",
             "valheim-nav-update-v1.png",
             "valheim-nav-logout-v1.png",
+            "techtim-avatar.png",
         ):
             asset = STATIC_DIR / name
             with self.subTest(asset=name):
@@ -28,6 +29,8 @@ class StaticUiTests(unittest.TestCase):
                 self.assertEqual(asset.read_bytes()[:8], b"\x89PNG\r\n\x1a\n")
 
         html = self.read("dashboard.html")
+        self.assertIn('class="brand-icon profile-avatar"', html)
+        self.assertIn('src="/static/techtim-avatar.png?v=1"', html)
         for name in ("install", "server", "panel"):
             self.assertIn(f"valheim-status-{name}-v1.png", html)
         for name in ("guide", "update", "logout"):
@@ -40,6 +43,9 @@ class StaticUiTests(unittest.TestCase):
         self.assertIn("valheim-palshell.css", html)
         self.assertIn('id="quick-settings-form"', html)
         self.assertIn('id="detail-view"', html)
+        self.assertIn('class="resource-grid"', html)
+        self.assertIn('id="network-rx"', html)
+        self.assertIn('id="network-tx"', html)
         self.assertEqual(html.count('class="management-shortcut"'), 8)
         for target in (
             "modifiers-dialog",
@@ -53,6 +59,7 @@ class StaticUiTests(unittest.TestCase):
         ):
             with self.subTest(target=target):
                 self.assertIn(f'data-open="{target}"', html)
+        self.assertLess(html.index('id="install"'), html.index('id="start"'))
 
     def test_detail_navigation_and_quick_settings_are_wired(self):
         script = self.read("app.js")

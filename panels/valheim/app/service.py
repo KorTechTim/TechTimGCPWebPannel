@@ -20,6 +20,7 @@ KST = timezone(timedelta(hours=9), name="KST")
 LABELS = {"kr.techtim.game": "valheim", "kr.techtim.managed": "true"}
 RUNNING = {"running", "restarting", "paused", "removing"}
 PERMISSION_FILES = {"admin": "adminlist.txt", "banned": "bannedlist.txt", "permitted": "permittedlist.txt"}
+RUNTIME_BOOTSTRAP_CAPABILITIES = ["CHOWN", "DAC_OVERRIDE", "SETGID", "SETUID"]
 
 
 class BusyError(Exception):
@@ -289,7 +290,8 @@ class PanelService:
                     str(self.settings.host_data_dir / "saves"): {"bind": "/saves", "mode": "rw"},
                 },
                 ports={f"{port}/udp": port for port in (config.port, config.port + 1)},
-                cap_drop=["ALL"], security_opt=["no-new-privileges:true"],
+                cap_drop=["ALL"], cap_add=RUNTIME_BOOTSTRAP_CAPABILITIES,
+                security_opt=["no-new-privileges:true"],
                 log_config=LogConfig(type="json-file", config={"max-size": "10m", "max-file": "3"}),
             )
         self.log(f"월드 '{config.world}' 시작 요청 완료. Game server connected 로그를 기다려주세요.")
