@@ -3,15 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>TechTim Project Zomboid Server Panel</title>
+  <title>T2 Zomboid Server Pannel</title>
   <link rel="icon" href="/static/zomboid-panel-mark.png?v=1">
-  <link rel="stylesheet" href="/static/app.css?v=1.6.5">
-  <script src="/static/app.js?v=1.6.5" defer></script>
+  <link rel="stylesheet" href="/static/app.css?v=1.6.9">
+  <script src="/static/app.js?v=1.6.6" defer></script>
 </head>
 <body>
 <div class="app-shell">
   <aside class="sidebar">
-    <a class="brand" href="#overview" data-view="overview">
+    <a class="brand" href="https://www.youtube.com/@kortechtim" target="_blank" rel="noreferrer" title="TechTim YouTube 채널">
       <img src="/static/techtim-profile.png?v=1" alt="TechTim 프로필">
       <span><strong>TechTim</strong><small>ZOMBOID SERVER PANEL</small></span>
     </a>
@@ -36,8 +36,8 @@
   <main class="workspace">
     <header class="topbar panel-topbar">
       <a class="top-brand" href="#overview" data-view="overview" title="서버 관리 첫 화면" aria-label="서버 관리 첫 화면으로 이동">
-        <span class="top-brand-icon"><img src="/static/project-zomboid-official-logo-v1.png" alt="Project Zomboid"></span>
-        <span class="top-brand-copy"><strong>TechTim Project Zomboid Server Panel</strong><small>DEDICATED SERVER · GCP LINUX</small></span>
+        <span class="top-brand-icon"><img src="/static/t2-header-avatar-v1.png" alt="T2 Zomboid 캐릭터"></span>
+        <span class="top-brand-copy"><strong>T2 Zomboid Server Pannel</strong><small>DEDICATED SERVER · GCP LINUX</small></span>
       </a>
       <nav class="top-actions" aria-label="패널 바로가기">
         <a class="icon-link" href="https://discord.com/invite/EHXHTgB94n" target="_blank" rel="noreferrer" title="TechTim Discord"><span><img src="/static/zomboid-nav-discord-v1.png" alt=""></span><small>테크팀 디스코드</small></a>
@@ -150,7 +150,7 @@
     </section>
 
     <section class="view" data-page="files">
-      <div class="page-head"><div><p class="eyebrow">SERVER STORAGE</p><h2>서버 폴더 탐색기</h2><p>안전을 위해 서버가 중지된 동안만 파일을 변경할 수 있습니다.</p></div><label class="upload-button">파일 업로드<input id="file-upload" type="file" hidden></label></div>
+      <div class="page-head"><div><p class="eyebrow">SERVER STORAGE</p><h2>서버 폴더 탐색기</h2><p>안전을 위해 서버가 중지된 동안만 파일을 변경할 수 있습니다.</p></div><div class="file-upload-actions"><label class="upload-button">파일 업로드<input id="file-upload" type="file" hidden></label><label class="upload-button folder-upload-button">폴더 업로드<input id="folder-upload" type="file" webkitdirectory directory multiple hidden></label></div></div>
       <section class="panel explorer"><div class="breadcrumbs" id="breadcrumbs"></div><div class="explorer-tools"><button id="folder-up">상위 폴더</button><button id="new-folder">새 폴더</button><button id="refresh-files">새로고침</button></div><div id="file-list" class="file-list"></div></section>
     </section>
 
@@ -218,7 +218,7 @@
       </form>
     </dialog>
 
-    <footer class="site-footer"><span>TechTim Project Zomboid Server Panel</span><span>STEAM APP 380870 · WORKSHOP 108600</span></footer>
+    <footer class="site-footer"><span>T2 Zomboid Server Pannel</span><span>STEAM APP 380870 · WORKSHOP 108600</span></footer>
   </main>
 </div>
 </body>

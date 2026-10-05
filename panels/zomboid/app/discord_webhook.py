@@ -74,7 +74,7 @@ def build_webhook_payload(
             "description": str(description or "서버 상태가 변경되었습니다.")[:4096],
             "color": max(0, min(0xFFFFFF, int(color))),
             "fields": safe_fields,
-            "footer": {"text": "TechTim Project Zomboid Server Panel"},
+            "footer": {"text": "T2 Zomboid Server Pannel"},
             "timestamp": sent_at.astimezone(timezone.utc).isoformat(timespec="seconds"),
         }],
     }

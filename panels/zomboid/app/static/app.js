@@ -612,7 +612,28 @@ $('#new-folder').addEventListener('click', async () => {
   await perform(() => api('/api/files/directory', json('POST', {path: currentPath, name})), '폴더를 만들었습니다.');
   await loadFiles(currentPath);
 });
-$('#file-upload').addEventListener('change', async event => { const file = event.target.files[0]; if (!file) return; const data = new FormData(); data.append('path', currentPath); data.append('file', file); await perform(() => api('/api/files/upload', {method:'POST', body:data}), '파일을 올렸습니다.'); event.target.value = ''; await loadFiles(currentPath); });
+$('#file-upload').addEventListener('change', async event => {
+  const input = event.currentTarget;
+  const file = input.files[0];
+  if (!file) return;
+  const data = new FormData(); data.append('path', currentPath); data.append('file', file);
+  try { await perform(() => api('/api/files/upload', {method:'POST', body:data}), '파일을 올렸습니다.'); await loadFiles(currentPath); }
+  catch (_error) { /* perform already displays the upload error. */ }
+  finally { input.value = ''; }
+});
+$('#folder-upload').addEventListener('change', async event => {
+  const input = event.currentTarget;
+  const files = [...input.files];
+  if (!files.length) return;
+  const data = new FormData(); data.append('path', currentPath);
+  files.forEach(file => data.append('files', file, file.webkitRelativePath || file.name));
+  try {
+    const result = await perform(() => api('/api/files/upload-folder', {method:'POST', body:data}));
+    message(result.message || `폴더의 파일 ${files.length}개를 업로드했습니다.`);
+    await loadFiles(currentPath);
+  } catch (_error) { /* perform already displays the upload error. */ }
+  finally { input.value = ''; }
+});
 
 function renderDiscord(data) {
   const config = data.config || data;

@@ -18,9 +18,11 @@ class StaticUiTests(unittest.TestCase):
         html = (Path(__file__).parents[1] / "app/static/dashboard.html").read_text()
         css = (Path(__file__).parents[1] / "app/static/app.css").read_text()
         self.assertIn("zomboid-panel-mark.png", html)
-        self.assertIn('<a class="brand" href="#overview" data-view="overview">\n      <img src="/static/techtim-profile.png?v=1"', html)
-        self.assertIn('class="top-brand-icon"><img src="/static/project-zomboid-official-logo-v1.png"', html)
-        self.assertTrue((Path(__file__).parents[1] / "app/static/project-zomboid-official-logo-v1.png").is_file())
+        self.assertIn('<a class="brand" href="https://www.youtube.com/@kortechtim" target="_blank" rel="noreferrer"', html)
+        self.assertNotIn('<a class="brand" href="#overview" data-view="overview">', html)
+        self.assertIn('<img src="/static/techtim-profile.png?v=1"', html)
+        self.assertIn('class="top-brand-icon"><img src="/static/t2-header-avatar-v1.png"', html)
+        self.assertTrue((Path(__file__).parents[1] / "app/static/t2-header-avatar-v1.png").is_file())
         self.assertIn("zomboid-panel-bg.png", css)
         self.assertIn("zomboid-hero-zombie-hand-v1.png", css)
         self.assertIn("bottom:-96px", css)
@@ -163,12 +165,24 @@ class StaticUiTests(unittest.TestCase):
         self.assertIn("event.ctrlKey || event.metaKey", script)
         self.assertIn(".file-editor-dialog{", css)
 
+    def test_file_explorer_supports_folder_uploads(self):
+        root = Path(__file__).parents[1]
+        html = (root / "app/static/dashboard.html").read_text()
+        script = (root / "app/static/app.js").read_text()
+        css = (root / "app/static/app.css").read_text()
+        self.assertIn('id="folder-upload"', html)
+        self.assertIn("webkitdirectory directory multiple", html)
+        self.assertIn("file.webkitRelativePath || file.name", script)
+        self.assertIn("/api/files/upload-folder", script)
+        self.assertIn(".file-upload-actions{", css)
+
     def test_settings_legends_are_inside_frames(self):
         css = (Path(__file__).parents[1] / "app/static/app.css").read_text()
         self.assertIn(".form-sections legend{float:left;width:100%", css)
         self.assertIn(".form-sections legend+*{clear:both}", css)
         self.assertIn('.view[data-page="settings"] .form-grid input', css)
         self.assertIn('.view[data-page="settings"] .toggle-grid label', css)
+        self.assertIn('.view[data-page="settings"] .toggle-grid+.form-grid{margin-top:18px}', css)
         self.assertIn('.view[data-page="schedule"] .schedule-times input', css)
         self.assertIn('.view[data-page="schedule"] .callout', css)
 
@@ -222,6 +236,14 @@ class StaticUiTests(unittest.TestCase):
             self.assertIn(asset, html)
         self.assertEqual(html.count('class="nav-icon"'), 11)
         self.assertIn(".nav-item .nav-icon img", css)
+
+    def test_sidebar_uses_survivor_background_art(self):
+        root = Path(__file__).parents[1]
+        css = (root / "app/static/app.css").read_text()
+        asset = root / "app/static/zomboid-sidebar-survivor-v1.jpg"
+        self.assertTrue(asset.is_file())
+        self.assertIn("zomboid-sidebar-survivor-v1.jpg", css)
+        self.assertIn("@media(max-width:820px){.sidebar{background:#121917}}", css)
 
     def test_discord_integration_has_menu_and_controls(self):
         root = Path(__file__).parents[1]

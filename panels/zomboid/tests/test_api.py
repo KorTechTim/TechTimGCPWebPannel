@@ -81,6 +81,21 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(rejected.status_code, 400)
         self.assertIn("바이너리", rejected.json()["detail"])
 
+    def test_folder_upload_preserves_relative_paths(self):
+        uploaded = self.client.post("/api/files/upload-folder", data={"path": ""}, files=[
+            ("files", ("WorkshopPack/config/settings.ini", b"Enabled=true\n", "text/plain")),
+            ("files", ("WorkshopPack/mods/readme.txt", b"Project Zomboid\n", "text/plain")),
+        ])
+        self.assertEqual(uploaded.status_code, 200)
+        self.assertEqual(uploaded.json()["files"], 2)
+        self.assertEqual((self.root / "WorkshopPack/config/settings.ini").read_text(), "Enabled=true\n")
+        self.assertEqual((self.root / "WorkshopPack/mods/readme.txt").read_text(), "Project Zomboid\n")
+
+        escaped = self.client.post("/api/files/upload-folder", data={"path": ""}, files=[
+            ("files", ("../outside.txt", b"blocked", "text/plain")),
+        ])
+        self.assertEqual(escaped.status_code, 400)
+
     def test_console_command_endpoint(self):
         commands = []
         self.client.app.state.service.console_command = lambda command: commands.append(command) or {

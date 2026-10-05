@@ -94,7 +94,7 @@ def create_app(settings=None, docker_factory=None):
             if worker:
                 worker.join(timeout=6)
 
-    app = FastAPI(title="TechTim Project Zomboid Server Panel", version=PANEL_VERSION,
+    app = FastAPI(title="T2 Zomboid Server Pannel", version=PANEL_VERSION,
                   lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
     app.state.service = service
     app.state.auth = auth
@@ -256,7 +256,7 @@ def create_app(settings=None, docker_factory=None):
             service.deliver_discord_event(
                 "test",
                 "Discord 연동 테스트 성공",
-                "TechTim Project Zomboid Server Panel과 Discord 채널이 정상적으로 연결되었습니다.",
+                "T2 Zomboid Server Pannel과 Discord 채널이 정상적으로 연결되었습니다.",
                 [{"name": "알림 상태", "value": "정상", "inline": True}],
             )
         except Exception as error:
@@ -453,6 +453,45 @@ def create_app(settings=None, docker_factory=None):
             temporary.unlink(missing_ok=True)
             await file.close()
         return {"status": "ok", "size": written}
+
+    @app.post("/api/files/upload-folder")
+    async def upload_folder(request: Request, files: list[UploadFile] = File(...), path: str = Form("")):
+        auth.require(request); service.require_stopped()
+        target_root = data_path(path)
+        if not target_root.is_dir():
+            raise FileNotFoundError(path)
+        if len(files) > 10000:
+            raise HTTPException(413, "한 번에 10,000개 이하의 파일만 업로드할 수 있습니다.")
+        written = 0
+        uploaded = []
+        seen = set()
+        try:
+            with tempfile.TemporaryDirectory(prefix=".folder-upload-", dir=target_root) as staging_name:
+                staging_root = Path(staging_name)
+                for upload in files:
+                    relative_name = str(upload.filename or "")
+                    if relative_name in seen:
+                        raise ValueError("폴더에 중복된 파일 경로가 있습니다.")
+                    seen.add(relative_name)
+                    staged = inside(staging_root, relative_name)
+                    staged.parent.mkdir(parents=True, exist_ok=True)
+                    with staged.open("xb") as output:
+                        while chunk := await upload.read(1024 * 1024):
+                            written += len(chunk)
+                            if written > settings.max_upload_bytes:
+                                raise HTTPException(413, "업로드 제한을 초과했습니다.")
+                            output.write(chunk)
+                    uploaded.append(relative_name)
+                for relative_name in uploaded:
+                    staged = inside(staging_root, relative_name, file_only=True)
+                    destination = inside(target_root, relative_name)
+                    destination.parent.mkdir(parents=True, exist_ok=True)
+                    staged.replace(destination)
+        finally:
+            for upload in files:
+                await upload.close()
+        return {"status": "ok", "files": len(uploaded), "size": written,
+                "message": f"폴더의 파일 {len(uploaded)}개를 업로드했습니다."}
 
     @app.get("/api/files/download")
     def download_file(path: str, request: Request):
