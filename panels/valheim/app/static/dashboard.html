@@ -5,14 +5,14 @@
   <meta name="color-scheme" content="dark"><title>TechTim · Valheim Server</title>
   <link rel="icon" href="/static/valheim-panel-mark-v2.png?v=1" type="image/png">
   <link rel="stylesheet" href="/static/app.css?v=1.1.0">
-  <link rel="stylesheet" href="/static/valheim-palshell.css?v=1.2.1">
-  <script src="/static/app.js?v=1.2.1" defer></script>
+  <link rel="stylesheet" href="/static/valheim-palshell.css?v=1.3.0">
+  <script src="/static/app.js?v=1.3.0" defer></script>
 </head>
 <body>
   <div class="ambient" aria-hidden="true"></div>
   <div class="panel-wrap">
     <header class="topbar">
-      <a class="brand" href="https://www.youtube.com/@kortechtim" target="_blank" rel="noopener noreferrer" title="TechTim 유튜브 채널" aria-label="TechTim 유튜브 채널로 이동">
+      <a class="brand" href="#overview" title="서버 관리 첫 화면" aria-label="서버 관리 첫 화면으로 이동">
         <span class="brand-icon profile-avatar"><img src="/static/techtim-avatar.png?v=1" alt=""></span>
         <span class="brand-copy"><strong>TechTim Valheim Server Panel</strong><small>DEDICATED SERVER · GCP LINUX</small></span>
       </a>
@@ -58,7 +58,6 @@
           <div class="divider"></div>
           <button class="primary action-start" id="start" disabled><span aria-hidden="true">▶</span>서버 시작</button>
           <div class="control-pair"><button id="stop" disabled><span aria-hidden="true">■</span>중지</button><button id="restart" disabled><span aria-hidden="true">↻</span>재시작</button></div>
-          <button id="open-settings" class="settings-link" disabled>서버 설정 <span aria-hidden="true">⚙</span></button>
         </section>
       </div>
 
@@ -97,6 +96,7 @@
           <nav class="management-shortcuts" aria-label="Valheim 운영 기능">
             <button class="management-shortcut" type="button" data-open="modifiers-dialog"><span class="shortcut-rune" aria-hidden="true">ᛗ</span><span><b>월드 · 배율</b><small>난이도 · 자원 · 습격 · 포탈</small></span></button>
             <button class="management-shortcut" type="button" data-open="worlds-dialog"><span class="shortcut-rune" aria-hidden="true">ᛟ</span><span><b>월드 파일</b><small>가져오기 · 다운로드 · 선택</small></span></button>
+            <button class="management-shortcut" type="button" data-open="server-files-dialog"><span class="shortcut-rune" aria-hidden="true">ᚠ</span><span><b>서버 폴더</b><small>파일 · 폴더 업로드와 다운로드</small></span></button>
             <button class="management-shortcut" type="button" data-open="backups-dialog"><span class="shortcut-rune" aria-hidden="true">ᛒ</span><span><b>백업 · 복원</b><small>보호 백업과 안전한 복원</small></span></button>
             <button class="management-shortcut" type="button" data-open="permissions-dialog"><span class="shortcut-rune" aria-hidden="true">ᛉ</span><span><b>플레이어 권한</b><small>관리자 · 허용 · 차단 목록</small></span></button>
             <button class="management-shortcut" type="button" data-open="schedule-dialog"><span class="shortcut-rune" aria-hidden="true">ᛞ</span><span><b>예약 · 자동화</b><small id="schedule-summary">한국 시간 기준 운영</small></span></button>
@@ -197,6 +197,34 @@
   <dialog id="worlds-dialog" class="wide-dialog"><div class="dialog-head"><div><p class="eyebrow">WORLD FILES</p><h2>월드 파일</h2></div><button data-close aria-label="닫기">×</button></div>
     <div class="dialog-body"><div id="world-list" class="file-list"></div>
       <form id="world-upload-form"><fieldset data-writable><legend>기존 월드 가져오기</legend><p class="subtle">이름이 같은 .db와 .fwl 파일을 함께 선택하세요. Steam 클라우드 월드는 게임에서 로컬로 옮긴 뒤 가져와주세요.</p><div class="field-grid"><label>월드 데이터 · .db<input name="db" type="file" accept=".db" required></label><label>월드 정보 · .fwl<input name="fwl" type="file" accept=".fwl" required></label></div><label class="compact-toggle"><input name="overwrite" type="checkbox">같은 이름의 기존 월드 덮어쓰기</label><p class="micro">기존 월드가 있으면 먼저 ZIP 백업을 만듭니다. 업로드 후 서버 설정에서 월드를 선택해주세요.</p><button type="submit" class="primary">월드 업로드</button></fieldset><p id="worlds-message" class="form-message" role="status"></p></form>
+    </div><div class="dialog-foot"><button data-close>닫기</button></div>
+  </dialog>
+
+  <dialog id="server-files-dialog" class="wide-dialog"><div class="dialog-head"><div><p class="eyebrow">SERVER FILE EXPLORER</p><h2>서버 폴더 탐색기</h2></div><button data-close aria-label="닫기">×</button></div>
+    <div class="dialog-body explorer-shell">
+      <div class="explorer-toolbar">
+        <div><span class="tiny-label">CURRENT PATH</span><strong id="server-files-path" class="explorer-path">/server</strong></div>
+        <div class="explorer-actions">
+          <button id="server-files-refresh" type="button" title="새로고침" aria-label="파일 목록 새로고침">↻</button>
+          <button id="server-files-up" type="button">↑ 상위 폴더</button>
+          <button id="server-files-download-folders" type="button" disabled>↓ 선택 폴더</button>
+          <button id="server-files-upload" class="primary" type="button">파일 업로드</button>
+          <button id="server-files-upload-folder" class="primary" type="button">폴더 업로드</button>
+        </div>
+      </div>
+      <form id="server-files-new-folder" class="explorer-create-row">
+        <input name="name" maxlength="255" placeholder="새 폴더 이름" aria-label="새 폴더 이름" required>
+        <button type="submit">폴더 생성</button>
+      </form>
+      <input id="server-files-upload-input" type="file" hidden>
+      <input id="server-files-folder-input" type="file" webkitdirectory directory multiple hidden>
+      <div class="explorer-table-wrap">
+        <table class="explorer-table">
+          <thead><tr><th>이름</th><th>종류</th><th>크기</th><th>수정일</th><th>작업</th></tr></thead>
+          <tbody id="server-files-body"><tr><td colspan="5">서버 폴더를 불러오고 있습니다.</td></tr></tbody>
+        </table>
+      </div>
+      <p id="server-files-message" class="form-message" role="status">서버가 중지된 상태에서 파일을 관리할 수 있습니다.</p>
     </div><div class="dialog-foot"><button data-close>닫기</button></div>
   </dialog>
 

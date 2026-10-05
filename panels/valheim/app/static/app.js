@@ -10,6 +10,9 @@ let activeDetail = null;
 let lastJob = '';
 let toastTimer;
 let panelUpdateCheckTimer;
+let serverFilesPath = '';
+let serverFilesParent = '';
+const selectedServerFolders = new Set();
 const polls = new Set();
 const runningStates = new Set(['running', 'restarting', 'paused', 'removing']);
 
@@ -149,9 +152,9 @@ function updateControls() {
   $('stop').disabled = !available || !running;
   $('restart').disabled = !available || !running;
   $('install').disabled = !available || running;
-  $('open-settings').disabled = !state;
   $('sidebar-settings').disabled = !state;
   $('panel-update-action').disabled = !available || running;
+  updateServerFileControls();
   $('install-label').textContent = state?.engine.installed ? '서버 업데이트' : '엔진 설치';
   $('control-hint').textContent = !state?.docker_available ? '서버 제어를 위해 Docker 연결이 필요합니다.'
     : state.busy || uiBusy ? '현재 작업이 끝나면 다음 작업을 진행할 수 있습니다.'
@@ -309,7 +312,6 @@ async function loadSettings() {
   fillWorldNames(data.worlds);
   message('settings-message', '');
 }
-$('open-settings').onclick = () => openDetail('settings-dialog', loadSettings);
 $('sidebar-settings').onclick = () => openDetail('settings-dialog', loadSettings);
 $('settings-form').onsubmit = async event => {
   event.preventDefault();
@@ -417,6 +419,171 @@ function actionButton(label, handler, write = false) {
 }
 function downloadLink(label, url) { const link = document.createElement('a'); link.textContent = label; link.href = url; link.setAttribute('download', ''); return link; }
 
+function updateServerFileControls() {
+  const enabled = writable();
+  ['server-files-refresh', 'server-files-up', 'server-files-upload', 'server-files-upload-folder'].forEach(id => {
+    const control = $(id);
+    if (control) control.disabled = !enabled || (id === 'server-files-up' && !serverFilesPath);
+  });
+  const folderForm = $('server-files-new-folder');
+  if (folderForm) folderForm.querySelectorAll('input,button').forEach(control => { control.disabled = !enabled; });
+  const folderDownload = $('server-files-download-folders');
+  if (folderDownload) folderDownload.disabled = !enabled || selectedServerFolders.size === 0;
+  document.querySelectorAll('.server-folder-select, .server-file-download').forEach(control => { control.disabled = !enabled; });
+}
+
+function setServerFilesMessage(text, error = false) {
+  message('server-files-message', text, error);
+}
+
+function serverFileRow(entry) {
+  const row = document.createElement('tr');
+  const nameCell = document.createElement('td');
+  const nameWrap = document.createElement('div');
+  nameWrap.className = 'explorer-name-wrap';
+  if (entry.type === 'dir') {
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.className = 'server-folder-select';
+    checkbox.checked = selectedServerFolders.has(entry.path);
+    checkbox.setAttribute('aria-label', `${entry.name} 폴더 선택`);
+    checkbox.onchange = () => {
+      if (checkbox.checked) selectedServerFolders.add(entry.path); else selectedServerFolders.delete(entry.path);
+      updateServerFileControls();
+    };
+    const open = document.createElement('button');
+    open.type = 'button'; open.className = 'explorer-name'; open.textContent = `▸ ${entry.name}`;
+    open.onclick = () => loadServerFiles(entry.path);
+    nameWrap.append(checkbox, open);
+  } else {
+    const icon = document.createElement('span');
+    icon.className = 'explorer-file-name'; icon.textContent = `◇ ${entry.name}`;
+    nameWrap.append(icon);
+  }
+  nameCell.append(nameWrap);
+  const typeCell = document.createElement('td'); typeCell.textContent = entry.type === 'dir' ? '폴더' : '파일';
+  const sizeCell = document.createElement('td'); sizeCell.textContent = entry.type === 'file' ? bytes(entry.size) : '—';
+  const modifiedCell = document.createElement('td'); modifiedCell.textContent = String(entry.modified || '').replace('T', ' ');
+  const actionCell = document.createElement('td'); actionCell.className = 'explorer-row-actions';
+  if (entry.type === 'file') {
+    const download = document.createElement('button');
+    download.type = 'button'; download.className = 'server-file-download'; download.textContent = '다운로드';
+    download.onclick = () => downloadServerFile(entry.path);
+    actionCell.append(download);
+  }
+  row.append(nameCell, typeCell, sizeCell, modifiedCell, actionCell);
+  return row;
+}
+
+async function loadServerFiles(path = serverFilesPath) {
+  const body = $('server-files-body');
+  body.replaceChildren();
+  const loading = document.createElement('tr');
+  const loadingCell = document.createElement('td'); loadingCell.colSpan = 5; loadingCell.textContent = '서버 폴더를 불러오고 있습니다.';
+  loading.append(loadingCell); body.append(loading);
+  selectedServerFolders.clear();
+  try {
+    const data = await api(`/api/server-files?path=${encodeURIComponent(path || '')}`);
+    serverFilesPath = data.path || '';
+    serverFilesParent = data.parent || '';
+    $('server-files-path').textContent = `/server${serverFilesPath ? `/${serverFilesPath}` : ''}`;
+    body.replaceChildren();
+    if (!data.entries.length) {
+      const row = document.createElement('tr'); const cell = document.createElement('td');
+      cell.colSpan = 5; cell.textContent = '이 폴더는 비어 있습니다.'; row.append(cell); body.append(row);
+    } else {
+      body.append(...data.entries.map(serverFileRow));
+    }
+    setServerFilesMessage('서버 폴더 목록을 불러왔습니다.');
+  } catch (error) {
+    body.replaceChildren();
+    const row = document.createElement('tr'); const cell = document.createElement('td');
+    cell.colSpan = 5; cell.textContent = error.message; row.append(cell); body.append(row);
+    setServerFilesMessage(error.message, true);
+  }
+  updateServerFileControls();
+}
+
+function downloadServerFile(path) {
+  const link = document.createElement('a');
+  link.href = `/api/server-files/download?path=${encodeURIComponent(path)}`;
+  link.setAttribute('download', ''); document.body.append(link); link.click(); link.remove();
+}
+
+async function downloadSelectedServerFolders() {
+  if (!selectedServerFolders.size) return;
+  setServerFilesMessage('선택한 폴더를 ZIP으로 준비하고 있습니다.');
+  try {
+    const response = await fetch('/api/server-files/download-folders', {
+      method: 'POST', cache: 'no-store', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({paths: [...selectedServerFolders]}),
+    });
+    if (!response.ok) {
+      const data = await response.json(); throw new Error(data.detail || '폴더 다운로드를 준비하지 못했습니다.');
+    }
+    const blob = await response.blob();
+    const disposition = response.headers.get('Content-Disposition') || '';
+    const match = disposition.match(/filename="?([^";]+)"?/i);
+    const url = URL.createObjectURL(blob); const link = document.createElement('a');
+    link.href = url; link.download = match ? match[1] : 'valheim-server-folders.zip';
+    document.body.append(link); link.click(); link.remove(); URL.revokeObjectURL(url);
+    setServerFilesMessage('선택한 폴더 다운로드를 시작했습니다.');
+  } catch (error) { setServerFilesMessage(error.message, true); }
+}
+
+async function uploadServerFile(file, overwrite = false) {
+  const form = new FormData(); form.append('file', file); form.append('overwrite', String(overwrite));
+  const response = await fetch(`/api/server-files/upload?path=${encodeURIComponent(serverFilesPath)}`, {method: 'POST', cache: 'no-store', body: form});
+  const data = await response.json();
+  if (response.status === 409 && !overwrite) {
+    if (await confirmAction('파일 덮어쓰기', `${file.name} 파일이 이미 있습니다. 기존 파일을 교체할까요?`, '덮어쓰기')) return uploadServerFile(file, true);
+    return;
+  }
+  if (!response.ok) throw new Error(data.detail || '파일 업로드에 실패했습니다.');
+  setServerFilesMessage(data.message); await loadServerFiles(serverFilesPath);
+}
+
+async function uploadServerFolder(files, overwrite = false) {
+  const form = new FormData();
+  files.forEach(file => { form.append('files', file, file.name); form.append('relative_paths', file.webkitRelativePath || file.name); });
+  form.append('overwrite', String(overwrite));
+  const response = await fetch(`/api/server-files/upload-folder?path=${encodeURIComponent(serverFilesPath)}`, {method: 'POST', cache: 'no-store', body: form});
+  const data = await response.json();
+  if (response.status === 409 && !overwrite) {
+    if (await confirmAction('폴더 덮어쓰기', '같은 경로의 파일이 있습니다. 기존 파일을 교체할까요?', '덮어쓰기')) return uploadServerFolder(files, true);
+    return;
+  }
+  if (!response.ok) throw new Error(data.detail || '폴더 업로드에 실패했습니다.');
+  setServerFilesMessage(data.message); await loadServerFiles(serverFilesPath);
+}
+
+$('server-files-refresh').onclick = () => loadServerFiles(serverFilesPath);
+$('server-files-up').onclick = () => loadServerFiles(serverFilesParent);
+$('server-files-download-folders').onclick = downloadSelectedServerFolders;
+$('server-files-upload').onclick = () => $('server-files-upload-input').click();
+$('server-files-upload-folder').onclick = () => $('server-files-folder-input').click();
+$('server-files-upload-input').onchange = async event => {
+  const file = event.currentTarget.files?.[0];
+  if (!file) return;
+  try { setServerFilesMessage(`${file.name} 업로드 중입니다.`); await uploadServerFile(file); }
+  catch (error) { setServerFilesMessage(error.message, true); }
+  finally { event.currentTarget.value = ''; }
+};
+$('server-files-folder-input').onchange = async event => {
+  const files = [...(event.currentTarget.files || [])];
+  if (!files.length) return;
+  try { setServerFilesMessage(`${files.length}개 파일을 업로드하고 있습니다.`); await uploadServerFolder(files); }
+  catch (error) { setServerFilesMessage(error.message, true); }
+  finally { event.currentTarget.value = ''; }
+};
+$('server-files-new-folder').onsubmit = async event => {
+  event.preventDefault(); const input = event.currentTarget.elements.name;
+  try {
+    const data = await jsonPost('/api/server-files/mkdir', {path: serverFilesPath, name: input.value});
+    input.value = ''; setServerFilesMessage(data.message); await loadServerFiles(serverFilesPath);
+  } catch (error) { setServerFilesMessage(error.message, true); }
+};
+
 async function loadWorlds() {
   const data = await api('/api/worlds');
   const list = $('world-list'); list.replaceChildren();
@@ -493,7 +660,7 @@ $('schedule-form').onsubmit = async event => {
 };
 
 const loaders = {'settings-dialog': loadSettings, 'worlds-dialog': loadWorlds, 'backups-dialog': loadBackups, 'permissions-dialog': loadPermissions,
-  'schedule-dialog': loadSchedule, 'modifiers-dialog': loadModifiers, 'mods-dialog': async () => {},
+  'schedule-dialog': loadSchedule, 'modifiers-dialog': loadModifiers, 'server-files-dialog': () => loadServerFiles(serverFilesPath), 'mods-dialog': async () => {},
   'discord-dialog': async () => {}, 'panel-update-dialog': loadPanelUpdate};
 document.querySelectorAll('[data-open]').forEach(button => button.onclick = async () => {
   await openDetail(button.dataset.open, loaders[button.dataset.open]);

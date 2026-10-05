@@ -1,4 +1,6 @@
+from io import BytesIO
 import time
+import zipfile
 from fastapi.testclient import TestClient
 
 from app.auth import SESSION_COOKIE
@@ -50,9 +52,11 @@ class ApiTests(ServiceCase):
         for method, url, kwargs in [
             ('get', '/api/worlds', {}), ('get', '/api/server/status', {}), ('get', '/api/logs', {}),
             ('get', '/api/backups', {}), ('get', '/api/permissions', {}), ('get', '/api/restart-schedule', {}),
+            ('get', '/api/server-files', {}),
             ('get', '/api/panel/update/check', {}),
             ('post', '/api/install', {}), ('post', '/api/panel/update', {}), ('post', '/api/server/start', {}),
             ('post', '/api/config', {'json': {}}),
+            ('post', '/api/server-files/mkdir', {'json': {'name': 'mods'}}),
         ]:
             with self.subTest(url=url): self.assertEqual(getattr(self.client, method)(url, **kwargs).status_code, 401)
 
@@ -103,6 +107,77 @@ class ApiTests(ServiceCase):
             with self.subTest(db=db[0]):
                 self.assertEqual(self.client.post('/api/worlds/upload', files={"db": db, "fwl": fwl}).status_code, 400)
         self.assertEqual(self.client.get('/api/worlds').json()["worlds"], [])
+
+    def test_server_file_explorer_browses_uploads_and_downloads(self):
+        self.authenticated()
+        (self.service.server / "config").mkdir()
+        (self.service.server / "config" / "server.cfg").write_bytes(b"server-config")
+
+        listing = self.client.get('/api/server-files').json()
+        self.assertEqual(listing["path"], "")
+        self.assertEqual(listing["entries"][0]["name"], "config")
+        self.assertEqual(listing["entries"][0]["type"], "dir")
+
+        self.assertEqual(self.client.post('/api/server-files/mkdir', json={"path": "config", "name": "mods"}).status_code, 200)
+        upload = self.client.post(
+            '/api/server-files/upload?path=config/mods',
+            files={"file": ("example.dll", b"plugin-data")},
+            data={"overwrite": "false"},
+        )
+        self.assertEqual(upload.status_code, 200)
+        self.assertEqual((self.service.server / "config" / "mods" / "example.dll").read_bytes(), b"plugin-data")
+        self.assertEqual(
+            self.client.post('/api/server-files/upload?path=config/mods', files={"file": ("example.dll", b"new")}).status_code,
+            409,
+        )
+        self.assertEqual(
+            self.client.post(
+                '/api/server-files/upload?path=config/mods',
+                files={"file": ("example.dll", b"new")},
+                data={"overwrite": "true"},
+            ).status_code,
+            200,
+        )
+
+        download = self.client.get('/api/server-files/download?path=config/mods/example.dll')
+        self.assertEqual(download.status_code, 200)
+        self.assertEqual(download.content, b"new")
+
+        archive = self.client.post('/api/server-files/download-folders', json={"paths": ["config"]})
+        self.assertEqual(archive.status_code, 200)
+        with zipfile.ZipFile(BytesIO(archive.content)) as bundle:
+            self.assertEqual(bundle.read("config/server.cfg"), b"server-config")
+            self.assertEqual(bundle.read("config/mods/example.dll"), b"new")
+
+    def test_server_folder_upload_preserves_browser_relative_paths(self):
+        self.authenticated()
+        response = self.client.post(
+            '/api/server-files/upload-folder',
+            files=[
+                ("files", ("one.cfg", b"one")),
+                ("files", ("two.cfg", b"two")),
+                ("relative_paths", (None, "BepInEx/config/one.cfg")),
+                ("relative_paths", (None, "BepInEx/plugins/two.cfg")),
+                ("overwrite", (None, "false")),
+            ],
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual((self.service.server / "BepInEx" / "config" / "one.cfg").read_bytes(), b"one")
+        self.assertEqual((self.service.server / "BepInEx" / "plugins" / "two.cfg").read_bytes(), b"two")
+
+    def test_server_file_explorer_rejects_traversal_and_running_server(self):
+        self.authenticated()
+        self.assertEqual(self.client.get('/api/server-files?path=../outside').status_code, 400)
+        self.assertEqual(
+            self.client.post('/api/server-files/mkdir', json={"path": "", "name": "../outside"}).status_code,
+            400,
+        )
+        self.docker.containers.add()
+        self.assertEqual(self.client.get('/api/server-files').status_code, 409)
+        self.assertEqual(
+            self.client.post('/api/server-files/upload', files={"file": ("blocked.txt", b"blocked")}).status_code,
+            409,
+        )
 
     def test_backup_download_is_attachment_and_backup_restoration_is_queued(self):
         self.authenticated(); self.world()

@@ -41,7 +41,8 @@ class StaticUiTests(unittest.TestCase):
             self.assertIn(f"valheim-nav-{name}-v1.png", html)
         for label in ("테크팀 디스코드", "테크팀 유튜브", "공식 가이드", "패널 업데이트", "로그아웃"):
             self.assertIn(f'class="top-action-label">{label}', html)
-        self.assertEqual(html.count('href="https://www.youtube.com/@kortechtim"'), 2)
+        self.assertEqual(html.count('href="https://www.youtube.com/@kortechtim"'), 1)
+        self.assertIn('class="brand" href="#overview"', html)
         self.assertIn('href="https://discord.gg/Awy6Uh38KW"', html)
         self.assertIn('id="panel-update-notice"', html)
         self.assertIn('id="panel-update-button"', html)
@@ -54,10 +55,11 @@ class StaticUiTests(unittest.TestCase):
         self.assertIn('class="resource-grid"', html)
         self.assertIn('id="network-rx"', html)
         self.assertIn('id="network-tx"', html)
-        self.assertEqual(html.count('class="management-shortcut"'), 8)
+        self.assertEqual(html.count('class="management-shortcut"'), 9)
         for target in (
             "modifiers-dialog",
             "worlds-dialog",
+            "server-files-dialog",
             "backups-dialog",
             "permissions-dialog",
             "schedule-dialog",
@@ -67,6 +69,7 @@ class StaticUiTests(unittest.TestCase):
         ):
             with self.subTest(target=target):
                 self.assertIn(f'data-open="{target}"', html)
+        self.assertNotIn('id="open-settings"', html)
         self.assertLess(html.index('id="install"'), html.index('id="start"'))
 
     def test_detail_navigation_and_quick_settings_are_wired(self):
@@ -77,6 +80,9 @@ class StaticUiTests(unittest.TestCase):
         self.assertIn("quick-settings-form", script)
         self.assertIn("['completed', 'failed'].includes(update.status)", script)
         self.assertIn("async function checkPanelUpdate", script)
+        self.assertIn("async function loadServerFiles", script)
+        self.assertIn("async function uploadServerFile", script)
+        self.assertIn("async function uploadServerFolder", script)
 
     def test_responsive_shell_has_mobile_breakpoints(self):
         css = self.read("valheim-palshell.css")
@@ -84,6 +90,8 @@ class StaticUiTests(unittest.TestCase):
         self.assertIn("@media (max-width: 760px)", css)
         self.assertIn("@media (max-width: 440px)", css)
         self.assertIn("grid-template-columns: 1fr", css)
+        self.assertIn(".explorer-shell", css)
+        self.assertIn("#panel-update-dialog .callout { width: 100%; max-width: none; }", css)
 
 
 if __name__ == "__main__":
