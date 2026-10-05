@@ -323,6 +323,15 @@ class StaticUiTests(unittest.TestCase):
         self.assertEqual(html.count('class="log-tab active" data-log="all"'), 2)
         self.assertIn("let currentLog = 'all';", script)
 
+    def test_server_start_uses_fast_log_refresh_without_overlapping_requests(self):
+        root = Path(__file__).parents[1]
+        script = (root / "app/static/app.js").read_text()
+        self.assertIn("const LOG_REFRESH_ACTIVE_MS = 1000;", script)
+        self.assertIn("const LOG_REFRESH_START_WINDOW_MS = 2 * 60 * 1000;", script)
+        self.assertIn("if (logRefreshPending) return;", script)
+        self.assertIn("if (action === 'start' || action === 'restart') startFastLogRefresh();", script)
+        self.assertNotIn("setInterval(() => loadLogs().catch(() => {}), 5000);", script)
+
     def test_all_dialogs_use_shared_blurred_backdrop(self):
         root = Path(__file__).parents[1]
         html = (root / "app/static/dashboard.html").read_text()

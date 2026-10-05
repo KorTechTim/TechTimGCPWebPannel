@@ -119,6 +119,25 @@ class ServiceTests(unittest.TestCase):
         self.assertIn("        RespawnHours = 0.0,", content)
         self.assertIn("구형 샌드박스 설정 3개를 백업 후 Build 42 형식으로 자동 복구했습니다.", self.service.logs("control"))
 
+    def test_render_game_files_preserves_comma_delimited_string_values(self):
+        sandbox = self.service.server_config_dir / "servertest_SandboxVars.lua"
+        content = sandbox.read_text(encoding="utf-8")
+        correct = next(line for line in content.splitlines() if "WorldItemRemovalList" in line)
+        corrupted = correct + ' Base.Glasses, Base.Maggots, Base.Slug2",'
+        sandbox.write_text(content.replace(correct, corrupted), encoding="utf-8")
+
+        self.service.render_game_files()
+        self.service.render_game_files()
+
+        content = sandbox.read_text(encoding="utf-8")
+        removal_line = next(line for line in content.splitlines() if "WorldItemRemovalList" in line)
+        self.assertEqual(
+            removal_line,
+            '    WorldItemRemovalList = "Base.Hat, Base.Glasses, Base.Maggots, Base.Slug, '
+            'Base.Slug2, Base.Snail, Base.Worm, Base.Dung_Mouse, Base.Dung_Rat",',
+        )
+        self.assertNotIn('", Base.Glasses', content)
+
     def test_status_is_safe_without_docker_container(self):
         status = self.service.status()
         self.assertEqual(status["server"], "missing")

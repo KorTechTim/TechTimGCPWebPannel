@@ -14,11 +14,17 @@ let fileEditorOriginal = '';
 const commandHistory = [];
 let commandHistoryIndex = 0;
 const RESOURCE_REFRESH_MS = 1000;
+const LOG_REFRESH_ACTIVE_MS = 1000;
+const LOG_REFRESH_IDLE_MS = 5000;
+const LOG_REFRESH_START_WINDOW_MS = 2 * 60 * 1000;
 const RESOURCE_HISTORY_WINDOW_MS = 8 * 60 * 60 * 1000;
 const RESOURCE_HISTORY_STORAGE_KEY = 'techtim-zomboid-resource-history-v1';
 const STOPPED_ONLY_VIEWS = new Set(['settings', 'sandbox', 'mods', 'players', 'backups', 'advanced', 'files']);
 let resourceRefreshPending = false;
 let resourceHistorySavedAt = 0;
+let logRefreshPending = false;
+let logRefreshTimer = null;
+let fastLogRefreshUntil = 0;
 let copyTooltipTimer = null;
 let panelUpdatePollTimer = null;
 let panelUpdateProgress = 0;
@@ -225,13 +231,36 @@ async function refreshResources() {
   } finally { resourceRefreshPending = false; }
 }
 
+function logsNeedFastRefresh() {
+  return Date.now() < fastLogRefreshUntil || statusCache?.busy || statusCache?.server === 'restarting';
+}
+
+function scheduleLogRefresh(delay = logsNeedFastRefresh() ? LOG_REFRESH_ACTIVE_MS : LOG_REFRESH_IDLE_MS) {
+  clearTimeout(logRefreshTimer);
+  logRefreshTimer = setTimeout(async () => {
+    try { await loadLogs(); } catch (_error) { /* Keep the next refresh scheduled after transient failures. */ }
+    scheduleLogRefresh();
+  }, delay);
+}
+
+function startFastLogRefresh() {
+  fastLogRefreshUntil = Math.max(fastLogRefreshUntil, Date.now() + LOG_REFRESH_START_WINDOW_MS);
+  scheduleLogRefresh(0);
+}
+
 async function loadLogs() {
-  const data = await api(`/api/logs?kind=${currentLog}`);
-  for (const id of ['#overview-log','#full-log']) {
-    const target = $(id); if (!target) continue; target.textContent = data.log;
-    if ($('#auto-scroll')?.checked) target.scrollTop = target.scrollHeight;
-  }
-  $('#log-pulse').textContent = statusCache?.server === 'running' ? '● 서버 로그 연결됨' : '● 저장된 로그 표시 중';
+  if (logRefreshPending) return;
+  logRefreshPending = true;
+  try {
+    const data = await api(`/api/logs?kind=${currentLog}`);
+    for (const id of ['#overview-log','#full-log']) {
+      const target = $(id); if (!target) continue; target.textContent = data.log;
+      if ($('#auto-scroll')?.checked) target.scrollTop = target.scrollHeight;
+    }
+    $('#log-pulse').textContent = logsNeedFastRefresh()
+      ? '● 서버 시작 로그 · 1초 갱신'
+      : statusCache?.server === 'running' ? '● 서버 로그 연결됨' : '● 저장된 로그 표시 중';
+  } finally { logRefreshPending = false; }
 }
 
 $$('.log-tab').forEach(button => button.addEventListener('click', () => {
@@ -308,6 +337,7 @@ $$('[data-action]').forEach(button => button.addEventListener('click', async () 
       if (!status.engine.installed) { showDialog($('#engine-required-dialog')); return; }
     } catch (error) { message(error.message, true); return; }
   }
+  if (action === 'start' || action === 'restart') startFastLogRefresh();
   perform(() => api(`/api/server/${action}`, {method:'POST'}), '서버 작업을 시작했습니다.').catch(() => {});
 }));
 $('#copy-endpoint').addEventListener('click', async () => {
@@ -856,11 +886,10 @@ async function refreshAll(notify = false) {
 }
 
 showView(location.hash.slice(1) || 'overview');
-refreshAll();
+refreshAll().finally(() => scheduleLogRefresh());
 checkPanelUpdate().catch(() => {});
 setInterval(() => refreshStatus().catch(() => {}), 3000);
 setInterval(() => refreshResources().catch(() => {}), RESOURCE_REFRESH_MS);
-setInterval(() => loadLogs().catch(() => {}), 5000);
 setInterval(() => checkPanelUpdate().catch(() => {}), 300000);
 window.addEventListener('resize', renderResourceHistory);
 window.addEventListener('pagehide', () => saveResourceHistory(true));

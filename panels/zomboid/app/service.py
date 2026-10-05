@@ -404,9 +404,9 @@ class PanelService:
         parts = dotted_key.split(".", 1)
         if len(parts) == 1:
             key = parts[0]
-            pattern = rf"(?m)^(    {re.escape(key)}\s*=\s*)[^,\n]*(,?)"
+            pattern = rf"(?m)^(    {re.escape(key)}\s*=\s*).*$"
             if re.search(pattern, content):
-                return re.sub(pattern, rf"\g<1>{value}\g<2>", content, count=1)
+                return re.sub(pattern, lambda match: f"{match.group(1)}{value},", content, count=1)
             closing = content.rfind("\n}")
             if closing < 0:
                 raise ValueError("샌드박스 설정 파일의 끝을 찾지 못했습니다.")
@@ -417,9 +417,9 @@ class PanelService:
         block = re.search(block_pattern, content)
         if block:
             body = block.group(2)
-            value_pattern = rf"(?m)^(        {re.escape(key)}\s*=\s*)[^,\n]*(,?)"
+            value_pattern = rf"(?m)^(        {re.escape(key)}\s*=\s*).*$"
             if re.search(value_pattern, body):
-                body = re.sub(value_pattern, rf"\g<1>{value}\g<2>", body, count=1)
+                body = re.sub(value_pattern, lambda match: f"{match.group(1)}{value},", body, count=1)
             else:
                 body += f"        {key} = {value},\n"
             return content[:block.start(2)] + body + content[block.end(2):]
