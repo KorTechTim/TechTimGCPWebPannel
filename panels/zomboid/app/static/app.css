@@ -5,3 +5,33 @@
 @media(max-width:560px){.workspace{padding:18px 14px 0}.topbar{display:block}.top-actions{margin-top:15px;justify-content:flex-end}.status-strip,.monitor-grid,.monitor-grid.large,.form-grid,.toggle-grid,.workshop-summary,.update-card{grid-template-columns:1fr}.hero-band h2{font-size:30px}.page-head{align-items:stretch;flex-direction:column}.status-strip article{min-height:76px}.sidebar nav{grid-template-columns:1fr}.nav-group{grid-column:auto}.update-card>div{border-right:0;border-bottom:1px solid #cbd1cd}}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
 .record-actions{flex-wrap:wrap}.record-actions select{padding:7px 9px;border:1px solid #aeb6b1;border-radius:4px;background:#fff;color:var(--ink);font-size:9px}.section-message{color:#66746e;font-size:10px}.schedule-times{margin-top:14px}
+
+/* Shared TechTim panel header: keep this layout consistent across game panels. */
+.visually-hidden{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+.panel-topbar{position:relative;min-height:92px;align-items:center;padding:0 0 18px}
+.top-brand{display:flex;min-width:0;align-items:center;gap:14px;color:var(--ink);text-decoration:none}
+.top-brand-icon{display:block;width:58px;height:58px;flex:0 0 58px;overflow:hidden;border:1px solid #6f7d77;border-radius:10px;background:#14211f;box-shadow:0 8px 18px rgba(24,35,31,.2)}
+.top-brand-icon img{display:block;width:100%;height:100%;object-fit:cover}
+.top-brand-copy{display:block;min-width:0}
+.top-brand-copy strong,.top-brand-copy small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.top-brand-copy strong{font-size:26px;line-height:1.08}
+.top-brand-copy small{margin-top:7px;color:#65756f;font-size:9px;font-weight:900;letter-spacing:1.7px}
+.panel-topbar .top-actions{display:flex;flex:0 0 auto;align-items:flex-start;gap:10px}
+.panel-topbar .icon-link{position:relative;width:62px;min-width:62px;padding:0;border:0;background:transparent;color:#53625d;text-align:center}
+.panel-topbar .icon-link:hover{border:0;background:transparent;color:#263b35}
+.panel-topbar .icon-link>span{display:block;width:46px;height:46px;overflow:hidden;padding:0;border:1px solid #8e9a95;border-radius:9px;background:#14211f;box-shadow:0 8px 17px rgba(25,36,32,.19)}
+.panel-topbar .icon-link>span img{display:block;width:100%;height:100%;object-fit:cover}
+.panel-topbar .icon-link small{display:block;width:100%;margin-top:6px;overflow:hidden;color:inherit;font-size:8px;font-weight:800;line-height:1.25;text-overflow:ellipsis;white-space:nowrap}
+.update-action{position:relative;display:block}
+#update-dot{position:absolute;top:-3px;right:5px;width:9px;height:9px;border:2px solid #edf0ed;border-radius:50%;background:#c65342;box-shadow:0 0 0 4px rgba(198,83,66,.2)}
+.panel-topbar .update-bubble{top:76px;right:-45px;width:278px;max-width:calc(100vw - 36px)}
+.panel-topbar .update-bubble:before{right:71px}
+.status-strip article{min-height:78px;padding:14px 16px}
+.status-mark{overflow:hidden;border:1px solid #66766f;background:#14211f!important}
+.status-mark img{display:block;width:100%;height:100%;object-fit:cover}
+.status-strip small{font-size:9px}
+.status-strip strong{font-size:16px}
+.status-strip em{font-size:9px}
+@media(max-width:1320px){.top-brand-copy strong{font-size:21px}.panel-topbar .top-actions{gap:5px}.panel-topbar .icon-link{width:55px;min-width:55px}.panel-topbar .icon-link>span{width:43px;height:43px}}
+@media(max-width:1040px){.panel-topbar{align-items:flex-start;flex-direction:column}.panel-topbar .top-actions{width:100%;justify-content:flex-end}.panel-topbar .update-bubble{right:-52px}}
+@media(max-width:560px){.panel-topbar{display:flex;gap:16px}.top-brand-icon{width:50px;height:50px;flex-basis:50px}.top-brand-copy strong{font-size:17px;white-space:normal}.top-brand-copy small{font-size:8px}.panel-topbar .top-actions{justify-content:flex-start;overflow-x:auto;padding:2px 0 8px}.panel-topbar .icon-link{width:60px;min-width:60px}.panel-topbar .update-bubble{position:fixed;top:145px;right:14px;left:14px;width:auto}.panel-topbar .update-bubble:before{display:none}}

@@ -229,7 +229,6 @@ async function checkPanelUpdate(showMessage = false) {
 $('#apply-update').addEventListener('click', () => perform(() => api('/api/panel-update', {method:'POST'}), '새 구동기 적용을 시작했습니다. 잠시 후 화면을 새로고침합니다.'));
 
 $('#logout').addEventListener('click', async () => { const data = await api('/api/auth/logout', {method:'POST'}); location.assign(data.redirect); });
-$('#refresh-all').addEventListener('click', () => refreshAll(true));
 async function refreshAll(notify = false) {
   try { await Promise.all([refreshStatus(), refreshResources(), loadLogs()]); if (notify) message('최신 상태로 갱신했습니다.'); } catch (error) { message(error.message, true); }
 }

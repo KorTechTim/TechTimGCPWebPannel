@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>TechTim Project Zomboid Server Panel</title>
   <link rel="icon" href="/static/zomboid-panel-mark.png?v=1">
-  <link rel="stylesheet" href="/static/app.css?v=1.0.0">
-  <script src="/static/app.js?v=1.0.0" defer></script>
+  <link rel="stylesheet" href="/static/app.css?v=1.1.0">
+  <script src="/static/app.js?v=1.1.0" defer></script>
 </head>
 <body>
 <div class="app-shell">
@@ -30,32 +30,34 @@
       <button class="nav-item" data-view="schedule"><b>◷</b><span>예약 작업</span></button>
       <button class="nav-item" data-view="files"><b>▣</b><span>서버 폴더 탐색기</span></button>
       <button class="nav-item" data-view="monitor"><b>⌁</b><span>VM 모니터링</span></button>
-      <button class="nav-item" data-view="panel-update"><b>⟳</b><span>구동기 업데이트</span><i id="update-dot"></i></button>
     </nav>
     <div class="sidebar-foot"><span>GCP LINUX</span><span id="sidebar-version">PANEL 1.0.0</span></div>
   </aside>
 
   <main class="workspace">
-    <header class="topbar">
-      <div><p class="eyebrow">KNOX COUNTY OPERATIONS</p><h1 id="page-title">서버 개요</h1></div>
-      <div class="top-actions">
-        <a class="icon-link" href="https://discord.com/invite/EHXHTgB94n" target="_blank" rel="noreferrer" title="TechTim Discord"><span>DC</span><small>디스코드</small></a>
-        <a class="icon-link" href="https://www.youtube.com/@kortechtim" target="_blank" rel="noreferrer" title="TechTim YouTube"><span>▶</span><small>유튜브</small></a>
-        <button class="icon-link" id="refresh-all" title="전체 새로고침"><span>↻</span><small>새로고침</small></button>
-        <button class="icon-link" id="logout" title="로그아웃"><span>⇥</span><small>로그아웃</small></button>
-      </div>
+    <header class="topbar panel-topbar">
+      <a class="top-brand" href="#overview" data-view="overview" title="서버 관리 첫 화면" aria-label="서버 관리 첫 화면으로 이동">
+        <span class="top-brand-icon"><img src="/static/zomboid-panel-mark.png?v=1" alt=""></span>
+        <span class="top-brand-copy"><strong>TechTim Project Zomboid Server Panel</strong><small>DEDICATED SERVER · GCP LINUX</small></span>
+      </a>
+      <nav class="top-actions" aria-label="패널 바로가기">
+        <a class="icon-link" href="https://discord.com/invite/EHXHTgB94n" target="_blank" rel="noreferrer" title="TechTim Discord"><span><img src="/static/zomboid-nav-discord-v1.png" alt=""></span><small>테크팀 디스코드</small></a>
+        <a class="icon-link" href="https://www.youtube.com/@kortechtim" target="_blank" rel="noreferrer" title="TechTim YouTube"><span><img src="/static/zomboid-nav-youtube-v1.png" alt=""></span><small>테크팀 유튜브</small></a>
+        <a class="icon-link" href="https://pzwiki.net/wiki/Dedicated_server" target="_blank" rel="noreferrer" title="Project Zomboid Dedicated Server Guide"><span><img src="/static/zomboid-nav-guide-v1.png" alt=""></span><small>공식 가이드</small></a>
+        <span class="update-action">
+          <button class="icon-link" id="panel-update-button" data-view="panel-update" title="구동기 업데이트"><span><img src="/static/zomboid-nav-update-v1.png" alt=""></span><small>패널 업데이트</small><i id="update-dot" hidden></i></button>
+          <span id="update-bubble" class="update-bubble" hidden><strong>새 구동기 업데이트가 있습니다.</strong><button data-view="panel-update">업데이트 화면 열기</button></span>
+        </span>
+        <button class="icon-link" id="logout" title="로그아웃"><span><img src="/static/zomboid-nav-logout-v1.png" alt=""></span><small>로그아웃</small></button>
+      </nav>
+      <h1 id="page-title" class="visually-hidden">서버 개요</h1>
     </header>
 
-    <div id="update-bubble" class="update-bubble" hidden>
-      <strong>새 구동기 업데이트가 있습니다.</strong>
-      <button data-view="panel-update">업데이트 화면 열기</button>
-    </div>
-
     <section class="status-strip" aria-label="서버 요약">
-      <article><span class="status-mark install">⇧</span><div><small>ENGINE</small><strong id="engine-state">확인 중</strong><em id="engine-build">Steam App 380870</em></div></article>
-      <article><span class="status-mark server">⌁</span><div><small>SERVER</small><strong id="server-state">확인 중</strong><em>servertest · Build 42</em></div></article>
-      <article><span class="status-mark branch">B</span><div><small>RELEASE CHANNEL</small><strong id="branch-state">public</strong><em>공개 안정 버전</em></div></article>
-      <article><span class="status-mark panel">T</span><div><small>PANEL VERSION</small><strong id="panel-version">1.0.0</strong><em>TechTim GCP Panel</em></div></article>
+      <article><span class="status-mark game"><img src="/static/zomboid-panel-mark.png?v=1" alt=""></span><div><small>게임</small><strong>Project Zomboid</strong><em>Dedicated Server</em></div></article>
+      <article><span class="status-mark install"><img src="/static/zomboid-status-install-v1.png" alt=""></span><div><small>설치 상태</small><strong id="engine-state">확인 중</strong><em id="engine-build">Steam App 380870</em></div></article>
+      <article><span class="status-mark server"><img src="/static/zomboid-status-server-v1.png" alt=""></span><div><small>서버 상태</small><strong id="server-state">확인 중</strong><em>servertest · <span id="branch-state">public</span></em></div></article>
+      <article><span class="status-mark panel"><img src="/static/zomboid-status-panel-v1.png" alt=""></span><div><small>패널 버전</small><strong id="panel-version">1.0.0</strong><em>TechTim GCP Panel</em></div></article>
     </section>
 
     <p id="global-message" class="global-message" role="status"></p>
