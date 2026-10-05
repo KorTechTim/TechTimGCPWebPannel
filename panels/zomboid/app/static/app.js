@@ -7,7 +7,7 @@ let configCache = null;
 let sandboxSchemaCache = null;
 let discordWebhookConfigured = false;
 let activeSandboxCategory = 'population';
-let currentLog = 'server';
+let currentLog = 'all';
 let currentPath = '';
 let editingFilePath = '';
 let fileEditorOriginal = '';
@@ -243,11 +243,13 @@ $('#close-command-help').addEventListener('click', () => closeDialog(commandHelp
 
 const textInputDialog = $('#text-input-dialog');
 const textInput = $('#text-input-value');
-function requestTextInput({title, description, label, placeholder = '', value = ''}) {
+function requestTextInput({title, description, label, placeholder = '', value = '', maxLength = 128, eyebrow = 'SERVER STORAGE'}) {
+  $('#text-input-eyebrow').textContent = eyebrow;
   $('#text-input-title').textContent = title;
   $('#text-input-description').textContent = description;
   $('#text-input-label').textContent = label;
   textInput.placeholder = placeholder;
+  textInput.maxLength = maxLength;
   textInput.value = value;
   textInputDialog.returnValue = '';
   showDialog(textInputDialog);
@@ -334,7 +336,7 @@ function formData(form) {
 async function loadConfig() { configCache = await api('/api/config'); fillForm($('#settings-form'), configCache); }
 $('#save-settings').addEventListener('click', () => perform(async () => {
   const payload = formData($('#settings-form'));
-  payload.workshop_items = configCache?.workshop_items || []; payload.mod_ids = configCache?.mod_ids || []; payload.map_order = configCache?.map_order || ['Muldraugh, KY'];
+  payload.workshop_items = configCache?.workshop_items || []; payload.mod_ids = configCache?.mod_ids || []; payload.workshop_mod_pairs = configCache?.workshop_mod_pairs || []; payload.map_order = configCache?.map_order || ['Muldraugh, KY'];
   configCache = await api('/api/config', json('POST', payload)); fillForm($('#settings-form'), configCache);
 }, '기본 서버 설정을 저장했습니다.'));
 
@@ -430,14 +432,14 @@ $('#save-sandbox').addEventListener('click', () => perform(() => api('/api/sandb
 
 async function loadMods() {
   const [workshop, config] = await Promise.all([api('/api/workshop'), api('/api/config')]); configCache = config;
-  renderModPairs(workshop.workshop_items, workshop.mod_ids); $('#map-order').value = workshop.map_order.join('\n');
+  renderModPairs(workshop.workshop_items, workshop.mod_ids, workshop.workshop_mod_pairs); $('#map-order').value = workshop.map_order.join('\n');
   $('#workshop-count').textContent = workshop.workshop_items.length; $('#mod-count').textContent = workshop.mod_ids.length; $('#installed-mod-count').textContent = workshop.installed.length;
 }
 function renumberModPairs() {
   $$('.mod-pair-row').forEach((row, index) => { row.querySelector('.mod-pair-index').textContent = String(index + 1).padStart(2, '0'); });
 }
 function updateModPairCounts() {
-  $('#workshop-count').textContent = $$('.mod-pair-workshop').filter(input => input.value.trim()).length;
+  $('#workshop-count').textContent = new Set($$('.mod-pair-workshop').map(input => input.value.trim()).filter(Boolean)).size;
   $('#mod-count').textContent = $$('.mod-pair-id').filter(input => input.value.trim()).length;
 }
 function createModPairRow(workshopId = '', modId = '') {
@@ -450,10 +452,10 @@ function createModPairRow(workshopId = '', modId = '') {
   remove.addEventListener('click', () => { row.remove(); if (!$('#mod-pair-list').children.length) $('#mod-pair-list').append(createModPairRow()); renumberModPairs(); updateModPairCounts(); });
   row.append(index, workshop, mod, remove); return row;
 }
-function renderModPairs(workshopItems = [], modIds = []) {
+function renderModPairs(workshopItems = [], modIds = [], storedPairs = []) {
   const list = $('#mod-pair-list'); list.replaceChildren();
-  const count = Math.max(workshopItems.length, modIds.length, 1);
-  for (let index = 0; index < count; index++) list.append(createModPairRow(workshopItems[index] || '', modIds[index] || ''));
+  const pairs = storedPairs.length ? storedPairs : Array.from({length: Math.max(workshopItems.length, modIds.length)}, (_, index) => ({workshop_id: workshopItems[index] || '', mod_id: modIds[index] || ''}));
+  (pairs.length ? pairs : [{workshop_id: '', mod_id: ''}]).forEach(pair => list.append(createModPairRow(pair.workshop_id, pair.mod_id)));
   renumberModPairs(); updateModPairCounts();
 }
 function collectModPairs() {
@@ -462,15 +464,44 @@ function collectModPairs() {
   if (incomplete) throw new Error('각 행의 Workshop ID와 내부 Mod ID를 모두 입력해주세요.');
   const completed = pairs.filter(pair => pair.workshop && pair.mod);
   if (completed.some(pair => !/^\d{5,20}$/.test(pair.workshop))) throw new Error('Workshop ID는 5~20자리 숫자로 입력해주세요.');
-  const workshopItems = completed.map(pair => pair.workshop); const modIds = completed.map(pair => pair.mod);
-  if (new Set(workshopItems).size !== workshopItems.length) throw new Error('중복된 Workshop ID가 있습니다.');
+  const uniquePairs = completed.filter((pair, index) => completed.findIndex(candidate => candidate.workshop === pair.workshop && candidate.mod === pair.mod) === index);
+  const workshopItems = [...new Set(uniquePairs.map(pair => pair.workshop))]; const modIds = uniquePairs.map(pair => pair.mod);
   if (new Set(modIds).size !== modIds.length) throw new Error('중복된 내부 Mod ID가 있습니다.');
-  return {workshopItems, modIds};
+  return {workshopItems, modIds, items: uniquePairs.map(pair => ({workshop_id: pair.workshop, mod_id: pair.mod}))};
 }
 $('#add-mod-pair').addEventListener('click', () => { $('#mod-pair-list').append(createModPairRow()); renumberModPairs(); });
+$('#lookup-workshop').addEventListener('click', async event => {
+  const button = event.currentTarget; const label = button.textContent;
+  const value = await requestTextInput({
+    eyebrow: 'STEAM WORKSHOP',
+    title: '창작마당 모드 바로 추가',
+    description: 'Steam 창작마당 URL 또는 숫자 ID를 입력하면 내부 Mod ID를 자동으로 확인합니다.',
+    label: '창작마당 URL 또는 ID',
+    placeholder: 'https://steamcommunity.com/sharedfiles/filedetails/?id=3796373365',
+    maxLength: 300,
+  });
+  if (!value) return;
+  button.disabled = true; button.textContent = '정보 확인 중';
+  try {
+    const item = await api('/api/workshop/lookup', json('POST', {value}));
+    const list = $('#mod-pair-list');
+    if ($$('.mod-pair-row').length === 1 && !$('.mod-pair-workshop').value.trim() && !$('.mod-pair-id').value.trim()) list.replaceChildren();
+    const modIds = item.mod_ids.length ? item.mod_ids : [''];
+    let added = 0;
+    modIds.forEach(modId => {
+      const duplicate = $$('.mod-pair-row').some(row => row.querySelector('.mod-pair-workshop').value.trim() === item.workshop_id && row.querySelector('.mod-pair-id').value.trim() === modId);
+      if (!duplicate) { list.append(createModPairRow(item.workshop_id, modId)); added++; }
+    });
+    renumberModPairs(); updateModPairCounts();
+    if (!item.mod_ids.length) message(`${item.title}의 Workshop ID를 추가했습니다. 설명에서 내부 Mod ID를 찾지 못해 직접 입력이 필요합니다.`, true);
+    else if (!added) message(`${item.title}은 이미 같은 구성으로 등록되어 있습니다.`);
+    else message(`${item.title}에서 내부 Mod ID ${item.mod_ids.length}개를 확인해 ${added}개 행을 추가했습니다.`);
+  } catch (error) { message(error.message, true); }
+  finally { button.disabled = false; button.textContent = label; }
+});
 $('#save-mods').addEventListener('click', () => perform(async () => {
   const config = configCache || await api('/api/config');
-  const pairs = collectModPairs(); config.workshop_items = pairs.workshopItems; config.mod_ids = pairs.modIds; config.map_order = lines($('#map-order').value);
+  const pairs = collectModPairs(); config.workshop_items = pairs.workshopItems; config.mod_ids = pairs.modIds; config.workshop_mod_pairs = pairs.items; config.map_order = lines($('#map-order').value);
   configCache = await api('/api/config', json('POST', config)); await loadMods();
 }, '모드 구성을 저장했습니다. 다음 시작 때 적용됩니다.'));
 
@@ -657,13 +688,15 @@ async function loadDiscord() {
   renderDiscord(data);
   const status = $('#discord-status');
   status.className = 'discord-status';
-  status.textContent = discordWebhookConfigured ? '저장된 웹훅으로 Discord 알림을 전송할 수 있습니다.' : 'Discord 채널에서 생성한 웹훅 URL을 등록해주세요.';
+  status.textContent = '';
+  status.hidden = true;
 }
 
 $('#discord-form').elements.enabled.addEventListener('change', event => { $('#discord-enabled-label').textContent = event.target.checked ? '사용 중' : '사용 안 함'; });
 $('#discord-form').elements.clear_webhook.addEventListener('change', event => { $('#discord-form').elements.webhook_url.disabled = event.target.checked; });
 $('#save-discord').addEventListener('click', async () => {
   const status = $('#discord-status');
+  status.hidden = false;
   status.className = 'discord-status'; status.textContent = 'Discord 연동 설정을 저장하고 있습니다.';
   try {
     const data = await api('/api/discord', json('POST', formData($('#discord-form'))));
@@ -672,6 +705,7 @@ $('#save-discord').addEventListener('click', async () => {
 });
 $('#test-discord').addEventListener('click', async () => {
   const status = $('#discord-status');
+  status.hidden = false;
   status.className = 'discord-status'; status.textContent = 'Discord 테스트 메시지를 전송하고 있습니다.';
   try {
     const data = await api('/api/discord/test', {method:'POST'});

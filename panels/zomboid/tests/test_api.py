@@ -1,6 +1,7 @@
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
@@ -55,6 +56,24 @@ class ApiTests(unittest.TestCase):
         schema = self.client.get("/api/sandbox/schema")
         self.assertEqual(schema.status_code, 200)
         self.assertGreaterEqual(len(schema.json()["fields"]), 260)
+
+    @patch("app.main.lookup_workshop_item")
+    def test_workshop_lookup_accepts_url_and_returns_mod_pair(self, mocked_lookup):
+        mocked_lookup.return_value = {
+            "workshop_id": "3796373365",
+            "title": "It is of interest to me!",
+            "mod_ids": ["ItIsOfInterestToMe"],
+            "preview_url": "",
+            "workshop_url": "https://steamcommunity.com/sharedfiles/filedetails/?id=3796373365",
+        }
+        response = self.client.post("/api/workshop/lookup", json={
+            "value": "https://steamcommunity.com/sharedfiles/filedetails/?id=3796373365",
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["mod_ids"], ["ItIsOfInterestToMe"])
+        mocked_lookup.assert_called_once_with(
+            "https://steamcommunity.com/sharedfiles/filedetails/?id=3796373365"
+        )
 
     def test_file_explorer_is_rooted_in_data(self):
         root = self.client.get("/api/files")
@@ -115,6 +134,14 @@ class ApiTests(unittest.TestCase):
         self.assertTrue(response.headers["content-type"].startswith("text/plain"))
         self.assertIn("attachment;", response.headers["content-disposition"])
         self.assertIn("techtim-zomboid-support-", response.headers["content-disposition"])
+
+    def test_logs_default_to_all_categories(self):
+        requested = []
+        self.client.app.state.service.logs = lambda kind: requested.append(kind) or "combined logs"
+        response = self.client.get("/api/logs")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"log": "combined logs"})
+        self.assertEqual(requested, ["all"])
 
     def test_discord_config_is_saved_masked_and_testable(self):
         saved = self.client.post("/api/discord", json={

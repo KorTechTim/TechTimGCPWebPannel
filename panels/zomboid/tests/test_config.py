@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from app.config import (SandboxConfig, ServerConfig, Settings, ini_values,
+from app.config import (SandboxConfig, ServerConfig, Settings, WorkshopModPair, ini_values,
                         migrate_sandbox_payload, sandbox_schema, sandbox_values)
 
 
@@ -34,6 +34,18 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(values["WorkshopItems"], "2392709985;2169435993")
         self.assertEqual(values["Mods"], "ModOptions;BetterSorting")
         self.assertEqual(values["Map"], "ExampleModMap;Muldraugh, KY")
+
+    def test_workshop_pair_mapping_preserves_multiple_mods_per_item(self):
+        config = ServerConfig(workshop_mod_pairs=[
+            WorkshopModPair(workshop_id="3796373365", mod_id="FirstMod"),
+            WorkshopModPair(workshop_id="3796373365", mod_id="SecondMod"),
+        ])
+        self.assertEqual(config.workshop_items, ["3796373365"])
+        self.assertEqual(config.mod_ids, ["FirstMod", "SecondMod"])
+        self.assertEqual(len(config.workshop_mod_pairs), 2)
+        values = ini_values(config)
+        self.assertEqual(values["WorkshopItems"], "3796373365")
+        self.assertEqual(values["Mods"], "FirstMod;SecondMod")
 
     def test_sandbox_values_include_dotted_build42_keys(self):
         values = sandbox_values(SandboxConfig(respawn_multiplier=.25, drag_down=False))

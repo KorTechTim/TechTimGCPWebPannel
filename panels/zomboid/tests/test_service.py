@@ -113,6 +113,18 @@ class ServiceTests(unittest.TestCase):
         self.assertIn("[REDACTED]", report)
         self.assertNotIn("support-secret", report)
 
+    def test_all_logs_combines_server_install_and_control(self):
+        self.service._log("server", "server ready")
+        self.service._log("install", "install ready")
+        self.service._log("control", "control ready")
+        combined = self.service.logs("all")
+        self.assertIn("===== 서버 로그 =====", combined)
+        self.assertIn("server ready", combined)
+        self.assertIn("===== 설치 로그 =====", combined)
+        self.assertIn("install ready", combined)
+        self.assertIn("===== 작업 기록 =====", combined)
+        self.assertIn("control ready", combined)
+
     def test_completed_server_operation_maps_to_discord_event(self):
         events = []
         self.service.notify_discord_event = lambda *args: events.append(args)

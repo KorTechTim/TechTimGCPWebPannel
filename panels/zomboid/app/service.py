@@ -149,6 +149,11 @@ class PanelService:
             handle.write(f"[{timestamp}] {message.rstrip()}\n")
 
     def logs(self, kind="server", tail=600):
+        if kind == "all":
+            sections = []
+            for log_kind, title in (("server", "서버 로그"), ("install", "설치 로그"), ("control", "작업 기록")):
+                sections.extend((f"===== {title} =====", self.logs(log_kind, tail=tail).rstrip(), ""))
+            return "\n".join(sections).rstrip() + "\n"
         if kind == "server":
             try:
                 with self.client() as client:

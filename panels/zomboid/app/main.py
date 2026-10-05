@@ -19,6 +19,7 @@ from .config import PANEL_VERSION, RestartSchedule, SandboxConfig, Settings, san
 from .discord_webhook import normalize_webhook_url
 from .service import BusyError, PanelService
 from .storage import inside
+from .workshop import WorkshopLookupError, lookup_workshop_item
 
 STATIC_DIR = Path(__file__).parent / "static"
 TEXT_EDITOR_MAX_BYTES = 2 * 1024 * 1024
@@ -66,6 +67,10 @@ class ConsoleCommand(BaseModel):
         if not command or any(ord(char) < 32 for char in command):
             raise ValueError("명령어에는 줄바꿈이나 제어 문자를 사용할 수 없습니다.")
         return command
+
+
+class WorkshopLookupRequest(BaseModel):
+    value: str = Field(min_length=1, max_length=300)
 
 
 class DiscordConfigUpdate(BaseModel):
@@ -278,7 +283,7 @@ def create_app(settings=None, docker_factory=None):
         return queued(request, tasks, names[action], getattr(service, action))
 
     @app.get("/api/logs")
-    def logs(request: Request, kind: Literal["server", "install", "control"] = "server"):
+    def logs(request: Request, kind: Literal["all", "server", "install", "control"] = "all"):
         auth.require(request); return {"log": service.logs(kind)}
 
     @app.get("/api/logs/export")
@@ -337,7 +342,16 @@ def create_app(settings=None, docker_factory=None):
             if root.exists():
                 installed.extend(path.name for path in root.iterdir() if path.is_dir() and path.name.isdigit())
         return {"workshop_items": config.workshop_items, "mod_ids": config.mod_ids,
+                "workshop_mod_pairs": [pair.model_dump() for pair in config.workshop_mod_pairs],
                 "map_order": config.map_order, "installed": sorted(set(installed))}
+
+    @app.post("/api/workshop/lookup")
+    def workshop_lookup(payload: WorkshopLookupRequest, request: Request):
+        auth.require(request)
+        try:
+            return lookup_workshop_item(payload.value)
+        except WorkshopLookupError as error:
+            raise HTTPException(status_code=502, detail=str(error)) from error
 
     @app.get("/api/players")
     def players(request: Request):

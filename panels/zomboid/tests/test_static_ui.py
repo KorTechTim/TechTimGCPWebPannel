@@ -21,6 +21,9 @@ class StaticUiTests(unittest.TestCase):
         self.assertIn('<a class="brand" href="https://www.youtube.com/@kortechtim" target="_blank" rel="noreferrer"', html)
         self.assertNotIn('<a class="brand" href="#overview" data-view="overview">', html)
         self.assertIn('<img src="/static/techtim-profile.png?v=1"', html)
+        self.assertIn("나만의 서버 만들기 채널", html)
+        self.assertIn("나만의 서버 만들기 채널", (Path(__file__).parents[1] / "app/static/login.html").read_text())
+        self.assertNotIn("ZOMBOID SERVER PANEL", html)
         self.assertIn('class="top-brand-icon"><img src="/static/t2-header-avatar-v1.png"', html)
         self.assertTrue((Path(__file__).parents[1] / "app/static/t2-header-avatar-v1.png").is_file())
         self.assertIn("zomboid-panel-bg.png", css)
@@ -209,11 +212,17 @@ class StaticUiTests(unittest.TestCase):
         script = (root / "app/static/app.js").read_text()
         self.assertIn('id="mod-pair-list"', html)
         self.assertIn('id="add-mod-pair"', html)
+        self.assertIn('id="lookup-workshop"', html)
+        self.assertIn("창작 마당ID로 바로 추가", html)
         self.assertIn('class="panel map-order-panel"', html)
         self.assertIn('https://steamcommunity.com/app/108600/workshop/', html)
         self.assertNotIn('id="workshop-items"', html)
         self.assertNotIn('id="mod-ids"', html)
         self.assertIn("function collectModPairs()", script)
+        self.assertIn("/api/workshop/lookup", script)
+        self.assertIn("config.workshop_mod_pairs = pairs.items", script)
+        self.assertIn("payload.workshop_mod_pairs = configCache?.workshop_mod_pairs || []", script)
+        self.assertIn("workshop.workshop_mod_pairs", script)
         self.assertIn("config.workshop_items = pairs.workshopItems", script)
         self.assertIn("config.mod_ids = pairs.modIds", script)
 
@@ -256,6 +265,8 @@ class StaticUiTests(unittest.TestCase):
         self.assertIn('id="test-discord"', html)
         self.assertIn("/api/discord/test", script)
         self.assertIn("discordWebhookConfigured", script)
+        self.assertIn('id="discord-status" class="discord-status" role="status" aria-live="polite" hidden', html)
+        self.assertNotIn("Discord 채널에서 생성한 웹훅 URL을 등록해주세요.", script)
         self.assertIn('.view[data-page="discord"]', css)
         self.assertIn(".sidebar nav{min-height:0;overflow-y:auto", css)
 
@@ -279,6 +290,13 @@ class StaticUiTests(unittest.TestCase):
         self.assertIn("/api/console/command", script)
         self.assertIn(".command-help-grid dd{font-size:12px", css)
         self.assertNotIn("<span>실시간 로그</span>", html)
+
+    def test_log_panels_default_to_all_category(self):
+        root = Path(__file__).parents[1]
+        html = (root / "app/static/dashboard.html").read_text()
+        script = (root / "app/static/app.js").read_text()
+        self.assertEqual(html.count('class="log-tab active" data-log="all"'), 2)
+        self.assertIn("let currentLog = 'all';", script)
 
     def test_all_dialogs_use_shared_blurred_backdrop(self):
         root = Path(__file__).parents[1]

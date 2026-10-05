@@ -64,6 +64,28 @@ class Settings:
         )
 
 
+class WorkshopModPair(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    workshop_id: str = Field(min_length=5, max_length=20)
+    mod_id: str = Field(min_length=1, max_length=128)
+
+    @field_validator("workshop_id")
+    @classmethod
+    def valid_workshop_id(cls, value):
+        value = value.strip()
+        if not re.fullmatch(r"[0-9]{5,20}", value):
+            raise ValueError("Workshop ID는 5~20자리 숫자로 입력해주세요.")
+        return value
+
+    @field_validator("mod_id")
+    @classmethod
+    def valid_mod_id(cls, value):
+        value = value.strip()
+        if not value or ";" in value or "\n" in value or "\r" in value:
+            raise ValueError("내부 Mod ID에는 세미콜론이나 줄바꿈을 사용할 수 없습니다.")
+        return value
+
+
 class ServerConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
     server_name: str = Field(default="TechTim Project Zomboid", min_length=1, max_length=64)
@@ -88,6 +110,7 @@ class ServerConfig(BaseModel):
     welcome_message: str = Field(default="TechTim Project Zomboid 서버에 오신 것을 환영합니다.", max_length=512)
     workshop_items: list[str] = Field(default_factory=list, max_length=200)
     mod_ids: list[str] = Field(default_factory=list, max_length=500)
+    workshop_mod_pairs: list[WorkshopModPair] = Field(default_factory=list, max_length=500)
     map_order: list[str] = Field(default_factory=lambda: ["Muldraugh, KY"], max_length=100)
     backup_before_start: bool = False
     backup_before_update: bool = True
@@ -134,6 +157,16 @@ class ServerConfig(BaseModel):
             raise ValueError("관리자 비밀번호는 4자 이상 입력해주세요.")
         if self.rcon_password and len(self.rcon_password) < 8:
             raise ValueError("RCON 비밀번호는 8자 이상 입력해주세요.")
+        if self.workshop_mod_pairs:
+            pairs = list({(pair.workshop_id, pair.mod_id): pair for pair in self.workshop_mod_pairs}.values())
+            self.workshop_mod_pairs = pairs
+            self.workshop_items = list(dict.fromkeys(pair.workshop_id for pair in pairs))
+            self.mod_ids = list(dict.fromkeys(pair.mod_id for pair in pairs))
+        elif len(self.workshop_items) == len(self.mod_ids):
+            self.workshop_mod_pairs = [
+                WorkshopModPair(workshop_id=workshop_id, mod_id=mod_id)
+                for workshop_id, mod_id in zip(self.workshop_items, self.mod_ids)
+            ]
         return self
 
 

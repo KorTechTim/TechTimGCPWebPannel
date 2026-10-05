@@ -5,15 +5,15 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>T2 Zomboid Server Pannel</title>
   <link rel="icon" href="/static/zomboid-panel-mark.png?v=1">
-  <link rel="stylesheet" href="/static/app.css?v=1.6.9">
-  <script src="/static/app.js?v=1.6.6" defer></script>
+  <link rel="stylesheet" href="/static/app.css?v=1.6.10">
+  <script src="/static/app.js?v=1.6.9" defer></script>
 </head>
 <body>
 <div class="app-shell">
   <aside class="sidebar">
     <a class="brand" href="https://www.youtube.com/@kortechtim" target="_blank" rel="noreferrer" title="TechTim YouTube 채널">
       <img src="/static/techtim-profile.png?v=1" alt="TechTim 프로필">
-      <span><strong>TechTim</strong><small>ZOMBOID SERVER PANEL</small></span>
+      <span><strong>TechTim</strong><small>나만의 서버 만들기 채널</small></span>
     </a>
     <nav aria-label="주 메뉴">
       <p class="nav-group">CONTROL</p>
@@ -68,7 +68,7 @@
       </div>
       <div class="overview-grid">
         <section class="panel console-card">
-          <header><div><p class="eyebrow">SERVER CONSOLE</p><h2>실시간 작전 로그</h2></div><div class="tabs"><button class="log-tab active" data-log="server">서버</button><button class="log-tab" data-log="install">설치</button><button class="log-tab" data-log="control">작업</button></div></header>
+          <header><div><p class="eyebrow">SERVER CONSOLE</p><h2>실시간 작전 로그</h2></div><div class="tabs"><button class="log-tab active" data-log="all">전체</button><button class="log-tab" data-log="server">서버</button><button class="log-tab" data-log="install">설치</button><button class="log-tab" data-log="control">작업</button></div></header>
           <pre id="overview-log">로그를 불러오는 중입니다.</pre>
           <footer><span id="log-pulse">● 연결 확인 중</span><label><input id="auto-scroll" type="checkbox" checked> 자동 스크롤</label></footer>
         </section>
@@ -92,7 +92,7 @@
     <section class="view" data-page="console">
       <div class="page-head"><div><p class="eyebrow">ADMIN CONSOLE</p><h2>관리 터미널</h2><p>서버 출력을 확인하고 실행 중인 서버에 관리자 명령을 전송합니다.</p></div><div class="terminal-head-actions"><button id="open-command-help">? 명령어 도움말</button><a id="export-support-log" href="/api/logs/export" download>⇩ 로그 저장</a><button id="refresh-log">↻ 새로고침</button></div></div>
       <section class="panel tall-console admin-terminal">
-        <div class="terminal-toolbar"><div class="tabs"><button class="log-tab active" data-log="server">서버 로그</button><button class="log-tab" data-log="install">설치 로그</button><button class="log-tab" data-log="control">작업 기록</button></div><span id="terminal-command-state">서버 상태 확인 중</span></div>
+        <div class="terminal-toolbar"><div class="tabs"><button class="log-tab active" data-log="all">전체</button><button class="log-tab" data-log="server">서버 로그</button><button class="log-tab" data-log="install">설치 로그</button><button class="log-tab" data-log="control">작업 기록</button></div><span id="terminal-command-state">서버 상태 확인 중</span></div>
         <pre id="full-log" aria-live="polite"></pre>
         <form id="terminal-command-form" class="terminal-command"><span aria-hidden="true">ADMIN@SERVER &gt;</span><input id="terminal-command" maxlength="512" autocomplete="off" spellcheck="false" placeholder="players, save, servermsg &quot;메시지&quot;" disabled><button id="terminal-command-submit" class="primary" type="submit" disabled>▶ 실행</button></form>
       </section>
@@ -128,7 +128,7 @@
     <section class="view" data-page="mods">
       <div class="page-head"><div><p class="eyebrow">STEAM WORKSHOP</p><h2>모드 · 워크숍 관리</h2><p>Workshop ID와 내부 Mod ID를 한 행의 페어로 구성합니다.</p></div><div class="mod-page-actions"><a class="steam-workshop-button" href="https://steamcommunity.com/app/108600/workshop/" target="_blank" rel="noreferrer">↗ 스팀 워크샵 이동하기</a><button class="primary" id="save-mods">모드 구성 저장</button></div></div>
       <div class="workshop-summary"><article><small>등록 항목</small><strong id="workshop-count">0</strong></article><article><small>내부 Mod ID</small><strong id="mod-count">0</strong></article><article><small>로컬 감지</small><strong id="installed-mod-count">0</strong></article></div>
-      <section class="panel mod-pair-panel"><header><div><h3>워크샵 모드 페어</h3><p>Steam Workshop 숫자 ID와 <code>mod.info</code>의 내부 Mod ID를 같은 행에 입력하세요.</p></div><button id="add-mod-pair" type="button">＋ 모드 행 추가</button></header><div class="mod-pair-columns" aria-hidden="true"><span>순서</span><span>Steam Workshop 숫자 ID</span><span>내부 Mod ID</span><span>삭제</span></div><div id="mod-pair-list" class="mod-pair-list"><p class="mod-pair-empty">모드 구성을 불러오는 중입니다.</p></div></section>
+      <section class="panel mod-pair-panel"><header><div><h3>워크샵 모드 페어</h3><p>Steam Workshop 숫자 ID와 <code>mod.info</code>의 내부 Mod ID를 같은 행에 입력하세요.</p></div><div class="mod-pair-actions"><button id="lookup-workshop" type="button">창작 마당ID로 바로 추가</button><button id="add-mod-pair" type="button">＋ 모드 행 추가</button></div></header><div class="mod-pair-columns" aria-hidden="true"><span>순서</span><span>Steam Workshop 숫자 ID</span><span>내부 Mod ID</span><span>삭제</span></div><div id="mod-pair-list" class="mod-pair-list"><p class="mod-pair-empty">모드 구성을 불러오는 중입니다.</p></div></section>
       <section class="panel map-order-panel"><header><div><h3>맵 로드 순서</h3><p>모드 맵을 기본 맵보다 위에 두고 한 줄에 하나씩 입력하세요.</p></div><small>MAP LOAD ORDER</small></header><label><span>맵 이름</span><textarea id="map-order" rows="6" placeholder="Muldraugh, KY">Muldraugh, KY</textarea></label></section>
       <aside class="callout">Build 42와 Build 41 모드는 서로 호환되지 않을 수 있습니다. 배포 채널 변경 전 백업을 만들고 모드의 대상 빌드를 확인하세요.</aside>
     </section>
@@ -165,7 +165,7 @@
         <fieldset class="panel discord-config"><legend>웹훅 설정</legend><div class="discord-field-grid"><label>웹훅 URL<input name="webhook_url" type="password" maxlength="500" autocomplete="new-password" placeholder="https://discord.com/api/webhooks/..."><small>비워두면 기존 웹훅을 유지합니다.</small></label><label>표시 이름<input name="username" maxlength="80" value="TechTim Project Zomboid Server"><small>Discord 메시지 작성자 이름입니다.</small></label></div><label class="discord-clear"><input name="clear_webhook" type="checkbox"><span>저장된 웹훅 URL 삭제</span></label></fieldset>
         <fieldset class="panel discord-events"><legend>알림 항목</legend><p>Discord로 받을 서버 운영 이벤트를 선택합니다.</p><div class="discord-event-grid"><label><input name="notify_server_start" type="checkbox"><span><b>서버 시작</b><small>게임 서버 시작 완료</small></span></label><label><input name="notify_server_stop" type="checkbox"><span><b>서버 중지</b><small>관리자 종료 완료</small></span></label><label><input name="notify_server_restart" type="checkbox"><span><b>서버 재시작</b><small>수동 및 예약 재시작</small></span></label><label><input name="notify_backup" type="checkbox"><span><b>백업 및 복원</b><small>작업 완료 결과</small></span></label><label><input name="notify_errors" type="checkbox"><span><b>오류 감지</b><small>서버 작업 실패</small></span></label></div></fieldset>
         <aside class="discord-note"><strong>i</strong><p>운영 상태 알림을 위한 Incoming Webhook 연동입니다. 게임 채팅과 Discord 채팅의 양방향 연동은 별도 모드가 필요합니다.</p><a href="https://docs.discord.com/developers/resources/webhook" target="_blank" rel="noreferrer">웹훅 안내</a></aside>
-        <p id="discord-status" class="discord-status" role="status" aria-live="polite">Discord 연동 설정을 불러오고 있습니다.</p>
+        <p id="discord-status" class="discord-status" role="status" aria-live="polite" hidden></p>
       </form>
     </section>
 
@@ -212,7 +212,7 @@
 
     <dialog id="text-input-dialog" class="app-dialog input-dialog" aria-labelledby="text-input-title">
       <form id="text-input-form">
-        <header><div><p class="eyebrow">SERVER STORAGE</p><h2 id="text-input-title">값 입력</h2></div><button id="close-text-input" class="dialog-close" type="button" title="닫기" aria-label="입력창 닫기">×</button></header>
+        <header><div><p class="eyebrow" id="text-input-eyebrow">SERVER STORAGE</p><h2 id="text-input-title">값 입력</h2></div><button id="close-text-input" class="dialog-close" type="button" title="닫기" aria-label="입력창 닫기">×</button></header>
         <div class="input-dialog-body"><p id="text-input-description"></p><label><span id="text-input-label">이름</span><input id="text-input-value" maxlength="128" autocomplete="off" required></label></div>
         <footer><button id="cancel-text-input" type="button">취소</button><button class="primary" type="submit">확인</button></footer>
       </form>
