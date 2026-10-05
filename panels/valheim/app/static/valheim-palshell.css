@@ -485,6 +485,11 @@ dialog::backdrop { background: rgba(6, 15, 20, .7); }
   footer span { display: block; }
 }
 
+@media (max-width: 620px) {
+  .topbar { flex-wrap: wrap; row-gap: 12px; }
+  .top-links { width: 100%; justify-content: flex-end; }
+}
+
 @media (max-width: 360px) {
   .resource-grid { grid-template-columns: 1fr; }
 }
@@ -492,8 +497,8 @@ dialog::backdrop { background: rgba(6, 15, 20, .7); }
 @media (max-width: 440px) {
   .brand-copy strong { font-size: 16px; }
   .brand-copy small { max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .topbar { flex-wrap: wrap; row-gap: 12px; }
-  .top-links { width: 100%; justify-content: flex-end; }
+  .top-links { justify-content: center; }
+  .top-action { min-width: 48px; }
   .status-grid { grid-template-columns: 1fr; }
   .status-card { min-height: 78px; }
   .settings-primary-row { grid-template-columns: 1fr; }

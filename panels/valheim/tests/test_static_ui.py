@@ -18,6 +18,8 @@ class StaticUiTests(unittest.TestCase):
             "valheim-status-server-v1.png",
             "valheim-status-panel-v1.png",
             "valheim-nav-guide-v1.png",
+            "valheim-nav-discord-v1.png",
+            "valheim-nav-youtube-v1.png",
             "valheim-nav-update-v1.png",
             "valheim-nav-logout-v1.png",
             "techtim-avatar.png",
@@ -35,10 +37,12 @@ class StaticUiTests(unittest.TestCase):
         self.assertIn('src="/static/techtim-avatar.png?v=1"', html)
         for name in ("install", "server", "panel"):
             self.assertIn(f"valheim-status-{name}-v1.png", html)
-        for name in ("guide", "update", "logout"):
+        for name in ("discord", "youtube", "guide", "update", "logout"):
             self.assertIn(f"valheim-nav-{name}-v1.png", html)
-        for label in ("공식 가이드", "패널 업데이트", "로그아웃"):
+        for label in ("테크팀 디스코드", "테크팀 유튜브", "공식 가이드", "패널 업데이트", "로그아웃"):
             self.assertIn(f'class="top-action-label">{label}', html)
+        self.assertEqual(html.count('href="https://www.youtube.com/@kortechtim"'), 2)
+        self.assertIn('href="https://discord.gg/Awy6Uh38KW"', html)
         self.assertIn('id="panel-update-notice"', html)
         self.assertIn('id="panel-update-button"', html)
 
