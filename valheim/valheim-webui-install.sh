@@ -89,6 +89,7 @@ services:
     volumes:
       - ${INSTALL_DIR}/data:/data
       - /var/run/docker.sock:/var/run/docker.sock
+      - /proc:/host/proc:ro
     logging:
       driver: json-file
       options:

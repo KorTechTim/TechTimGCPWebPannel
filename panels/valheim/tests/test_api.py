@@ -1,4 +1,5 @@
 from io import BytesIO
+import json
 import time
 import zipfile
 from fastapi.testclient import TestClient
@@ -7,6 +8,14 @@ from app.auth import SESSION_COOKIE
 from app.main import create_app
 from app.storage import read_json, write_json
 from helpers import ServiceCase
+
+
+def mod_archive(files):
+    stream = BytesIO()
+    with zipfile.ZipFile(stream, "w") as archive:
+        for name, content in files.items():
+            archive.writestr(name, content)
+    return stream.getvalue()
 
 
 class ApiTests(ServiceCase):
@@ -53,10 +62,12 @@ class ApiTests(ServiceCase):
             ('get', '/api/worlds', {}), ('get', '/api/server/status', {}), ('get', '/api/logs', {}),
             ('get', '/api/backups', {}), ('get', '/api/permissions', {}), ('get', '/api/restart-schedule', {}),
             ('get', '/api/server-files', {}),
+            ('get', '/api/mods', {}), ('get', '/api/mods/configs', {}), ('get', '/api/mods/diagnose', {}),
             ('get', '/api/panel/update/check', {}),
             ('post', '/api/install', {}), ('post', '/api/panel/update', {}), ('post', '/api/server/start', {}),
             ('post', '/api/config', {'json': {}}),
             ('post', '/api/server-files/mkdir', {'json': {'name': 'mods'}}),
+            ('post', '/api/mods/disable-all', {}),
         ]:
             with self.subTest(url=url): self.assertEqual(getattr(self.client, method)(url, **kwargs).status_code, 401)
 
@@ -178,6 +189,46 @@ class ApiTests(ServiceCase):
             self.client.post('/api/server-files/upload', files={"file": ("blocked.txt", b"blocked")}).status_code,
             409,
         )
+
+    def test_mod_management_install_toggle_config_and_diagnose(self):
+        self.authenticated(); self.installed()
+        loader_manifest = json.dumps({"name": "BepInExPack_Valheim", "version_number": "5.4.2202", "dependencies": []})
+        plugin_manifest = json.dumps({"name": "ExampleMod", "version_number": "1.0.0",
+                                      "dependencies": ["denikson-BepInExPack_Valheim-5.4.2202"]})
+        loader = mod_archive({
+            "manifest.json": loader_manifest,
+            "Pack/BepInEx/core/BepInEx.dll": b"loader",
+            "Pack/BepInEx/core/BepInEx.Preloader.dll": b"preloader",
+            "Pack/doorstop_libs/libdoorstop_x64.so": b"doorstop",
+        })
+        plugin = mod_archive({"manifest.json": plugin_manifest, "ExampleMod.dll": b"plugin"})
+        response = self.client.post('/api/mods/install', files=[
+            ("files", ("TechTim-ExampleMod-1.0.0.zip", plugin, "application/zip")),
+            ("files", ("denikson-BepInExPack_Valheim-5.4.2202.zip", loader, "application/zip")),
+        ])
+        self.assertEqual(response.status_code, 200, response.text)
+        payload = self.client.get('/api/mods').json()
+        self.assertTrue(payload["loader_ready"])
+        self.assertEqual(payload["enabled_count"], 1)
+        plugin_package = next(item for item in payload["packages"] if item["name"] == "ExampleMod")
+
+        toggled = self.client.post(f'/api/mods/{plugin_package["id"]}/toggle', json={"enabled": False})
+        self.assertEqual(toggled.status_code, 200, toggled.text)
+        self.assertEqual(self.client.get('/api/mods').json()["enabled_count"], 0)
+
+        config = self.service.server / "BepInEx" / "config" / "example.cfg"
+        config.parent.mkdir(parents=True, exist_ok=True)
+        config.write_text("enabled=true\n")
+        self.assertEqual(self.client.get('/api/mods/config?path=example.cfg').json()["content"], "enabled=true\n")
+        saved = self.client.put('/api/mods/config', json={"path": "example.cfg", "content": "enabled=false\n"})
+        self.assertEqual(saved.status_code, 200)
+        self.assertEqual(config.read_text(), "enabled=false\n")
+        self.assertIn("BepInEx 로더", self.client.get('/api/mods/diagnose').json()["report"])
+
+    def test_mod_mutations_are_blocked_while_server_runs(self):
+        self.authenticated(); self.installed(); self.docker.containers.add()
+        response = self.client.post('/api/mods/install', files={"files": ("mod.dll", b"plugin")})
+        self.assertEqual(response.status_code, 409)
 
     def test_backup_download_is_attachment_and_backup_restoration_is_queued(self):
         self.authenticated(); self.world()

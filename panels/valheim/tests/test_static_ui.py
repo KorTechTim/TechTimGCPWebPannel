@@ -55,7 +55,9 @@ class StaticUiTests(unittest.TestCase):
         self.assertIn('class="resource-grid"', html)
         self.assertIn('id="network-rx"', html)
         self.assertIn('id="network-tx"', html)
-        self.assertEqual(html.count('class="management-shortcut"'), 9)
+        self.assertEqual(html.count("VM TOTAL"), 2)
+        self.assertEqual(html.count('class="management-shortcut"'), 8)
+        self.assertIn('id="panel-update-button"', html)
         for target in (
             "modifiers-dialog",
             "worlds-dialog",
@@ -81,8 +83,18 @@ class StaticUiTests(unittest.TestCase):
         self.assertIn("['completed', 'failed'].includes(update.status)", script)
         self.assertIn("async function checkPanelUpdate", script)
         self.assertIn("async function loadServerFiles", script)
+        self.assertIn("function renderServerFilesPath", script)
+        self.assertIn("button.onclick = () => loadServerFiles(location.path)", script)
         self.assertIn("async function uploadServerFile", script)
         self.assertIn("async function uploadServerFolder", script)
+        self.assertIn("async function loadMods", script)
+        self.assertIn("function renderModPackages", script)
+        self.assertIn("/api/mods/install", script)
+        html = self.read("dashboard.html")
+        self.assertIn('aria-label="현재 서버 폴더 경로"', html)
+        for control in ("mods-install", "mods-search", "mods-filter", "mods-list", "mods-config-editor",
+                        "mods-export", "mods-import", "mods-disable-all", "mods-diagnose"):
+            self.assertIn(f'id="{control}"', html)
 
     def test_responsive_shell_has_mobile_breakpoints(self):
         css = self.read("valheim-palshell.css")
@@ -91,6 +103,7 @@ class StaticUiTests(unittest.TestCase):
         self.assertIn("@media (max-width: 440px)", css)
         self.assertIn("grid-template-columns: 1fr", css)
         self.assertIn(".explorer-shell", css)
+        self.assertIn(".mod-manager-shell", css)
         self.assertIn("#panel-update-dialog .callout { width: 100%; max-width: none; }", css)
 
 

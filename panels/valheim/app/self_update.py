@@ -38,10 +38,13 @@ def write_operation(status, message):
 def run_options(container):
     config = container.attrs["Config"]
     host = container.attrs["HostConfig"]
+    volumes = list(host.get("Binds") or [])
+    if not any(bind.split(":", 2)[1] == "/host/proc" for bind in volumes if ":" in bind):
+        volumes.append("/proc:/host/proc:ro")
     options = {
         "name": container.name, "detach": True,
         "environment": [v for v in config.get("Env", []) if not v.startswith("PANEL_VERSION=")],
-        "labels": config.get("Labels", {}), "volumes": host.get("Binds", []),
+        "labels": config.get("Labels", {}), "volumes": volumes,
         "restart_policy": host.get("RestartPolicy", {"Name": "unless-stopped"}),
         "init": bool(host.get("Init")),
     }

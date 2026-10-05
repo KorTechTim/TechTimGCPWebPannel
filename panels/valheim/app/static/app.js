@@ -12,6 +12,8 @@ let toastTimer;
 let panelUpdateCheckTimer;
 let serverFilesPath = '';
 let serverFilesParent = '';
+let modPackages = [];
+let modUpdateTarget = '';
 const selectedServerFolders = new Set();
 const polls = new Set();
 const runningStates = new Set(['running', 'restarting', 'paused', 'removing']);
@@ -155,6 +157,7 @@ function updateControls() {
   $('sidebar-settings').disabled = !state;
   $('panel-update-action').disabled = !available || running;
   updateServerFileControls();
+  updateModControls();
   $('install-label').textContent = state?.engine.installed ? '서버 업데이트' : '엔진 설치';
   $('control-hint').textContent = !state?.docker_available ? '서버 제어를 위해 Docker 연결이 필요합니다.'
     : state.busy || uiBusy ? '현재 작업이 끝나면 다음 작업을 진행할 수 있습니다.'
@@ -429,11 +432,37 @@ function updateServerFileControls() {
   if (folderForm) folderForm.querySelectorAll('input,button').forEach(control => { control.disabled = !enabled; });
   const folderDownload = $('server-files-download-folders');
   if (folderDownload) folderDownload.disabled = !enabled || selectedServerFolders.size === 0;
+  document.querySelectorAll('#server-files-path button').forEach(control => { control.disabled = !enabled; });
   document.querySelectorAll('.server-folder-select, .server-file-download').forEach(control => { control.disabled = !enabled; });
 }
 
 function setServerFilesMessage(text, error = false) {
   message('server-files-message', text, error);
+}
+
+function renderServerFilesPath(path) {
+  const breadcrumb = $('server-files-path');
+  breadcrumb.replaceChildren();
+  const segments = String(path || '').split('/').filter(Boolean);
+  const locations = [{label: '/server', path: ''}];
+  let current = '';
+  for (const segment of segments) {
+    current = current ? `${current}/${segment}` : segment;
+    locations.push({label: segment, path: current});
+  }
+  locations.forEach((location, index) => {
+    if (index) {
+      const separator = document.createElement('span');
+      separator.className = 'explorer-path-separator'; separator.textContent = '/'; separator.setAttribute('aria-hidden', 'true');
+      breadcrumb.append(separator);
+    }
+    const button = document.createElement('button');
+    button.type = 'button'; button.textContent = location.label; button.title = `${location.label} 폴더로 이동`;
+    button.dataset.path = location.path;
+    if (index === locations.length - 1) button.setAttribute('aria-current', 'location');
+    button.onclick = () => loadServerFiles(location.path);
+    breadcrumb.append(button);
+  });
 }
 
 function serverFileRow(entry) {
@@ -486,7 +515,7 @@ async function loadServerFiles(path = serverFilesPath) {
     const data = await api(`/api/server-files?path=${encodeURIComponent(path || '')}`);
     serverFilesPath = data.path || '';
     serverFilesParent = data.parent || '';
-    $('server-files-path').textContent = `/server${serverFilesPath ? `/${serverFilesPath}` : ''}`;
+    renderServerFilesPath(serverFilesPath);
     body.replaceChildren();
     if (!data.entries.length) {
       const row = document.createElement('tr'); const cell = document.createElement('td');
@@ -659,8 +688,145 @@ $('schedule-form').onsubmit = async event => {
   finally { uiBusy = false; updateControls(); }
 };
 
+function setModsMessage(text, error = false) { message('mods-message', text, error); }
+
+function updateModControls() {
+  const enabled = writable();
+  ['mods-install', 'mods-import', 'mods-export', 'mods-disable-all', 'mods-config-save'].forEach(id => {
+    const control = $(id); if (control) control.disabled = !enabled || (id === 'mods-config-save' && !$('mods-config-select')?.value);
+  });
+  document.querySelectorAll('.mod-write-action').forEach(control => { control.disabled = !enabled; });
+}
+
+function modButton(label, className, handler) {
+  const button = document.createElement('button'); button.type = 'button'; button.textContent = label;
+  button.className = className; button.onclick = handler; return button;
+}
+
+function renderModPackages() {
+  const list = $('mods-list'); list.replaceChildren();
+  const query = $('mods-search').value.trim().toLocaleLowerCase('ko-KR');
+  const filter = $('mods-filter').value;
+  const visible = modPackages.filter(item => item.name.toLocaleLowerCase('ko-KR').includes(query)
+    && (filter === 'all' || (filter === 'enabled' && item.enabled) || (filter === 'disabled' && !item.enabled && !item.issue)
+      || (filter === 'issue' && Boolean(item.issue))));
+  if (!visible.length) { emptyList(list, modPackages.length ? '조건에 맞는 모드가 없습니다.' : '등록된 모드가 없습니다. Linux BepInEx와 서버 모드를 추가하세요.'); return; }
+  visible.forEach(item => {
+    const row = document.createElement('article'); row.className = 'mod-package-row';
+    const info = document.createElement('div'); info.className = 'mod-package-info';
+    const title = document.createElement('div'); title.className = 'mod-package-title';
+    const name = document.createElement('strong'); name.textContent = item.name;
+    const badge = document.createElement('span'); badge.className = `mod-state ${item.enabled ? 'enabled' : item.issue ? 'issue' : ''}`;
+    badge.textContent = item.enabled ? '켜짐' : item.issue ? '준비 필요' : '꺼짐'; title.append(name, badge);
+    const meta = document.createElement('small');
+    meta.textContent = `${item.is_loader ? 'Linux BepInEx 로더' : '서버 모드'}${item.version ? ` · v${item.version}` : ''} · 파일 ${item.file_count}개`;
+    info.append(title, meta);
+    if (item.dependencies.length) {
+      const dependencies = document.createElement('small'); dependencies.className = 'mod-dependencies';
+      dependencies.textContent = `필요 모드: ${item.dependencies.join(', ')}`; info.append(dependencies);
+    }
+    if (item.issue) { const issue = document.createElement('p'); issue.className = 'mod-issue'; issue.textContent = item.issue; info.append(issue); }
+    const actions = document.createElement('div'); actions.className = 'mod-package-actions';
+    if (!item.enabled && item.issue) {
+      actions.append(modButton('해결 방법', '', () => setModsMessage(item.issue, true)));
+    } else {
+      actions.append(modButton(item.enabled ? '끄기' : '켜기', 'mod-write-action', async () => {
+        const verb = item.enabled ? '끄기' : '켜기';
+        if (!await confirmAction(`모드 ${verb}`, `${item.name} 모드를 ${verb} 상태로 변경할까요? 변경 사항은 다음 서버 시작부터 적용됩니다.`, verb)) return;
+        try { const data = await jsonPost(`/api/mods/${item.id}/toggle`, {enabled: !item.enabled}); await loadMods(); setModsMessage(data.message); }
+        catch (error) { setModsMessage(error.message, true); }
+      }));
+    }
+    actions.append(modButton('업데이트', 'mod-write-action', () => { modUpdateTarget = item.id; $('mods-update-input').click(); }));
+    const remove = modButton('삭제', 'mod-write-action danger', async () => {
+      if (!await confirmAction('모드 삭제', `${item.name} 모드를 끄고 목록에서 제거합니다. 등록 파일은 서버 보관함으로 이동합니다.`, '삭제')) return;
+      try { const data = await api(`/api/mods/${item.id}`, {method: 'DELETE'}); await loadMods(); setModsMessage(data.message); }
+      catch (error) { setModsMessage(error.message, true); }
+    });
+    actions.append(remove); row.append(info, actions); list.append(row);
+  });
+  updateModControls();
+}
+
+async function loadModConfigurations() {
+  const data = await api('/api/mods/configs'); const select = $('mods-config-select'); const current = select.value;
+  select.replaceChildren(new Option('설정 파일 선택', ''));
+  data.files.forEach(file => select.append(new Option(`${file.path} · ${bytes(file.size)}`, file.path)));
+  if (data.files.some(file => file.path === current)) select.value = current;
+  $('mods-config-count').textContent = `${data.files.length}개`;
+  $('mods-config-editor').disabled = !select.value;
+}
+
+async function loadMods() {
+  setModsMessage('모드 구성을 불러오고 있습니다.');
+  const data = await api('/api/mods'); modPackages = data.packages;
+  $('mods-loader-status').textContent = data.loader_ready ? '준비됨' : '설치 필요';
+  $('mods-loader-hint').textContent = data.loader_ready ? 'Linux BepInEx 활성화' : 'Linux BepInEx ZIP 필요';
+  $('mods-enabled-count').textContent = `${data.enabled_count}개`;
+  $('mods-registered-count').textContent = `${data.registered_count}개`;
+  renderModPackages(); await loadModConfigurations(); setModsMessage('모드 구성을 확인했습니다.'); updateControls();
+}
+
+async function uploadMods(files) {
+  const form = new FormData(); files.forEach(file => form.append('files', file, file.name));
+  uiBusy = true; updateControls(); setModsMessage(`${files.length}개 모드 파일을 확인하고 있습니다.`);
+  try {
+    const data = await api('/api/mods/install', {method: 'POST', body: form});
+    const failed = data.results.filter(item => !item.enabled);
+    const summary = data.results.map(item => `${item.name}: ${item.message}`).join(' / ');
+    await loadMods(); setModsMessage(summary, failed.length > 0);
+  } catch (error) { setModsMessage(error.message, true); }
+  finally { uiBusy = false; updateControls(); }
+}
+
+$('mods-search').oninput = renderModPackages;
+$('mods-filter').onchange = renderModPackages;
+$('mods-refresh').onclick = loadMods;
+$('mods-install').onclick = () => $('mods-install-input').click();
+$('mods-install-input').onchange = async event => {
+  const files = [...(event.currentTarget.files || [])]; event.currentTarget.value = '';
+  if (files.length) await uploadMods(files);
+};
+$('mods-update-input').onchange = async event => {
+  const file = event.currentTarget.files?.[0]; event.currentTarget.value = '';
+  if (!file || !modUpdateTarget) return;
+  const form = new FormData(); form.append('file', file, file.name);
+  uiBusy = true; updateControls(); setModsMessage(`${file.name} 파일로 업데이트하고 있습니다.`);
+  try { const data = await api(`/api/mods/${modUpdateTarget}/update`, {method: 'POST', body: form}); await loadMods(); setModsMessage(data.message); }
+  catch (error) { setModsMessage(error.message, true); }
+  finally { modUpdateTarget = ''; uiBusy = false; updateControls(); }
+};
+$('mods-config-load').onclick = async () => {
+  const path = $('mods-config-select').value; if (!path) return;
+  try { const data = await api(`/api/mods/config?path=${encodeURIComponent(path)}`); $('mods-config-editor').value = data.content; $('mods-config-editor').disabled = false; updateModControls(); }
+  catch (error) { setModsMessage(error.message, true); }
+};
+$('mods-config-select').onchange = () => { $('mods-config-editor').value = ''; $('mods-config-editor').disabled = !$('mods-config-select').value; updateModControls(); };
+$('mods-config-save').onclick = async () => {
+  const path = $('mods-config-select').value; if (!path) return;
+  try { const data = await jsonPost('/api/mods/config', {path, content: $('mods-config-editor').value}, 'PUT'); setModsMessage(data.message); await loadModConfigurations(); }
+  catch (error) { setModsMessage(error.message, true); }
+};
+$('mods-export').onclick = () => { location.href = '/api/mods/export'; };
+$('mods-import').onclick = () => $('mods-import-input').click();
+$('mods-import-input').onchange = async event => {
+  const file = event.currentTarget.files?.[0]; event.currentTarget.value = ''; if (!file) return;
+  const form = new FormData(); form.append('file', file, file.name);
+  try { const data = await api('/api/mods/import', {method: 'POST', body: form}); await loadMods(); setModsMessage(data.message); }
+  catch (error) { setModsMessage(error.message, true); }
+};
+$('mods-disable-all').onclick = async () => {
+  if (!await confirmAction('모드 모두 끄기', 'BepInEx와 등록된 모든 모드를 끕니다. 파일과 설정은 보관됩니다.', '모두 끄기')) return;
+  try { const data = await api('/api/mods/disable-all', {method: 'POST'}); await loadMods(); setModsMessage(data.message); }
+  catch (error) { setModsMessage(error.message, true); }
+};
+$('mods-diagnose').onclick = async () => {
+  try { const data = await api('/api/mods/diagnose'); $('mods-diagnosis').textContent = data.report; $('mods-diagnosis').hidden = false; }
+  catch (error) { setModsMessage(error.message, true); }
+};
+
 const loaders = {'settings-dialog': loadSettings, 'worlds-dialog': loadWorlds, 'backups-dialog': loadBackups, 'permissions-dialog': loadPermissions,
-  'schedule-dialog': loadSchedule, 'modifiers-dialog': loadModifiers, 'server-files-dialog': () => loadServerFiles(serverFilesPath), 'mods-dialog': async () => {},
+  'schedule-dialog': loadSchedule, 'modifiers-dialog': loadModifiers, 'server-files-dialog': () => loadServerFiles(serverFilesPath), 'mods-dialog': loadMods,
   'discord-dialog': async () => {}, 'panel-update-dialog': loadPanelUpdate};
 document.querySelectorAll('[data-open]').forEach(button => button.onclick = async () => {
   await openDetail(button.dataset.open, loaders[button.dataset.open]);

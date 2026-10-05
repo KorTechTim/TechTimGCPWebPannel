@@ -5,8 +5,8 @@
   <meta name="color-scheme" content="dark"><title>TechTim · Valheim Server</title>
   <link rel="icon" href="/static/valheim-panel-mark-v2.png?v=1" type="image/png">
   <link rel="stylesheet" href="/static/app.css?v=1.1.0">
-  <link rel="stylesheet" href="/static/valheim-palshell.css?v=1.3.0">
-  <script src="/static/app.js?v=1.3.0" defer></script>
+  <link rel="stylesheet" href="/static/valheim-palshell.css?v=1.4.0">
+  <script src="/static/app.js?v=1.4.0" defer></script>
 </head>
 <body>
   <div class="ambient" aria-hidden="true"></div>
@@ -102,20 +102,19 @@
             <button class="management-shortcut" type="button" data-open="schedule-dialog"><span class="shortcut-rune" aria-hidden="true">ᛞ</span><span><b>예약 · 자동화</b><small id="schedule-summary">한국 시간 기준 운영</small></span></button>
             <button class="management-shortcut" type="button" data-open="mods-dialog"><span class="shortcut-rune" aria-hidden="true">ᚦ</span><span><b>모드 관리</b><small>바닐라 · BepInEx 상태</small></span></button>
             <button class="management-shortcut" type="button" data-open="discord-dialog"><span class="shortcut-rune" aria-hidden="true">ᚨ</span><span><b>디스코드 연동</b><small>시작 · 종료 · 오류 알림</small></span></button>
-            <button class="management-shortcut" type="button" data-open="panel-update-dialog"><span class="shortcut-rune" aria-hidden="true">ᚱ</span><span><b>구동기 업데이트</b><small>웹패널 최신 이미지 적용</small></span></button>
           </nav>
         </div>
         <aside class="resource-monitor" id="resources" aria-label="서버 리소스">
           <div class="resource-intro"><div><p class="eyebrow">SYSTEM MONITOR</p><h2>서버 리소스</h2></div><span class="resource-live"><i aria-hidden="true"></i>실시간 · 5초</span></div>
           <div class="resource-grid">
             <section class="resource resource-cpu" data-level="normal" aria-label="CPU 사용률">
-              <div class="resource-head"><span>CPU</span><small>CONTAINER</small></div>
+              <div class="resource-head"><span>CPU</span><small>VM TOTAL</small></div>
               <strong id="cpu">—</strong>
               <div class="meter"><i id="cpu-meter"></i></div>
               <p>컨테이너 사용률</p>
             </section>
             <section class="resource resource-memory" data-level="normal" aria-label="메모리 사용량">
-              <div class="resource-head"><span>메모리</span><small>WORKING SET</small></div>
+              <div class="resource-head"><span>메모리</span><small>VM TOTAL</small></div>
               <strong id="memory">—</strong>
               <div class="meter"><i id="memory-meter"></i></div>
               <p>사용량 / 할당량</p>
@@ -203,7 +202,7 @@
   <dialog id="server-files-dialog" class="wide-dialog"><div class="dialog-head"><div><p class="eyebrow">SERVER FILE EXPLORER</p><h2>서버 폴더 탐색기</h2></div><button data-close aria-label="닫기">×</button></div>
     <div class="dialog-body explorer-shell">
       <div class="explorer-toolbar">
-        <div><span class="tiny-label">CURRENT PATH</span><strong id="server-files-path" class="explorer-path">/server</strong></div>
+        <div><span class="tiny-label">CURRENT PATH</span><nav id="server-files-path" class="explorer-path" aria-label="현재 서버 폴더 경로"><button type="button" data-path="" aria-current="location">/server</button></nav></div>
         <div class="explorer-actions">
           <button id="server-files-refresh" type="button" title="새로고침" aria-label="파일 목록 새로고침">↻</button>
           <button id="server-files-up" type="button">↑ 상위 폴더</button>
@@ -240,8 +239,52 @@
     <form id="schedule-form"><div class="dialog-body"><p class="callout">실행 중인 서버만 정상 종료한 뒤 다시 시작합니다. 꺼진 서버는 자동으로 켜지지 않습니다.</p><fieldset data-writable><label class="switch-row"><span>매일 예약 재시작<small>Asia/Seoul · 한국 시간</small></span><input name="enabled" type="checkbox" role="switch"></label><label>재시작 시각 · 최대 3개<input name="times" placeholder="04:00, 12:00" required><small>여러 시각은 쉼표로 구분하세요.</small></label></fieldset><p id="schedule-result" class="subtle"></p><p id="schedule-message" class="form-message" role="status"></p></div><div class="dialog-foot"><button type="button" data-close>닫기</button><button type="submit" class="primary" data-writable>예약 저장</button></div></form>
   </dialog>
 
-  <dialog id="mods-dialog" class="wide-dialog"><div class="dialog-head"><div><p class="eyebrow">MOD MANAGEMENT</p><h2>모드 관리</h2></div><button data-close aria-label="닫기">×</button></div>
-    <div class="dialog-body"><div class="feature-status"><span class="feature-icon" aria-hidden="true">◉</span><div><span class="tiny-label">CURRENT PROFILE</span><strong>바닐라 · 기본 서버</strong><p>현재 GCP 서버는 공식 전용 서버 구성으로 실행됩니다.</p></div></div><p class="callout">Valheim은 공식 모드와 Steam Workshop을 제공하지 않습니다. BepInEx 로더와 로컬 패키지는 게임 버전·클라이언트 호환성 검증 후 별도 구성으로 지원됩니다.</p><div class="feature-list"><span>모드 로더</span><strong>미설치</strong><span>활성 모드</span><strong>0개</strong><span>크로스플레이 호환성</span><strong>바닐라</strong></div></div><div class="dialog-foot"><button data-close>닫기</button></div>
+  <dialog id="mods-dialog" class="wide-dialog"><div class="dialog-head"><div><p class="eyebrow">BEPINEX MOD MANAGEMENT</p><h2>모드 관리</h2></div><button data-close aria-label="닫기">×</button></div>
+    <div class="dialog-body mod-manager-shell">
+      <p class="callout warning">모드는 서버 실행 코드입니다. 신뢰할 수 있는 발헤임 서버용 Linux 패키지만 설치하고, 클라이언트 설치 필요 여부와 크로스플레이 지원은 제작자 안내를 확인하세요.</p>
+      <section class="mod-overview" aria-label="모드 상태">
+        <div><span class="tiny-label">BEPINEX LOADER</span><strong id="mods-loader-status">확인 중</strong><small id="mods-loader-hint">Linux 서버 로더</small></div>
+        <div><span class="tiny-label">ENABLED MODS</span><strong id="mods-enabled-count">0개</strong><small>다음 서버 시작에 적용</small></div>
+        <div><span class="tiny-label">REGISTERED</span><strong id="mods-registered-count">0개</strong><small>보관 중인 서버 모드</small></div>
+      </section>
+      <div class="mod-install-bar">
+        <div><strong>서버 모드 추가</strong><small>ZIP 또는 DLL · 여러 파일 동시 선택</small></div>
+        <div class="mod-install-actions">
+          <a href="https://thunderstore.io/c/valheim/" target="_blank" rel="noopener noreferrer">Thunderstore ↗</a>
+          <a href="https://thunderstore.io/c/valheim/p/denikson/BepInExPack_Valheim/" target="_blank" rel="noopener noreferrer">Linux BepInEx ↗</a>
+          <button id="mods-install" class="primary" type="button">모드 설치</button>
+        </div>
+      </div>
+      <input id="mods-install-input" type="file" accept=".zip,.dll" multiple hidden>
+      <input id="mods-update-input" type="file" accept=".zip,.dll" hidden>
+      <input id="mods-import-input" type="file" accept=".zip" hidden>
+      <div class="mod-library-toolbar">
+        <label>이름 검색<input id="mods-search" type="search" placeholder="모드 이름"></label>
+        <label>상태<select id="mods-filter"><option value="all">전체</option><option value="enabled">켜짐</option><option value="disabled">꺼짐</option><option value="issue">준비 필요</option></select></label>
+        <button id="mods-refresh" type="button">새로고침</button>
+      </div>
+      <div id="mods-list" class="mod-list" aria-live="polite"></div>
+
+      <details class="mod-tool-panel">
+        <summary>모드 설정 파일 <span id="mods-config-count">0개</span></summary>
+        <div class="mod-tool-body">
+          <div class="mod-config-toolbar"><select id="mods-config-select" aria-label="모드 설정 파일"><option value="">설정 파일 선택</option></select><button id="mods-config-load" type="button">불러오기</button></div>
+          <textarea id="mods-config-editor" rows="15" spellcheck="false" placeholder="모드를 켜고 서버를 한 번 실행하면 설정 파일이 생성됩니다." disabled></textarea>
+          <div class="mod-tool-actions"><span class="subtle">저장 시 기존 파일을 자동 백업합니다.</span><button id="mods-config-save" class="primary" type="button" disabled>설정 저장</button></div>
+        </div>
+      </details>
+      <details class="mod-tool-panel">
+        <summary>모드팩 · 전체 관리</summary>
+        <div class="mod-tool-body mod-pack-tools">
+          <button id="mods-export" type="button">모드팩 저장</button>
+          <button id="mods-import" type="button">모드팩 불러오기</button>
+          <button id="mods-disable-all" type="button">모드 모두 끄기</button>
+          <button id="mods-diagnose" type="button">상세 진단</button>
+        </div>
+        <pre id="mods-diagnosis" class="mod-diagnosis" hidden></pre>
+      </details>
+      <p id="mods-message" class="form-message" role="status"></p>
+    </div><div class="dialog-foot"><button data-close>닫기</button></div>
   </dialog>
 
   <dialog id="discord-dialog"><div class="dialog-head"><div><p class="eyebrow">DISCORD INTEGRATION</p><h2>디스코드 연동</h2></div><button data-close aria-label="닫기">×</button></div>

@@ -49,7 +49,17 @@ case "${1:-serve}" in
     fi
     cd /server
     echo "Starting Valheim as $(id -un) (uid=$(id -u))."
-    exec ./valheim_server.x86_64 -nographics -batchmode -savedir /saves -logFile /dev/stdout "$@"
+    if [ -s /server/BepInEx/core/BepInEx.dll ] \
+      && [ -s /server/BepInEx/core/BepInEx.Preloader.dll ] \
+      && [ -s /server/doorstop_libs/libdoorstop_x64.so ]; then
+      export DOORSTOP_ENABLE=TRUE
+      export DOORSTOP_INVOKE_DLL_PATH=/server/BepInEx/core/BepInEx.Preloader.dll
+      export DOORSTOP_CORLIB_OVERRIDE_PATH=/server/unstripped_corlib
+      export LD_LIBRARY_PATH="/server/doorstop_libs:${LD_LIBRARY_PATH:-}"
+      export LD_PRELOAD="/server/doorstop_libs/libdoorstop_x64.so${LD_PRELOAD:+:$LD_PRELOAD}"
+      echo 'Linux BepInEx loader detected. Starting the modded server runtime.'
+    fi
+    exec ./valheim_server.x86_64 -nographics -batchmode -savedir /saves -logFile - "$@"
     ;;
   check-user)
     if [ "$(id -u)" -eq 0 ]; then

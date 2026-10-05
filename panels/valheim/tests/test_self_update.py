@@ -27,7 +27,7 @@ class SelfUpdateTests(unittest.TestCase):
         })
         options = run_options(container)
         self.assertEqual(options["network"], "valheim_default")
-        self.assertEqual(options["volumes"], ["/host:/data"])
+        self.assertEqual(options["volumes"], ["/host:/data", "/proc:/host/proc:ro"])
         self.assertEqual(options["ports"], {"8080/tcp": [("127.0.0.1", 8081)]})
         self.assertEqual(options["environment"], ["DATA_DIR=/data"])
 
@@ -46,9 +46,9 @@ class SelfUpdateTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             operation = Path(temporary) / "operation.json"
             with patch("app.self_update.OPERATION", operation):
-                write_operation("completed", "웹패널 1.3.0 업데이트 완료")
+                write_operation("completed", "웹패널 1.4.0 업데이트 완료")
 
             payload = read_json(operation, {})
             self.assertEqual(payload["status"], "completed")
             self.assertEqual(payload["name"], "웹패널 업데이트")
-            self.assertIn("1.3.0", payload["message"])
+            self.assertIn("1.4.0", payload["message"])

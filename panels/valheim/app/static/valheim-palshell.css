@@ -428,7 +428,12 @@ dialog::backdrop { background: rgba(6, 15, 20, .7); }
 
 .explorer-shell { display: grid; gap: 16px; }
 .explorer-toolbar { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; }
-.explorer-path { display: block; margin-top: 5px; color: var(--ink); font: 15px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
+.explorer-path { display: flex; min-width: 0; flex-wrap: wrap; align-items: center; gap: 2px; margin-top: 5px; color: var(--ink); font: 15px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
+.explorer-path button { min-width: 0; min-height: 0; padding: 1px 2px; overflow-wrap: anywhere; border: 0; border-radius: 2px; background: transparent; color: #1d645a; font: inherit; text-align: left; }
+.explorer-path button:hover:not(:disabled), .explorer-path button:focus-visible { border-color: transparent; background: #dce9e5; color: #0d4b43; text-decoration: underline; }
+.explorer-path button[aria-current="location"] { color: var(--ink); font-weight: 800; }
+.explorer-path button:disabled { color: #738186; }
+.explorer-path-separator { color: #7f8d91; user-select: none; }
 .explorer-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }
 .explorer-actions button { min-height: 37px; padding: 8px 11px; font-size: 10px; }
 .explorer-create-row { display: grid; grid-template-columns: minmax(180px, 360px) auto; justify-content: start; gap: 8px; }
@@ -453,6 +458,51 @@ dialog::backdrop { background: rgba(6, 15, 20, .7); }
 .explorer-row-actions { text-align: right !important; }
 .explorer-row-actions button { padding: 6px 9px; font-size: 9px; }
 #server-files-message { min-height: 20px; margin: 0; }
+
+.mod-manager-shell { display: grid; gap: 16px; }
+.mod-overview { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); overflow: hidden; border: 1px solid #cad5d2; border-top: 2px solid #b78b43; border-radius: 7px; background: rgba(255, 255, 255, .68); }
+.mod-overview > div { min-width: 0; padding: 16px 18px; border-right: 1px solid #d7dfdd; }
+.mod-overview > div:last-child { border-right: 0; }
+.mod-overview strong, .mod-overview small { display: block; }
+.mod-overview strong { margin-top: 5px; color: var(--ink); font-size: 16px; }
+.mod-overview small { margin-top: 4px; color: #758489; font-size: 9px; }
+.mod-install-bar { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 15px 17px; border: 1px solid #cbd6d4; border-radius: 7px; background: #edf2f0; }
+.mod-install-bar strong, .mod-install-bar small { display: block; }
+.mod-install-bar strong { color: var(--ink); font-size: 13px; }
+.mod-install-bar small { margin-top: 4px; color: #748388; font-size: 9px; }
+.mod-install-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 7px; }
+.mod-install-actions a { padding: 8px 10px; color: #315f58; font-size: 9px; font-weight: 800; text-decoration: none; }
+.mod-install-actions a:hover { text-decoration: underline; }
+.mod-install-actions button { min-height: 37px; padding: 8px 13px; font-size: 10px; }
+.mod-library-toolbar { display: grid; grid-template-columns: minmax(220px, 1fr) 170px auto; align-items: end; gap: 9px; }
+.mod-library-toolbar label { margin: 0; }
+.mod-library-toolbar button { min-height: 39px; }
+.mod-list { display: grid; gap: 8px; }
+.mod-package-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 20px; padding: 14px 16px; border: 1px solid #d3ddda; border-radius: 6px; background: rgba(255, 255, 255, .7); }
+.mod-package-info { min-width: 0; }
+.mod-package-title { display: flex; min-width: 0; flex-wrap: wrap; align-items: center; gap: 8px; }
+.mod-package-title strong { min-width: 0; overflow-wrap: anywhere; color: var(--ink); font-size: 13px; }
+.mod-package-info > small { display: block; margin-top: 5px; color: #758388; font-size: 9px; overflow-wrap: anywhere; }
+.mod-package-info .mod-dependencies { color: #556d69; }
+.mod-state { padding: 4px 7px; border: 1px solid #aebbb8; border-radius: 999px; color: #66767a; font-size: 8px; font-weight: 900; }
+.mod-state.enabled { border-color: #6ba897; background: #e3f2ed; color: #236954; }
+.mod-state.issue { border-color: #d4a666; background: #fff3df; color: #8d5e22; }
+.mod-issue { margin: 8px 0 0; color: #94602b; font-size: 10px; line-height: 1.5; }
+.mod-package-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.mod-package-actions button { padding: 7px 9px; font-size: 9px; }
+.mod-package-actions .danger { border-color: #d7aaa4; color: #a13f32; }
+.mod-tool-panel { overflow: hidden; border: 1px solid #cbd6d4; border-radius: 7px; background: rgba(255, 255, 255, .62); }
+.mod-tool-panel summary { padding: 14px 16px; cursor: pointer; color: var(--ink); font-size: 12px; font-weight: 800; }
+.mod-tool-panel summary span { margin-left: 6px; color: #758489; font-size: 9px; }
+.mod-tool-body { display: grid; gap: 11px; padding: 0 16px 16px; }
+.mod-config-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+.mod-config-toolbar select, .mod-config-toolbar button { min-height: 39px; }
+#mods-config-editor { width: 100%; resize: vertical; font: 11px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.mod-tool-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.mod-pack-tools { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.mod-pack-tools button { min-height: 39px; font-size: 10px; }
+.mod-diagnosis { max-height: 300px; margin: 0 16px 16px; padding: 14px; overflow: auto; border: 1px solid #cbd6d4; border-radius: 5px; background: #14272a; color: #dfe9e4; font: 10px/1.65 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; }
+#mods-message { min-height: 20px; margin: 0; overflow-wrap: anywhere; }
 
 .detail-view { min-height: 560px; padding: 0 0 18px; }
 .detail-toolbar { padding: 5px 0 17px; border-color: #d5dcdb; }
@@ -513,6 +563,13 @@ dialog::backdrop { background: rgba(6, 15, 20, .7); }
   .explorer-toolbar { align-items: stretch; flex-direction: column; }
   .explorer-actions { justify-content: flex-start; }
   .explorer-create-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .mod-install-bar { align-items: stretch; flex-direction: column; }
+  .mod-install-actions { justify-content: flex-start; }
+  .mod-library-toolbar { grid-template-columns: minmax(0, 1fr) 130px; }
+  .mod-library-toolbar button { grid-column: 1 / -1; }
+  .mod-package-row { grid-template-columns: 1fr; }
+  .mod-package-actions { justify-content: flex-start; }
+  .mod-pack-tools { grid-template-columns: 1fr 1fr; }
   footer { display: block; }
   footer span { display: block; }
 }
@@ -537,6 +594,12 @@ dialog::backdrop { background: rgba(6, 15, 20, .7); }
   .advanced-button { width: 100%; height: 74px; flex-direction: row; }
   .advanced-button img { width: 58px; height: 58px; }
   .advanced-copy { border-left: 0; padding-left: 0; }
+  .mod-overview { grid-template-columns: 1fr; }
+  .mod-overview > div { border-right: 0; border-bottom: 1px solid #d7dfdd; }
+  .mod-overview > div:last-child { border-bottom: 0; }
+  .mod-library-toolbar, .mod-config-toolbar, .mod-pack-tools { grid-template-columns: 1fr; }
+  .mod-library-toolbar button { grid-column: auto; }
+  .mod-tool-actions { align-items: stretch; flex-direction: column; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -15,6 +15,10 @@ class RuntimeTests(unittest.TestCase):
         self.assertIn('"runtime_user":"%s"', entrypoint)
         self.assertIn("check-user)", entrypoint)
         self.assertIn('echo "Starting Valheim as $(id -un) (uid=$(id -u))."', entrypoint)
+        self.assertIn("-logFile -", entrypoint)
+        self.assertNotIn("-logFile /dev/stdout", entrypoint)
+        self.assertIn("DOORSTOP_INVOKE_DLL_PATH=/server/BepInEx/core/BepInEx.Preloader.dll", entrypoint)
+        self.assertIn("/server/doorstop_libs/libdoorstop_x64.so", entrypoint)
         self.assertNotIn("/root/.steam", dockerfile + entrypoint)
 
 

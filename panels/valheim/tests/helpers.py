@@ -83,6 +83,7 @@ class FakeContainers:
 class FakeImages:
     def __init__(self):
         self.prune_calls = 0
+        self.pull_calls = []
         self.prune_result = {"ImagesDeleted": [], "SpaceReclaimed": 0}
         self.registry_digest = "sha256:runtime"
 
@@ -90,8 +91,8 @@ class FakeImages:
     def get(image):
         return SimpleNamespace(id="runtime-image")
 
-    @staticmethod
-    def pull(image):
+    def pull(self, image, tag=None):
+        self.pull_calls.append((image, tag))
         return SimpleNamespace(id="runtime-image")
 
     def get_registry_data(self, image):

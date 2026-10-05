@@ -33,6 +33,19 @@ class LifecycleTests(ServiceCase):
         self.assertNotIn("/var/run/docker.sock", options["volumes"])
         self.assertEqual(options["restart_policy"], {"Name": "unless-stopped"})
 
+    def test_modded_start_refreshes_runtime_image_for_bepinex_support(self):
+        self.installed()
+        for relative in ("BepInEx/core/BepInEx.dll", "BepInEx/core/BepInEx.Preloader.dll",
+                         "doorstop_libs/libdoorstop_x64.so"):
+            path = self.service.server / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(b"mod-runtime")
+
+        self.service.start()
+
+        self.assertEqual(self.docker.images.pull_calls,
+                         [("ghcr.io/kortechtim/valheim-runtime", "steamcmd-nonroot-v1")])
+
     def test_running_server_blocks_start_install_and_save(self):
         self.installed()
         server = self.docker.containers.add()
@@ -127,9 +140,9 @@ class LifecycleTests(ServiceCase):
 
         status = read_json(self.service.root / "panel-update-status.json", {})
         self.assertEqual(status["status"], "completed")
-        self.assertEqual(status["version"], "1.3.0")
+        self.assertEqual(status["version"], "1.4.0")
         self.assertEqual(status["image_id"], "runtime-imag")
-        self.assertIn("1.3.0", status["message"])
+        self.assertIn("1.4.0", status["message"])
 
     def test_panel_update_check_uses_registry_digest_and_cache(self):
         self.docker.containers.add(self.settings.panel_container)
@@ -227,6 +240,33 @@ class LifecycleTests(ServiceCase):
         self.assertEqual(result["memory_used"], 800)
         self.assertEqual(result["network_rx"], 0)
 
+    def test_resources_monitor_host_when_game_server_is_stopped(self):
+        proc = self.root / "host-proc"
+        (proc / "net").mkdir(parents=True)
+        (proc / "meminfo").write_text("MemTotal: 8000 kB\nMemAvailable: 3000 kB\n")
+        (proc / "stat").write_text("cpu 100 0 100 800 0 0 0 0 0 0\n")
+        (proc / "net" / "dev").write_text(
+            "Inter-| Receive | Transmit\n face |bytes packets errs drop fifo frame compressed multicast|bytes packets errs drop fifo colls carrier compressed\n"
+            " eth0: 1000 0 0 0 0 0 0 0 2000 0 0 0 0 0 0 0\n"
+        )
+        self.service.host_proc = proc
+
+        with patch("app.service.time.monotonic", side_effect=[100, 102]):
+            first = self.service.resources()
+            (proc / "stat").write_text("cpu 150 0 150 900 0 0 0 0 0 0\n")
+            (proc / "net" / "dev").write_text(
+                "Inter-| Receive | Transmit\n face |bytes packets errs drop fifo frame compressed multicast|bytes packets errs drop fifo colls carrier compressed\n"
+                " eth0: 3000 0 0 0 0 0 0 0 5000 0 0 0 0 0 0 0\n"
+            )
+            second = self.service.resources()
+
+        self.assertTrue(first["available"])
+        self.assertEqual(second["source"], "host")
+        self.assertEqual(second["cpu_percent"], 50)
+        self.assertEqual(second["memory_used"], 5000 * 1024)
+        self.assertEqual(second["network_rx"], 1000)
+        self.assertEqual(second["network_tx"], 1500)
+
     def test_storage_cleanup_does_nothing_below_threshold(self):
         with patch("app.service.shutil.disk_usage", return_value=SimpleNamespace(total=100, used=79, free=21)):
             result = self.service.cleanup_storage_if_needed()
@@ -287,6 +327,22 @@ class LifecycleTests(ServiceCase):
         self.assertEqual(result["backups_deleted"], 1)
         self.assertTrue((self.service.backups / names[0]).exists())
         self.assertFalse((self.service.backups / names[1]).exists())
+
+    def test_storage_cleanup_removes_old_mod_trash_before_backups(self):
+        discarded = self.service.mods.trash / "old-mod"
+        discarded.mkdir()
+        (discarded / "plugin.dll").write_bytes(b"old")
+        usage = [
+            SimpleNamespace(total=100, used=90, free=10),
+            SimpleNamespace(total=100, used=90, free=10),
+            SimpleNamespace(total=100, used=74, free=26),
+        ]
+
+        with patch("app.service.shutil.disk_usage", side_effect=usage):
+            result = self.service.cleanup_storage_if_needed()
+
+        self.assertEqual(result["mod_trash_deleted"], 1)
+        self.assertFalse(discarded.exists())
 
     def test_password_is_not_in_config_response_or_logs(self):
         self.installed()

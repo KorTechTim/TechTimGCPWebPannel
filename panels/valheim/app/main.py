@@ -40,6 +40,15 @@ class FileExplorerFolderDownload(BaseModel):
     paths: list[str] = Field(min_length=1, max_length=100)
 
 
+class ModToggle(BaseModel):
+    enabled: bool
+
+
+class ModConfigurationUpdate(BaseModel):
+    path: str = Field(min_length=1, max_length=500)
+    content: str = Field(max_length=1024 * 1024)
+
+
 def create_app(settings=None, docker_factory=None):
     settings = settings or Settings.from_env()
     service = PanelService(settings, docker_factory)
@@ -386,6 +395,138 @@ def create_app(settings=None, docker_factory=None):
                 raise HTTPException(409, "같은 이름의 항목이 있습니다.")
             target.mkdir(parents=False, exist_ok=False)
         return {"status": "ok", "message": "폴더를 생성했습니다.", "path": server_file_relative(target)}
+
+    @app.get("/api/mods")
+    def list_mods(request: Request):
+        auth.require(request)
+        return service.mods.public_packages()
+
+    @app.post("/api/mods/install")
+    async def install_mods(request: Request, files: list[UploadFile] = File(...)):
+        auth.require(request)
+        if not files or len(files) > 50:
+            raise ValueError("한 번에 1~50개의 모드 파일을 선택해주세요.")
+        with service.operation("모드 설치"):
+            service.require_stopped()
+            if not service.engine()["installed"]:
+                raise BusyError("서버 엔진을 먼저 설치해주세요.")
+            with tempfile.TemporaryDirectory(prefix=".mod-upload-", dir=service.root) as directory:
+                uploads = []
+                total = 0
+                for index, upload in enumerate(files):
+                    name = server_file_name(upload.filename)
+                    destination = Path(directory) / str(index)
+                    with destination.open("xb") as stream:
+                        while chunk := await upload.read(1024 * 1024):
+                            total += len(chunk)
+                            if total > settings.max_upload_bytes:
+                                raise HTTPException(413, "한 번에 업로드할 수 있는 최대 크기는 2GB입니다.")
+                            stream.write(chunk)
+                    uploads.append((destination, name))
+                results = service.mods.install_files(uploads)
+        return {"status": "ok", "message": "모드 파일 확인을 완료했습니다.", "results": results,
+                **service.mods.public_packages()}
+
+    @app.post("/api/mods/{package_id}/toggle")
+    def toggle_mod(package_id: str, payload: ModToggle, request: Request):
+        auth.require(request)
+        with service.operation("모드 켜기" if payload.enabled else "모드 끄기"):
+            service.require_stopped()
+            package = service.mods.set_enabled(package_id, payload.enabled)
+        return {"status": "ok", "message": f"{package['name']} 모드를 {'켰습니다' if payload.enabled else '껐습니다'}."}
+
+    @app.post("/api/mods/{package_id}/update")
+    async def update_mod(package_id: str, request: Request, file: UploadFile = File(...)):
+        auth.require(request)
+        name = server_file_name(file.filename)
+        with service.operation("모드 업데이트"):
+            service.require_stopped()
+            temporary = tempfile.NamedTemporaryFile(prefix=".mod-update-", dir=service.root, delete=False)
+            temporary_path = Path(temporary.name)
+            size = 0
+            try:
+                with temporary:
+                    while chunk := await file.read(1024 * 1024):
+                        size += len(chunk)
+                        if size > settings.max_upload_bytes:
+                            raise HTTPException(413, "업로드할 수 있는 최대 크기는 2GB입니다.")
+                        temporary.write(chunk)
+                package = service.mods.update(package_id, temporary_path, name)
+            finally:
+                temporary_path.unlink(missing_ok=True)
+        return {"status": "ok", "message": f"{package['name']} 모드를 업데이트했습니다."}
+
+    @app.delete("/api/mods/{package_id}")
+    def remove_mod(package_id: str, request: Request):
+        auth.require(request)
+        with service.operation("모드 삭제"):
+            service.require_stopped()
+            name = service.mods.package(package_id)["name"]
+            service.mods.remove(package_id)
+        return {"status": "ok", "message": f"{name} 모드를 보관함으로 이동했습니다."}
+
+    @app.post("/api/mods/disable-all")
+    def disable_all_mods(request: Request):
+        auth.require(request)
+        with service.operation("모드 전체 끄기"):
+            service.require_stopped()
+            count = service.mods.disable_all()
+        return {"status": "ok", "message": f"모드 {count}개를 껐습니다. 등록 파일과 설정은 유지됩니다."}
+
+    @app.get("/api/mods/configs")
+    def list_mod_configurations(request: Request):
+        auth.require(request)
+        return {"files": service.mods.configuration_files()}
+
+    @app.get("/api/mods/config")
+    def read_mod_configuration(request: Request, path: str):
+        auth.require(request)
+        return {"path": path, "content": service.mods.read_configuration(path)}
+
+    @app.put("/api/mods/config")
+    def write_mod_configuration(payload: ModConfigurationUpdate, request: Request):
+        auth.require(request)
+        with service.operation("모드 설정 저장"):
+            service.require_stopped()
+            service.mods.write_configuration(payload.path, payload.content)
+        return {"status": "ok", "message": "모드 설정을 저장하고 기존 파일을 백업했습니다."}
+
+    @app.get("/api/mods/export")
+    def export_modpack(request: Request):
+        auth.require(request)
+        with service.operation("모드팩 내보내기"):
+            service.require_stopped()
+            archive, filename = service.mods.export_pack()
+        return FileResponse(archive, filename=filename, media_type="application/zip",
+                            background=BackgroundTask(archive.unlink, missing_ok=True))
+
+    @app.post("/api/mods/import")
+    async def import_modpack(request: Request, file: UploadFile = File(...)):
+        auth.require(request)
+        name = server_file_name(file.filename)
+        if Path(name).suffix.casefold() != ".zip":
+            raise ValueError("TechTim 모드팩 ZIP 파일을 선택해주세요.")
+        with service.operation("모드팩 가져오기"):
+            service.require_stopped()
+            temporary = tempfile.NamedTemporaryFile(prefix=".modpack-upload-", dir=service.root, delete=False)
+            temporary_path = Path(temporary.name)
+            size = 0
+            try:
+                with temporary:
+                    while chunk := await file.read(1024 * 1024):
+                        size += len(chunk)
+                        if size > settings.max_upload_bytes:
+                            raise HTTPException(413, "업로드할 수 있는 최대 크기는 2GB입니다.")
+                        temporary.write(chunk)
+                count = service.mods.import_pack(temporary_path)
+            finally:
+                temporary_path.unlink(missing_ok=True)
+        return {"status": "ok", "message": f"모드팩에서 {count}개 패키지를 가져왔습니다. 필요한 모드를 켜주세요."}
+
+    @app.get("/api/mods/diagnose")
+    def diagnose_mods(request: Request):
+        auth.require(request)
+        return {"report": service.mods.diagnose()}
 
     @app.post("/api/worlds/upload")
     def upload_world(request: Request, db: UploadFile = File(...), fwl: UploadFile = File(...), overwrite: bool = Form(False)):

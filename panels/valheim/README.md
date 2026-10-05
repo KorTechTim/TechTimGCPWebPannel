@@ -1,6 +1,6 @@
 # TechTim Valheim Server Panel
 
-발헤임 정식 전용 서버를 GCP VM에서 설치하고 관리하는 한국어 웹패널입니다. 기존 TechTim 패널처럼 FastAPI와 Docker를 사용하며, 화면·설정·파일 관리·서버 제어를 모듈로 분리했습니다. 패널 버전은 `1.3.0`입니다.
+발헤임 정식 전용 서버를 GCP VM에서 설치하고 관리하는 한국어 웹패널입니다. 기존 TechTim 패널처럼 FastAPI와 Docker를 사용하며, 화면·설정·파일 관리·서버 제어를 모듈로 분리했습니다. 패널 버전은 `1.4.0`입니다.
 
 2026-09-13 기준으로 [Valheim 1.0 출시 발표](https://www.valheim.com/news/valheim-1-0-has-arrived-/), [1.0 FAQ](https://www.valheimgame.com/support/valheim-1-0-faq/), [9월 11일 핫픽스](https://www.valheimgame.com/news/hotfix-1-0-10-1-0-12/) 및 [공식 전용 서버 가이드](https://www.valheimgame.com/support/a-guide-to-dedicated-servers/)를 확인해 구현했습니다. Steam 정식 브랜치를 설치하므로 특정 핫픽스 번호를 고정하지 않습니다. 실제 설치된 Steam build ID를 상태 API에서 확인할 수 있습니다.
 
@@ -13,6 +13,7 @@
 - 게임 자체의 저장 간격과 자동 백업 개수·간격 설정.
 - `.db`/`.fwl` 월드 파일 쌍 업로드, 월드 ZIP 다운로드, 패널 ZIP 백업·복원·삭제.
 - 서버 중지 상태에서 `/server` 폴더를 탐색하고 파일·폴더 업로드, 파일 다운로드, 선택 폴더 ZIP 다운로드, 새 폴더 생성을 지원하는 GUI 탐색기.
+- Linux BepInEx와 서버 모드 ZIP/DLL 설치, 의존성 검사, 켜기·끄기·업데이트·삭제, 설정 편집, 모드팩 내보내기·가져오기 및 진단.
 - 관리자·차단·접속 허용 목록, KST 기준 하루 최대 3회 예약 재시작.
 - 웹패널 새 이미지 자동 감지와 상단 안내 풍선, 자체 업데이트, 실패 시 이전 이미지 복구, 교체 후 HTTP 응답 확인.
 - 디스크 사용률 80% 도달 시 오래된 임시 파일·미사용 Docker 이미지·안전 백업을 정리하고 최신 백업 3개 보존.
@@ -71,7 +72,7 @@ docker compose -f panels/valheim/compose.local.yml up --build -d
 
 GCP 배포 준비와 실행 순서는 다음과 같습니다.
 
-1. `.github/workflows/build-valheim-panel.yml`의 검사와 두 이미지 빌드가 통과해야 합니다. `main` 반영 후 `ghcr.io/kortechtim/valheim-panel:latest`와 `ghcr.io/kortechtim/valheim-runtime:steamcmd-nonroot-v1`이 게시됩니다. 런타임은 실제 컨테이너 UID 검사도 통과해야 합니다. PR에서는 빌드만 수행합니다. VM이 로그인 없이 받을 수 있도록 새 GHCR 패키지의 가시성도 확인합니다.
+1. `.github/workflows/build-valheim-panel.yml`의 검사와 두 이미지 빌드가 통과해야 합니다. `main` 반영 후 `ghcr.io/kortechtim/valheim-panel:latest`와 `ghcr.io/kortechtim/valheim-runtime:steamcmd-nonroot-v1`이 게시됩니다. 모드 구성이 활성화된 서버는 시작 전에 이 런타임 채널을 자동 갱신합니다. 런타임은 실제 컨테이너 UID 검사도 통과해야 합니다. PR에서는 빌드만 수행합니다. VM이 로그인 없이 받을 수 있도록 새 GHCR 패키지의 가시성도 확인합니다.
 2. 기존 TechTim 설치 코드 검증 서비스가 `game=valheim`과 발급한 코드를 받아 `OK`를 반환하도록 연동합니다. 그 API의 구현은 이 저장소에 포함돼 있지 않습니다. 새 게임 등록 전에는 초기 설치 스크립트가 의도적으로 중단됩니다.
 3. 대상 프로젝트에서 Compute Engine API를 활성화하고 Google Cloud CLI로 로그인합니다. VM 및 방화벽을 생성할 수 있는 계정이 필요합니다. 아래 스크립트를 실행하면 실제 유료 리소스가 생성됩니다.
 

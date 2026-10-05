@@ -14,6 +14,7 @@ import docker
 from docker.types import LogConfig
 
 from .config import PANEL_VERSION, Permissions, RestartSchedule, ServerConfig, Settings, server_arguments, world_name
+from .mods import ModManager
 from .storage import create_archive, extract_archive, inside, read_json, replace_directory, worlds, write_bytes, write_json
 
 KST = timezone(timedelta(hours=9), name="KST")
@@ -40,6 +41,7 @@ class PanelService:
         self.saves = self.root / "saves"
         self.backups = self.root / "backups"
         self.exports = self.root / "exports"
+        self.mods = ModManager(self.root, self.server, settings.max_upload_bytes)
         self.config_file = self.root / "valheim-config.json"
         self.job_file = self.root / "operation.json"
         self.schedule_file = self.root / "restart-schedule.json"
@@ -51,6 +53,9 @@ class PanelService:
         self.panel_update_check_lock = threading.Lock()
         self.panel_update_check_cache = {"expires_at": 0.0, "payload": None}
         self.network_sample = None
+        self.host_cpu_sample = None
+        self.host_network_sample = None
+        self.host_proc = Path("/host/proc")
         self.ready_identity = None
         self.join_code_identity = None
         self.join_code = ""
@@ -285,6 +290,9 @@ class PanelService:
         if selected and not selected["complete"]:
             raise ValueError("선택한 월드의 .db 또는 .fwl 파일이 없습니다. 두 파일을 함께 업로드해주세요.")
         with self.client() as client:
+            if self.mods.loader_ready() and self.settings.pull_runtime:
+                repository, tag = docker.utils.parse_repository_tag(self.settings.runtime_image)
+                client.images.pull(repository, tag=tag or "latest")
             image = client.images.get(self.settings.runtime_image)
             old = self.container(client, self.settings.server_container)
             if old:
@@ -355,6 +363,7 @@ class PanelService:
             "after_percent": round(before, 1),
             "backups_deleted": 0,
             "exports_deleted": 0,
+            "mod_trash_deleted": 0,
             "containers_deleted": 0,
             "images_deleted": 0,
             "space_reclaimed": 0,
@@ -371,6 +380,16 @@ class PanelService:
                     result["exports_deleted"] += 1
             except OSError as error:
                 result["errors"].append(f"임시 파일 {path.name}: {error}")
+
+        mod_trash = [path for path in self.mods.trash.iterdir() if path.is_dir() and not path.is_symlink()]
+        for path in sorted(mod_trash, key=lambda item: item.stat().st_mtime):
+            if self.disk_usage_percent() < self.settings.storage_cleanup_target:
+                break
+            try:
+                shutil.rmtree(path)
+                result["mod_trash_deleted"] += 1
+            except OSError as error:
+                result["errors"].append(f"모드 보관함 {path.name}: {error}")
 
         try:
             with self.client() as client:
@@ -417,6 +436,7 @@ class PanelService:
         summary = (
             f"저장 공간 자동 정리: {result['before_percent']}% → {result['after_percent']}%, "
             f"백업 {result['backups_deleted']}개, 임시 파일 {result['exports_deleted']}개, "
+            f"오래된 모드 보관본 {result['mod_trash_deleted']}개, "
             f"컨테이너 {result['containers_deleted']}개, Docker 이미지 {result['images_deleted']}개 삭제"
         )
         if result["errors"]:
@@ -573,9 +593,78 @@ class PanelService:
         password = self.config().password
         return text.replace(password, "[비밀번호 숨김]") if password else text
 
+    @staticmethod
+    def _proc_values(path):
+        return {line.split(":", 1)[0]: int(line.split()[1]) * 1024
+                for line in path.read_text().splitlines() if ":" in line and len(line.split()) >= 2}
+
+    def _host_resources(self, disk):
+        if not (self.host_proc / "stat").is_file():
+            return None
+
+        cpu_fields = [int(value) for value in (self.host_proc / "stat").read_text().splitlines()[0].split()[1:]]
+        cpu_total = sum(cpu_fields)
+        cpu_idle = sum(cpu_fields[index] for index in (3, 4) if index < len(cpu_fields))
+        memory = self._proc_values(self.host_proc / "meminfo")
+        memory_total = memory.get("MemTotal", 0)
+        memory_available = memory.get("MemAvailable")
+        if memory_available is None:
+            memory_available = (memory.get("MemFree", 0) + memory.get("Buffers", 0)
+                                + memory.get("Cached", 0) + memory.get("SReclaimable", 0)
+                                - memory.get("Shmem", 0))
+
+        received = sent = 0
+        for line in (self.host_proc / "net" / "dev").read_text().splitlines()[2:]:
+            if ":" not in line:
+                continue
+            interface, counters = line.split(":", 1)
+            if interface.strip() == "lo":
+                continue
+            fields = counters.split()
+            if len(fields) >= 9:
+                received += int(fields[0])
+                sent += int(fields[8])
+
+        now = time.monotonic()
+        cpu_percent = 0.0
+        rx = tx = 0.0
+        with self.resource_lock:
+            before_cpu = self.host_cpu_sample
+            if before_cpu and cpu_total > before_cpu[0]:
+                total_delta = cpu_total - before_cpu[0]
+                idle_delta = max(0, cpu_idle - before_cpu[1])
+                cpu_percent = max(0.0, min(100.0, (total_delta - idle_delta) / total_delta * 100))
+            self.host_cpu_sample = (cpu_total, cpu_idle)
+
+            before_network = self.host_network_sample
+            if before_network and now > before_network[0]:
+                elapsed = now - before_network[0]
+                rx = max(0, received - before_network[1]) / elapsed
+                tx = max(0, sent - before_network[2]) / elapsed
+            self.host_network_sample = (now, received, sent)
+
+        return {
+            "disk_used": disk.used,
+            "disk_total": disk.total,
+            "available": True,
+            "source": "host",
+            "cpu_percent": round(cpu_percent, 1),
+            "memory_used": max(0, memory_total - max(0, memory_available)),
+            "memory_total": memory_total,
+            "network_rx": round(rx),
+            "network_tx": round(tx),
+        }
+
     def resources(self):
         disk = shutil.disk_usage(self.root)
         result = {"disk_used": disk.used, "disk_total": disk.total, "available": False}
+        try:
+            host = self._host_resources(disk)
+            if host:
+                return host
+        except (OSError, ValueError, IndexError):
+            pass
+
         with self.client() as client:
             server = self.container(client, self.settings.server_container)
             if not server or server.status != "running":
@@ -599,7 +688,8 @@ class PanelService:
                     rx = max(0, received - before[2]) / (now - before[1])
                     tx = max(0, sent - before[3]) / (now - before[1])
                 self.network_sample = (server.id, now, received, sent)
-            result.update(available=True, cpu_percent=round(max(0, used / total * cores * 100), 1) if total > 0 else 0,
+            result.update(available=True, source="container",
+                          cpu_percent=round(max(0, used / total * cores * 100), 1) if total > 0 else 0,
                           memory_used=max(0, memory.get("usage", 0) - cache), memory_total=memory.get("limit", 0),
                           network_rx=round(rx), network_tx=round(tx))
         return result
