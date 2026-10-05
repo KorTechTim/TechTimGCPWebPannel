@@ -48,6 +48,9 @@ class ApiTests(unittest.TestCase):
         sandbox = self.client.get("/api/sandbox").json()
         sandbox["xp_multiplier"] = 2.5
         self.assertEqual(self.client.post("/api/sandbox", json=sandbox).status_code, 200)
+        schema = self.client.get("/api/sandbox/schema")
+        self.assertEqual(schema.status_code, 200)
+        self.assertGreaterEqual(len(schema.json()["fields"]), 260)
 
     def test_file_explorer_is_rooted_in_data(self):
         root = self.client.get("/api/files")

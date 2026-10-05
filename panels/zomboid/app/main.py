@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field, ValidationError, field_validator
 from starlette.background import BackgroundTask
 
 from .auth import Auth, SESSION_COOKIE, SESSION_SECONDS
-from .config import PANEL_VERSION, RestartSchedule, SandboxConfig, Settings
+from .config import PANEL_VERSION, RestartSchedule, SandboxConfig, Settings, sandbox_schema
 from .service import BusyError, PanelService
 from .storage import inside
 
@@ -194,6 +194,10 @@ def create_app(settings=None, docker_factory=None):
     @app.get("/api/sandbox")
     def get_sandbox(request: Request):
         auth.require(request); return service.sandbox_config().model_dump()
+
+    @app.get("/api/sandbox/schema")
+    def get_sandbox_schema(request: Request):
+        auth.require(request); return sandbox_schema()
 
     @app.post("/api/sandbox")
     def save_sandbox(payload: SandboxConfig, request: Request):

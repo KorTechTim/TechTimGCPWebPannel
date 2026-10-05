@@ -2,7 +2,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from app.config import SandboxConfig, ServerConfig, Settings, ini_values, sandbox_values
+from app.config import (SandboxConfig, ServerConfig, Settings, ini_values,
+                        migrate_sandbox_payload, sandbox_schema, sandbox_values)
 
 
 class ConfigTests(unittest.TestCase):
@@ -26,7 +27,24 @@ class ConfigTests(unittest.TestCase):
     def test_sandbox_values_include_dotted_build42_keys(self):
         values = sandbox_values(SandboxConfig(respawn_multiplier=.25, drag_down=False))
         self.assertEqual(values["ZombieConfig.RespawnMultiplier"], "0.25")
-        self.assertEqual(values["ZombieLore.DragDown"], "false")
+        self.assertEqual(values["ZombieLore.ZombiesDragDown"], "false")
+
+    def test_build42_sandbox_schema_is_comprehensive(self):
+        schema = sandbox_schema()
+        keys = {field["key"] for field in schema["fields"]}
+        self.assertGreaterEqual(len(keys), 260)
+        self.assertEqual(len(schema["categories"]), 13)
+        for key in ("FoodLootNew", "AnimalPregnancyTime", "ZombieLore.Speed",
+                    "ZombieConfig.PopulationMultiplier", "MultiplierConfig.Blacksmith"):
+            self.assertIn(key, keys)
+
+    def test_legacy_loot_tiers_are_migrated_to_build42_multipliers(self):
+        migrated = migrate_sandbox_payload({"food_loot": 4, "weapon_loot": 2, "other_loot": 6})
+        self.assertEqual(migrated["food_loot"], 1.0)
+        self.assertEqual(migrated["weapon_loot"], 0.2)
+        self.assertEqual(migrated["other_loot"], 3.0)
+        current = migrate_sandbox_payload({"zombie_voronoi_noise": True, "food_loot": 2.0})
+        self.assertEqual(current["food_loot"], 2.0)
 
     def test_settings_runtime_image(self):
         with tempfile.TemporaryDirectory() as root:

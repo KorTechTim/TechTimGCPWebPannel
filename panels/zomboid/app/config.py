@@ -1,10 +1,11 @@
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
+import json
 import os
 import re
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, create_model, field_validator, model_validator
 
 PANEL_VERSION = "1.0.0"
 STEAM_APP_ID = "380870"
@@ -136,34 +137,36 @@ class ServerConfig(BaseModel):
         return self
 
 
-class SandboxConfig(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    zombies: int = Field(default=4, ge=1, le=6)
-    distribution: int = Field(default=1, ge=1, le=2)
-    day_length: int = Field(default=3, ge=1, le=26)
-    start_year: int = Field(default=1, ge=1, le=100)
-    start_month: int = Field(default=7, ge=1, le=12)
-    start_day: int = Field(default=9, ge=1, le=31)
-    water_shut: int = Field(default=2, ge=1, le=8)
-    elec_shut: int = Field(default=2, ge=1, le=8)
-    food_loot: int = Field(default=4, ge=1, le=6)
-    weapon_loot: int = Field(default=4, ge=1, le=6)
-    other_loot: int = Field(default=4, ge=1, le=6)
-    xp_multiplier: float = Field(default=1.0, ge=0.1, le=100.0)
-    erosion_speed: int = Field(default=3, ge=1, le=5)
-    farming_speed: int = Field(default=3, ge=1, le=5)
-    nature_abundance: int = Field(default=3, ge=1, le=5)
-    alarm_frequency: int = Field(default=3, ge=1, le=6)
-    locked_houses: int = Field(default=6, ge=1, le=6)
-    starter_kit: bool = False
-    nutrition: bool = True
-    multi_hit: bool = False
-    rear_vulnerability: int = Field(default=3, ge=1, le=3)
-    drag_down: bool = True
-    fence_lunge: bool = True
-    respawn_hours: float = Field(default=72.0, ge=0, le=8760)
-    respawn_unseen_hours: float = Field(default=16.0, ge=0, le=8760)
-    respawn_multiplier: float = Field(default=0.1, ge=0, le=1)
+SANDBOX_SCHEMA = json.loads(
+    (Path(__file__).with_name("sandbox_schema.json")).read_text(encoding="utf-8")
+)
+SANDBOX_FIELDS = tuple(SANDBOX_SCHEMA["fields"])
+
+
+def _sandbox_model_fields():
+    python_types = {"boolean": bool, "integer": int, "number": float, "string": str}
+    result = {}
+    for item in SANDBOX_FIELDS:
+        constraints = {}
+        if item["type"] in {"integer", "number"}:
+            if "min" in item:
+                constraints["ge"] = item["min"]
+            if "max" in item:
+                constraints["le"] = item["max"]
+        elif item["type"] == "string":
+            constraints["max_length"] = 4096
+        result[item["name"]] = (
+            python_types[item["type"]],
+            Field(default=item["default"], **constraints),
+        )
+    return result
+
+
+SandboxConfig = create_model(
+    "SandboxConfig",
+    __config__=ConfigDict(extra="forbid"),
+    **_sandbox_model_fields(),
+)
 
 
 class RestartSchedule(BaseModel):
@@ -199,20 +202,30 @@ def ini_values(config: ServerConfig) -> dict[str, str]:
 
 
 def sandbox_values(config: SandboxConfig) -> dict[str, str]:
-    boolean = lambda value: "true" if value else "false"
+    def lua_value(value):
+        if isinstance(value, bool):
+            return "true" if value else "false"
+        if isinstance(value, str):
+            return json.dumps(value, ensure_ascii=False)
+        return str(value)
+
     return {
-        "Zombies": str(config.zombies), "Distribution": str(config.distribution),
-        "DayLength": str(config.day_length), "StartYear": str(config.start_year),
-        "StartMonth": str(config.start_month), "StartDay": str(config.start_day),
-        "WaterShut": str(config.water_shut), "ElecShut": str(config.elec_shut),
-        "FoodLoot": str(config.food_loot), "WeaponLoot": str(config.weapon_loot),
-        "OtherLoot": str(config.other_loot), "XpMultiplier": str(config.xp_multiplier),
-        "ErosionSpeed": str(config.erosion_speed), "Farming": str(config.farming_speed),
-        "NatureAbundance": str(config.nature_abundance), "Alarm": str(config.alarm_frequency),
-        "LockedHouses": str(config.locked_houses), "StarterKit": boolean(config.starter_kit),
-        "Nutrition": boolean(config.nutrition), "MultiHitZombies": boolean(config.multi_hit),
-        "RearVulnerability": str(config.rear_vulnerability), "ZombieLore.DragDown": boolean(config.drag_down),
-        "ZombieLore.FenceLunge": boolean(config.fence_lunge), "ZombieConfig.RespawnHours": str(config.respawn_hours),
-        "ZombieConfig.RespawnUnseenHours": str(config.respawn_unseen_hours),
-        "ZombieConfig.RespawnMultiplier": str(config.respawn_multiplier),
+        item["key"]: lua_value(getattr(config, item["name"]))
+        for item in SANDBOX_FIELDS
     }
+
+
+def sandbox_schema() -> dict:
+    return SANDBOX_SCHEMA
+
+
+def migrate_sandbox_payload(payload: dict) -> dict:
+    payload = dict(payload or {})
+    if "zombie_voronoi_noise" in payload:
+        return payload
+    legacy_loot_factors = {1: 0.05, 2: 0.2, 3: 0.6, 4: 1.0, 5: 2.0, 6: 3.0}
+    for name in ("food_loot", "weapon_loot", "other_loot"):
+        value = payload.get(name)
+        if isinstance(value, int) and value in legacy_loot_factors:
+            payload[name] = legacy_loot_factors[value]
+    return payload

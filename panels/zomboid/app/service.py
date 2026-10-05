@@ -14,7 +14,8 @@ import docker
 from docker.errors import APIError, DockerException, NotFound
 
 from .config import (PANEL_VERSION, SERVER_PROFILE, STEAM_APP_ID, SandboxConfig,
-                     ServerConfig, RestartSchedule, Settings, ini_values, sandbox_values)
+                     ServerConfig, RestartSchedule, Settings, ini_values,
+                     migrate_sandbox_payload, sandbox_values)
 from .storage import read_json, write_json
 
 KST = timezone(timedelta(hours=9), name="KST")
@@ -197,7 +198,7 @@ class PanelService:
         return ServerConfig.model_validate(read_json(self.config_path, {}))
 
     def sandbox_config(self):
-        return SandboxConfig.model_validate(read_json(self.sandbox_path, {}))
+        return SandboxConfig.model_validate(migrate_sandbox_payload(read_json(self.sandbox_path, {})))
 
     def schedule(self):
         return RestartSchedule.model_validate(read_json(self.schedule_path, {}))
@@ -242,14 +243,14 @@ class PanelService:
         values = ini_values(self.config())
         self._merge_key_value_file(ini, values)
         sandbox = self.server_config_dir / f"{SERVER_PROFILE}_SandboxVars.lua"
-        existing = sandbox.read_text(encoding="utf-8", errors="replace") if sandbox.exists() else "return {\n    VERSION = 5,\n}\n"
+        existing = sandbox.read_text(encoding="utf-8", errors="replace") if sandbox.exists() else "SandboxVars = {\n    VERSION = 6,\n}\n"
+        if re.match(r"^\s*return\s*\{", existing):
+            existing = re.sub(r"^\s*return\s*\{", "SandboxVars = {", existing, count=1)
+        if not re.search(r"(?m)^\s*SandboxVars\s*=\s*\{", existing):
+            existing = "SandboxVars = {\n    VERSION = 6,\n}\n"
+        existing = re.sub(r"(?m)^(\s*VERSION\s*=\s*)\d+(,?)", r"\g<1>6\g<2>", existing, count=1)
         for key, value in sandbox_values(self.sandbox_config()).items():
-            pattern = rf"(?m)^(\s*{re.escape(key)}\s*=\s*)[^,\n]*(,?)"
-            replacement = rf"\g<1>{value}\g<2>"
-            if re.search(pattern, existing):
-                existing = re.sub(pattern, replacement, existing)
-            else:
-                existing = existing.replace("\n}", f"\n    {key} = {value},\n}}")
+            existing = self._merge_sandbox_value(existing, key, value)
         self._atomic_text(sandbox, existing)
         spawnpoints = self.server_config_dir / f"{SERVER_PROFILE}_spawnpoints.lua"
         spawnregions = self.server_config_dir / f"{SERVER_PROFILE}_spawnregions.lua"
@@ -258,6 +259,37 @@ class PanelService:
         if not spawnregions.exists():
             self._atomic_text(spawnregions,
                 "function SpawnRegions()\n    return { { name = 'Muldraugh, KY', file = 'media/maps/Muldraugh, KY/spawnpoints.lua' } }\nend\n")
+
+    @staticmethod
+    def _merge_sandbox_value(content, dotted_key, value):
+        parts = dotted_key.split(".", 1)
+        if len(parts) == 1:
+            key = parts[0]
+            pattern = rf"(?m)^(    {re.escape(key)}\s*=\s*)[^,\n]*(,?)"
+            if re.search(pattern, content):
+                return re.sub(pattern, rf"\g<1>{value}\g<2>", content, count=1)
+            closing = content.rfind("\n}")
+            if closing < 0:
+                raise ValueError("샌드박스 설정 파일의 끝을 찾지 못했습니다.")
+            return content[:closing] + f"\n    {key} = {value}," + content[closing:]
+
+        table, key = parts
+        block_pattern = rf"(?ms)^(    {re.escape(table)}\s*=\s*\{{\n)(.*?)(^    \}},?)"
+        block = re.search(block_pattern, content)
+        if block:
+            body = block.group(2)
+            value_pattern = rf"(?m)^(        {re.escape(key)}\s*=\s*)[^,\n]*(,?)"
+            if re.search(value_pattern, body):
+                body = re.sub(value_pattern, rf"\g<1>{value}\g<2>", body, count=1)
+            else:
+                body += f"        {key} = {value},\n"
+            return content[:block.start(2)] + body + content[block.end(2):]
+
+        closing = content.rfind("\n}")
+        if closing < 0:
+            raise ValueError("샌드박스 설정 파일의 끝을 찾지 못했습니다.")
+        table_text = f"\n    {table} = {{\n        {key} = {value},\n    }},"
+        return content[:closing] + table_text + content[closing:]
 
     def _merge_key_value_file(self, path, values):
         lines = path.read_text(encoding="utf-8", errors="replace").splitlines() if path.exists() else []

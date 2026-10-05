@@ -66,6 +66,17 @@ class StaticUiTests(unittest.TestCase):
         self.assertIn(".form-sections legend{float:left;width:100%", css)
         self.assertIn(".form-sections legend+*{clear:both}", css)
 
+    def test_sandbox_editor_is_schema_driven_and_categorized(self):
+        root = Path(__file__).parents[1]
+        html = (root / "app/static/dashboard.html").read_text()
+        script = (root / "app/static/app.js").read_text()
+        css = (root / "app/static/app.css").read_text()
+        self.assertIn('id="sandbox-categories"', html)
+        self.assertIn('id="sandbox-search"', html)
+        self.assertIn("/api/sandbox/schema", script)
+        self.assertIn("sandbox-category-panel", script)
+        self.assertIn(".sandbox-categories", css)
+
     def test_sidebar_uses_drawn_image_icons(self):
         root = Path(__file__).parents[1]
         html = (root / "app/static/dashboard.html").read_text()

@@ -4,6 +4,8 @@ const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
 let statusCache = null;
 let configCache = null;
+let sandboxSchemaCache = null;
+let activeSandboxCategory = 'population';
 let currentLog = 'server';
 let currentPath = '';
 const commandHistory = [];
@@ -204,7 +206,88 @@ $('#save-settings').addEventListener('click', () => perform(async () => {
   configCache = await api('/api/config', json('POST', payload)); fillForm($('#settings-form'), configCache);
 }, '기본 서버 설정을 저장했습니다.'));
 
-async function loadSandbox() { fillForm($('#sandbox-form'), await api('/api/sandbox')); }
+function sandboxField(spec) {
+  const wrapper = document.createElement('label');
+  wrapper.className = `sandbox-field sandbox-field-${spec.type}`;
+  wrapper.dataset.search = `${spec.label} ${spec.key} ${spec.help || ''}`.toLocaleLowerCase();
+  const heading = document.createElement('span'); heading.className = 'sandbox-field-title'; heading.textContent = spec.label;
+  const key = document.createElement('code'); key.textContent = spec.key;
+  let input;
+  if (spec.type === 'boolean') {
+    input = document.createElement('input'); input.type = 'checkbox';
+    const switcher = document.createElement('i'); switcher.setAttribute('aria-hidden', 'true');
+    const copy = document.createElement('span'); copy.className = 'sandbox-toggle-copy'; copy.append(heading, key);
+    wrapper.append(input, switcher, copy);
+  } else {
+    wrapper.append(heading, key);
+    if (spec.options?.length) {
+      input = document.createElement('select');
+      for (const item of spec.options) { const option = document.createElement('option'); option.value = item.value; option.textContent = `${item.value} · ${item.label}`; input.append(option); }
+    } else if (spec.type === 'string' && (spec.default?.length > 60 || /List$/.test(spec.key))) {
+      input = document.createElement('textarea'); input.rows = 2;
+    } else {
+      input = document.createElement('input'); input.type = spec.type === 'string' ? 'text' : 'number';
+      if (spec.min != null) input.min = spec.min;
+      if (spec.max != null) input.max = spec.max;
+      if (spec.step != null) input.step = spec.step;
+    }
+    wrapper.append(input);
+    if (spec.help) { const help = document.createElement('small'); help.textContent = spec.help; wrapper.append(help); }
+  }
+  input.name = spec.name;
+  return wrapper;
+}
+
+function applySandboxFilters() {
+  const query = $('#sandbox-search').value.trim().toLocaleLowerCase();
+  let visible = 0;
+  $$('.sandbox-category-panel').forEach(panel => {
+    const categoryMatch = activeSandboxCategory === 'all' || panel.dataset.category === activeSandboxCategory;
+    let panelVisible = 0;
+    panel.querySelectorAll('.sandbox-field').forEach(field => {
+      const show = categoryMatch && (!query || field.dataset.search.includes(query));
+      field.hidden = !show;
+      if (show) panelVisible++;
+    });
+    panel.hidden = panelVisible === 0;
+    visible += panelVisible;
+  });
+  $$('.sandbox-category-button').forEach(button => button.classList.toggle('active', button.dataset.category === activeSandboxCategory));
+  $('#sandbox-result-count').textContent = `${visible}개 설정`;
+  $('#sandbox-empty').hidden = visible > 0;
+}
+
+function renderSandbox(schema, values) {
+  const nav = $('#sandbox-categories'); nav.replaceChildren();
+  const all = document.createElement('button'); all.type = 'button'; all.className = 'sandbox-category-button'; all.dataset.category = 'all'; all.innerHTML = `<strong>전체</strong><span>${schema.fields.length}</span>`; nav.append(all);
+  for (const category of schema.categories) {
+    const count = schema.fields.filter(field => field.category === category.id).length;
+    const button = document.createElement('button'); button.type = 'button'; button.className = 'sandbox-category-button'; button.dataset.category = category.id;
+    const title = document.createElement('strong'); title.textContent = category.title; const badge = document.createElement('span'); badge.textContent = count; button.append(title, badge); nav.append(button);
+  }
+  nav.querySelectorAll('button').forEach(button => button.addEventListener('click', () => { activeSandboxCategory = button.dataset.category; $('#sandbox-search').value = ''; applySandboxFilters(); }));
+
+  const form = $('#sandbox-form'); form.replaceChildren();
+  for (const category of schema.categories) {
+    const panel = document.createElement('section'); panel.className = 'sandbox-category-panel panel'; panel.dataset.category = category.id;
+    const header = document.createElement('header'); const copy = document.createElement('div'); const title = document.createElement('h3'); title.textContent = category.title;
+    const description = document.createElement('p'); description.textContent = category.description; copy.append(title, description);
+    const count = document.createElement('span'); count.textContent = `${schema.fields.filter(field => field.category === category.id).length} SETTINGS`; header.append(copy, count);
+    const grid = document.createElement('div'); grid.className = 'sandbox-field-grid';
+    schema.fields.filter(field => field.category === category.id).forEach(field => grid.append(sandboxField(field)));
+    panel.append(header, grid); form.append(panel);
+  }
+  const empty = document.createElement('div'); empty.id = 'sandbox-empty'; empty.className = 'sandbox-empty'; empty.textContent = '검색 조건에 맞는 설정이 없습니다.'; empty.hidden = true; form.append(empty);
+  fillForm(form, values);
+  applySandboxFilters();
+}
+
+async function loadSandbox() {
+  const [schema, values] = await Promise.all([sandboxSchemaCache || api('/api/sandbox/schema'), api('/api/sandbox')]);
+  sandboxSchemaCache = schema;
+  renderSandbox(schema, values);
+}
+$('#sandbox-search').addEventListener('input', event => { if (event.currentTarget.value.trim()) activeSandboxCategory = 'all'; applySandboxFilters(); });
 $('#save-sandbox').addEventListener('click', () => perform(() => api('/api/sandbox', json('POST', formData($('#sandbox-form')))), '샌드박스 배율을 저장했습니다.'));
 
 async function loadMods() {

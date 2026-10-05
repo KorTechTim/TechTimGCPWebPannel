@@ -1,0 +1,5068 @@
+{
+  "version": 6,
+  "source": "Project Zomboid Build 42 server-generated SandboxVars.lua",
+  "categories": [
+    {
+      "id": "population",
+      "title": "좀비 개체수",
+      "description": "전체 개체수, 분포, 자연 재생성과 이동을 설정합니다."
+    },
+    {
+      "id": "time",
+      "title": "시간 · 기후",
+      "description": "하루 길이, 시작 시점, 낮과 밤, 날씨 주기를 설정합니다."
+    },
+    {
+      "id": "infrastructure",
+      "title": "전기 · 수도 · 발전기",
+      "description": "전기와 수도 중단, 경보기와 발전기 동작을 설정합니다."
+    },
+    {
+      "id": "loot",
+      "title": "루팅 · 아이템",
+      "description": "Build 42의 세분화된 전리품 배율과 재생성, 정리 정책을 설정합니다."
+    },
+    {
+      "id": "world",
+      "title": "월드 · 자연",
+      "description": "침식, 농사, 식량 부패, 자연 자원과 월드 이벤트를 설정합니다."
+    },
+    {
+      "id": "survival",
+      "title": "생존 · 캐릭터",
+      "description": "부상, 체력, 제작, 독성, 읽기와 캐릭터 규칙을 설정합니다."
+    },
+    {
+      "id": "vehicles",
+      "title": "차량 · 연료",
+      "description": "차량 생성, 상태, 연료, 충돌과 경보기를 설정합니다."
+    },
+    {
+      "id": "animals",
+      "title": "동물 · 사육",
+      "description": "Build 42 동물의 성장, 번식, 추적과 해충을 설정합니다."
+    },
+    {
+      "id": "combat",
+      "title": "전투 · 총기",
+      "description": "근접 다중 타격, 총기 명중, 소음과 전투 보정을 설정합니다."
+    },
+    {
+      "id": "map",
+      "title": "지도 · 건물",
+      "description": "미니맵, 월드맵, 지하실과 랜덤 월드 스토리를 설정합니다."
+    },
+    {
+      "id": "zombie_lore",
+      "title": "좀비 특성",
+      "description": "속도, 감각, 감염, 지능과 공격 행동을 세밀하게 설정합니다."
+    },
+    {
+      "id": "zombie_advanced",
+      "title": "고급 좀비 개체수",
+      "description": "최고 개체수, 재생성, 이동과 무리 형성을 설정합니다."
+    },
+    {
+      "id": "experience",
+      "title": "기술별 경험치",
+      "description": "전역 또는 기술별 경험치 획득 배율을 설정합니다."
+    }
+  ],
+  "fields": [
+    {
+      "name": "zombies",
+      "key": "Zombies",
+      "label": "좀비 개체수",
+      "category": "population",
+      "type": "integer",
+      "default": 4,
+      "options": [
+        {
+          "value": 1,
+          "label": "Insane"
+        },
+        {
+          "value": 2,
+          "label": "Very High"
+        },
+        {
+          "value": 3,
+          "label": "High"
+        },
+        {
+          "value": 4,
+          "label": "Normal"
+        },
+        {
+          "value": 5,
+          "label": "Low"
+        },
+        {
+          "value": 6,
+          "label": "None"
+        }
+      ],
+      "min": 1,
+      "max": 6,
+      "help": "Changing this also sets the \"Population Multiplier\" in Advanced Zombie Options."
+    },
+    {
+      "name": "distribution",
+      "key": "Distribution",
+      "label": "좀비 분포",
+      "category": "population",
+      "type": "integer",
+      "default": 1,
+      "options": [
+        {
+          "value": 1,
+          "label": "Urban Focused"
+        },
+        {
+          "value": 2,
+          "label": "Uniform"
+        }
+      ],
+      "min": 1,
+      "max": 2,
+      "help": "How zombies are distributed across the map."
+    },
+    {
+      "name": "zombie_voronoi_noise",
+      "key": "ZombieVoronoiNoise",
+      "label": "분포 무작위화",
+      "category": "population",
+      "type": "boolean",
+      "default": true,
+      "help": "Controls whether some randomization is applied to zombie distribution."
+    },
+    {
+      "name": "zombie_respawn",
+      "key": "ZombieRespawn",
+      "label": "좀비 재생성 빈도",
+      "category": "population",
+      "type": "integer",
+      "default": 4,
+      "options": [
+        {
+          "value": 1,
+          "label": "High"
+        },
+        {
+          "value": 2,
+          "label": "Normal"
+        },
+        {
+          "value": 3,
+          "label": "Low"
+        },
+        {
+          "value": 4,
+          "label": "None"
+        }
+      ],
+      "min": 1,
+      "max": 4,
+      "help": "How frequently new zombies are added to the world."
+    },
+    {
+      "name": "zombie_migrate",
+      "key": "ZombieMigrate",
+      "label": "빈 지역으로 이동",
+      "category": "population",
+      "type": "boolean",
+      "default": true,
+      "help": "Zombie allowed to migrate to empty cells."
+    },
+    {
+      "name": "day_length",
+      "key": "DayLength",
+      "label": "하루 길이",
+      "category": "time",
+      "type": "integer",
+      "default": 4,
+      "options": [
+        {
+          "value": 1,
+          "label": "15 Minutes"
+        },
+        {
+          "value": 2,
+          "label": "30 Minutes"
+        },
+        {
+          "value": 3,
+          "label": "1 Hour"
+        },
+        {
+          "value": 4,
+          "label": "1 Hour, 30 Minutes"
+        },
+        {
+          "value": 5,
+          "label": "2 Hours"
+        },
+        {
+          "value": 6,
+          "label": "3 Hours"
+        },
+        {
+          "value": 7,
+          "label": "4 Hours"
+        },
+        {
+          "value": 8,
+          "label": "5 Hours"
+        },
+        {
+          "value": 9,
+          "label": "6 Hours"
+        },
+        {
+          "value": 10,
+          "label": "7 Hours"
+        },
+        {
+          "value": 11,
+          "label": "8 Hours"
+        },
+        {
+          "value": 12,
+          "label": "9 Hours"
+        },
+        {
+          "value": 13,
+          "label": "10 Hours"
+        },
+        {
+          "value": 14,
+          "label": "11 Hours"
+        },
+        {
+          "value": 15,
+          "label": "12 Hours"
+        },
+        {
+          "value": 16,
+          "label": "13 Hours"
+        },
+        {
+          "value": 17,
+          "label": "14 Hours"
+        },
+        {
+          "value": 18,
+          "label": "15 Hours"
+        },
+        {
+          "value": 19,
+          "label": "16 Hours"
+        },
+        {
+          "value": 20,
+          "label": "17 Hours"
+        },
+        {
+          "value": 21,
+          "label": "18 Hours"
+        },
+        {
+          "value": 22,
+          "label": "19 Hours"
+        },
+        {
+          "value": 23,
+          "label": "20 Hours"
+        },
+        {
+          "value": 24,
+          "label": "21 Hours"
+        },
+        {
+          "value": 25,
+          "label": "22 Hours"
+        },
+        {
+          "value": 26,
+          "label": "23 Hours"
+        },
+        {
+          "value": 27,
+          "label": "Real-time"
+        }
+      ],
+      "min": 1,
+      "max": 27
+    },
+    {
+      "name": "start_year",
+      "key": "StartYear",
+      "label": "시작 연도",
+      "category": "time",
+      "type": "integer",
+      "default": 1
+    },
+    {
+      "name": "start_month",
+      "key": "StartMonth",
+      "label": "시작 월",
+      "category": "time",
+      "type": "integer",
+      "default": 7,
+      "options": [
+        {
+          "value": 1,
+          "label": "January"
+        },
+        {
+          "value": 2,
+          "label": "February"
+        },
+        {
+          "value": 3,
+          "label": "March"
+        },
+        {
+          "value": 4,
+          "label": "April"
+        },
+        {
+          "value": 5,
+          "label": "May"
+        },
+        {
+          "value": 6,
+          "label": "June"
+        },
+        {
+          "value": 7,
+          "label": "July"
+        },
+        {
+          "value": 8,
+          "label": "August"
+        },
+        {
+          "value": 9,
+          "label": "September"
+        },
+        {
+          "value": 10,
+          "label": "October"
+        },
+        {
+          "value": 11,
+          "label": "November"
+        },
+        {
+          "value": 12,
+          "label": "December"
+        }
+      ],
+      "min": 1,
+      "max": 12,
+      "help": "Month in which the game starts."
+    },
+    {
+      "name": "start_day",
+      "key": "StartDay",
+      "label": "시작 일",
+      "category": "time",
+      "type": "integer",
+      "default": 9,
+      "help": "Day of the month in which the games starts."
+    },
+    {
+      "name": "start_time",
+      "key": "StartTime",
+      "label": "시작 시간",
+      "category": "time",
+      "type": "integer",
+      "default": 2,
+      "options": [
+        {
+          "value": 1,
+          "label": "7 AM"
+        },
+        {
+          "value": 2,
+          "label": "9 AM"
+        },
+        {
+          "value": 3,
+          "label": "12 PM"
+        },
+        {
+          "value": 4,
+          "label": "2 PM"
+        },
+        {
+          "value": 5,
+          "label": "5 PM"
+        },
+        {
+          "value": 6,
+          "label": "9 PM"
+        },
+        {
+          "value": 7,
+          "label": "12 AM"
+        },
+        {
+          "value": 8,
+          "label": "2 AM"
+        },
+        {
+          "value": 9,
+          "label": "5 AM"
+        }
+      ],
+      "min": 1,
+      "max": 9,
+      "help": "Hour of the day in which the game starts."
+    },
+    {
+      "name": "day_night_cycle",
+      "key": "DayNightCycle",
+      "label": "낮·밤 주기",
+      "category": "time",
+      "type": "integer",
+      "default": 1,
+      "options": [
+        {
+          "value": 1,
+          "label": "Normal"
+        },
+        {
+          "value": 2,
+          "label": "Endless Day"
+        },
+        {
+          "value": 3,
+          "label": "Endless Night"
+        }
+      ],
+      "min": 1,
+      "max": 3,
+      "help": "Whether the time of day changes naturally, or it's always day/night."
+    },
+    {
+      "name": "climate_cycle",
+      "key": "ClimateCycle",
+      "label": "날씨 주기",
+      "category": "time",
+      "type": "integer",
+      "default": 1,
+      "options": [
+        {
+          "value": 1,
+          "label": "Normal"
+        },
+        {
+          "value": 2,
+          "label": "No Weather"
+        },
+        {
+          "value": 3,
+          "label": "Endless Rain"
+        },
+        {
+          "value": 4,
+          "label": "Endless Storm"
+        },
+        {
+          "value": 5,
+          "label": "Endless Snow"
+        },
+        {
+          "value": 6,
+          "label": "Endless Blizzard"
+        }
+      ],
+      "min": 1,
+      "max": 6,
+      "help": "Whether weather changes or remains at a single state."
+    },
+    {
+      "name": "fog_cycle",
+      "key": "FogCycle",
+      "label": "안개 주기",
+      "category": "time",
+      "type": "integer",
+      "default": 1,
+      "options": [
+        {
+          "value": 1,
+          "label": "Normal"
+        },
+        {
+          "value": 2,
+          "label": "No Fog"
+        },
+        {
+          "value": 3,
+          "label": "Endless Fog"
+        }
+      ],
+      "min": 1,
+      "max": 3,
+      "help": "Whether fog occurs naturally, never occurs, or is always present."
+    },
+    {
+      "name": "water_shut",
+      "key": "WaterShut",
+      "label": "수도 중단 시점",
+      "category": "infrastructure",
+      "type": "integer",
+      "default": 2,
+      "options": [
+        {
+          "value": 1,
+          "label": "Instant"
+        },
+        {
+          "value": 2,
+          "label": "0 - 30 Days"
+        },
+        {
+          "value": 3,
+          "label": "0 - 2 Months"
+        },
+        {
+          "value": 4,
+          "label": "0 - 6 Months"
+        },
+        {
+          "value": 5,
+          "label": "0 - 1 Year"
+        },
+        {
+          "value": 6,
+          "label": "0 - 5 Years"
+        },
+        {
+          "value": 7,
+          "label": "2 - 6 Months"
+        },
+        {
+          "value": 8,
+          "label": "6 - 12 Months"
+        },
+        {
+          "value": 9,
+          "label": "Disabled"
+        }
+      ],
+      "min": 1,
+      "max": 9,
+      "help": "How long after the default start date (July 9, 1993) that plumbing fixtures (eg. sinks) stop being infinite sources of water."
+    },
+    {
+      "name": "elec_shut",
+      "key": "ElecShut",
+      "label": "전기 중단 시점",
+      "category": "infrastructure",
+      "type": "integer",
+      "default": 2,
+      "options": [
+        {
+          "value": 1,
+          "label": "Instant"
+        },
+        {
+          "value": 2,
+          "label": "14 - 30 Days"
+        },
+        {
+          "value": 3,
+          "label": "14 Days - 2 Months"
+        },
+        {
+          "value": 4,
+          "label": "14 Days - 6 Months"
+        },
+        {
+          "value": 5,
+          "label": "14 Days - 1 Year"
+        },
+        {
+          "value": 6,
+          "label": "14 Days - 5 Years"
+        },
+        {
+          "value": 7,
+          "label": "2 - 6 Months"
+        },
+        {
+          "value": 8,
+          "label": "6 - 12 Months"
+        },
+        {
+          "value": 9,
+          "label": "Disabled"
+        }
+      ],
+      "min": 1,
+      "max": 9,
+      "help": "How long after the default start date (July 9, 1993) that the world's electricity turns off for good."
+    },
+    {
+      "name": "alarm_decay",
+      "key": "AlarmDecay",
+      "label": "경보기 배터리 수명",
+      "category": "infrastructure",
+      "type": "integer",
+      "default": 2,
+      "options": [
+        {
+          "value": 1,
+          "label": "Instant"
+        },
+        {
+          "value": 2,
+          "label": "0 - 30 Days"
+        },
+        {
+          "value": 3,
+          "label": "0 - 2 Months"
+        },
+        {
+          "value": 4,
+          "label": "0 - 6 Months"
+        },
+        {
+          "value": 5,
+          "label": "0 - 1 Year"
+        },
+        {
+          "value": 6,
+          "label": "0 - 5 Years"
+        }
+      ],
+      "min": 1,
+      "max": 6,
+      "help": "How long alarm batteries can last for after the power shuts off."
+    },
+    {
+      "name": "water_shut_modifier",
+      "key": "WaterShutModifier",
+      "label": "수도 중단 일수",
+      "category": "infrastructure",
+      "type": "integer",
+      "default": 14,
+      "min": -1,
+      "max": 2147483647,
+      "help": "How long after the default start date (July 9, 1993) that plumbing fixtures (eg. sinks) stop being infinite sources of water."
+    },
+    {
+      "name": "elec_shut_modifier",
+      "key": "ElecShutModifier",
+      "label": "전기 중단 일수",
+      "category": "infrastructure",
+      "type": "integer",
+      "default": 14,
+      "min": -1,
+      "max": 2147483647,
+      "help": "How long after the default start date (July 9, 1993) that the world's electricity turns off for good."
+    },
+    {
+      "name": "alarm_decay_modifier",
+      "key": "AlarmDecayModifier",
+      "label": "경보기 배터리 일수",
+      "category": "infrastructure",
+      "type": "integer",
+      "default": 14,
+      "min": -1,
+      "max": 2147483647,
+      "help": "How long alarm batteries can last for after the power shuts off."
+    },
+    {
+      "name": "food_loot",
+      "key": "FoodLootNew",
+      "label": "신선 식품",
+      "category": "loot",
+      "type": "number",
+      "default": 0.8,
+      "min": 0.0,
+      "max": 4.0,
+      "step": 0.01,
+      "help": "Any food that can rot or spoil."
+    },
+    {
+      "name": "literature_loot_new",
+      "key": "LiteratureLootNew",
+      "label": "일반 서적",
+      "category": "loot",
+      "type": "number",
+      "default": 0.6,
+      "min": 0.0,
+      "max": 4.0,
+      "step": 0.01,
+      "help": "All other items that can be read, including books, fliers, and newspapers."
+    },
+    {
+      "name": "skill_book_loot",
+      "key": "SkillBookLoot",
+      "label": "기술 서적",
+      "category": "loot",
+      "type": "number",
+      "default": 0.6,
+      "min": 0.0,
+      "max": 4.0,
+      "step": 0.01,
+      "help": "Books that provide skill XP multipliers."
+    },
+    {
+      "name": "recipe_resource_loot",
+      "key": "RecipeResourceLoot",
+      "label": "레시피 자료",
+      "category": "loot",
+      "type": "number",
+      "default": 0.6,
+      "min": 0.0,
+      "max": 4.0,
+      "step": 0.01,
+      "help": "Items that teach recipes."
+    },
+    {
+      "name": "medical_loot_new",
+      "key": "MedicalLootNew",
+      "label": "의료품",
+      "category": "loot",
+      "type": "number",
+      "default": 0.6,
+      "min": 0.0,
+      "max": 4.0,
+      "step": 0.01,
+      "help": "Medicine, bandages and first aid tools."
+    },
+    {
+      "name": "survival_gears_loot_new",
+      "key": "SurvivalGearsLootNew",
+      "label": "생존 장비",
+      "category": "loot",
+      "type": "number",
+      "default": 0.6,
+      "min": 0.0,
+      "max": 4.0,
+      "step": 0.01,
+      "help": "Fishing Rods, Tents, camping gear etc."
+    },
+    {
+      "name": "canned_food_loot_new",
+      "key": "CannedFoodLootNew",
+      "label": "보존 식품",
+      "category": "loot",
+      "type": "number",
+      "default": 0.6,
+      "min": 0.0,
+      "max": 4.0,
+      "step": 0.01,
+      "help": "Canned and dried food, beverages."
+    },
+    {
+      "name": "weapon_loot",
+      "key": "WeaponLootNew",
+      "label": "근접 무기",
+      "category": "loot",
+      "type": "number",
+      "default": 0.6,
+      "min": 0.0,
+      "max": 4.0,
+      "step": 0.01,
+      "help": "Weapons that are not tools in other categories."
+    },
+    {
+      "name": "ranged_weapon_loot_new",
+      "key": "RangedWeaponLootNew",
+      "label": "원거리 무기",
+      "category": "loot",
+      "type": "number",
+      "default": 1.2,
+      "min": 0.0,
+      "max": 4.0,
+      "step": 0.01,
+      "help": "Also includes weapon attachments."
+    },
+    {
+      "name": "ammo_loot_new",
+      "key": "AmmoLootNew",
+      "label": "탄약",
+      "category": "loot",
+      "type": "number",
+      "default": 0.6,
+      "min": 0.0,
+      "max": 4.0,
+      "step": 0.01,
+      "help": "Loose ammo, boxes and magazines."
+    },
+    {
+      "name": "mechanics_loot_new",
+      "key": "MechanicsLootNew",
+      "label": "차량 정비품",
+      "category": "loot",
+      "type": "number",
+      "default": 0.6,
+      "min": 0.0,
+      "max": 4.0,
+      "step": 0.01,
+      "help": "Vehicle parts and the tools needed to install them."
+    },
+    {
+      "name": "other_loot",
+      "key": "OtherLootNew",
+      "label": "기타 전리품",
+      "category": "loot",
+      "type": "number",
+      "default": 0.8,
+      "min": 0.0,
+      "max": 4.0,
+      "step": 0.01,
+      "help": "Everything else. Also affects foraging for all items in Town/Road zones."
+    },
+    {
+      "name": "clothing_loot_new",
+      "key": "ClothingLootNew",
+      "label": "의류",
+      "category": "loot",
+      "type": "number",
+      "default": 0.6,
+      "min": 0.0,
+      "max": 4.0,
+      "step": 0.01,
+      "help": "All wearable items that are not containers."
+    },
+    {
+      "name": "container_loot_new",
+      "key": "ContainerLootNew",
+      "label": "가방·용기",
+      "category": "loot",
+      "type": "number",
+      "default": 0.6,
+      "min": 0.0,
+      "max": 4.0,
+      "step": 0.01,
+      "help": "Backpacks and other wearable/equippable containers, eg. cases."
+    },
+    {
+      "name": "key_loot_new",
+      "key": "KeyLootNew",
+      "label": "열쇠·자물쇠",
+      "category": "loot",
+      "type": "number",
+      "default": 0.4,
+      "min": 0.0,
+      "max": 4.0,
+      "step": 0.01,
+      "help": "Keys for buildings/cars, key rings, and locks."
+    },
+    {
+      "name": "media_loot_new",
+      "key": "MediaLootNew",
+      "label": "비디오·음반",
+      "category": "loot",
+      "type": "number",
+      "default": 0.6,
+      "min": 0.0,
+      "max": 4.0,
+      "step": 0.01,
+      "help": "VHS tapes and CDs."
+    },
+    {
+      "name": "memento_loot_new",
+      "key": "MementoLootNew",
+      "label": "수집품",
+      "category": "loot",
+      "type": "number",
+      "default": 0.6,
+      "min": 0.0,
+      "max": 4.0,
+      "step": 0.01,
+      "help": "Spiffo items, plushies, and other collectible keepsake items eg. Photos."
+    },
+    {
+      "name": "cookware_loot_new",
+      "key": "CookwareLootNew",
+      "label": "조리 도구",
+      "category": "loot",
+      "type": "number",
+      "default": 0.6,
+      "min": 0.0,
+      "max": 4.0,
+      "step": 0.01,
+      "help": "Items that are used in cooking, including those (eg. knives) which can be weapons. Does not include food. Includes both usable and unusable items."
+    },
+    {
+      "name": "material_loot_new",
+      "key": "MaterialLootNew",
+      "label": "제작 재료",
+      "category": "loot",
+      "type": "number",
+      "default": 0.6,
+      "min": 0.0,
+      "max": 4.0,
+      "step": 0.01,
+      "help": "Items and weapons that are used as ingredients for crafting or building. This is a general category that does not include items belonging to other categories such as Cookware or Medical. Does not include Tools."
+    },
+    {
+      "name": "farming_loot_new",
+      "key": "FarmingLootNew",
+      "label": "농업 용품",
+      "category": "loot",
+      "type": "number",
+      "default": 0.6,
+      "min": 0.0,
+      "max": 4.0,
+      "step": 0.01,
+      "help": "Items and weapons which are used in both animal and plant agriculture, such as Seeds, Trowels, or Shovels."
+    },
+    {
+      "name": "tool_loot_new",
+      "key": "ToolLootNew",
+      "label": "일반 공구",
+      "category": "loot",
+      "type": "number",
+      "default": 0.6,
+      "min": 0.0,
+      "max": 4.0,
+      "step": 0.01,
+      "help": "Items and weapons which are Tools but don't fit in other categories such as Mechanics or Farming."
+    },
+    {
+      "name": "rolls_multiplier",
+      "key": "RollsMultiplier",
+      "label": "루팅 횟수 배율",
+      "category": "loot",
+      "type": "number",
+      "default": 1.0,
+      "min": 0.1,
+      "max": 100.0,
+      "step": 0.01,
+      "help": "<BHC> [!] It is recommended that you DO NOT change this. [!] <RGB:1,1,1>   Can be used to adjust the number of rolls made on loot tables when spawning loot. Will not reduce the number of rolls below 1. Can negatively affect performance if set to high values. It is highly recommended that this not be changed."
+    },
+    {
+      "name": "loot_item_removal_list",
+      "key": "LootItemRemovalList",
+      "label": "루팅 제외 아이템",
+      "category": "loot",
+      "type": "string",
+      "default": "",
+      "help": "A comma-separated list of item types that won't spawn as ordinary loot."
+    },
+    {
+      "name": "remove_story_loot",
+      "key": "RemoveStoryLoot",
+      "label": "스토리 전리품 제거",
+      "category": "loot",
+      "type": "boolean",
+      "default": false,
+      "help": "If enabled, items on the Loot Item Removal List, or that have their rarity set to 'None', will not spawn in randomised world stories."
+    },
+    {
+      "name": "remove_zombie_loot",
+      "key": "RemoveZombieLoot",
+      "label": "좀비 전리품 제거",
+      "category": "loot",
+      "type": "boolean",
+      "default": false,
+      "help": "If enabled, items on the Loot Item Removal List, or that have their rarity set to 'None', will not spawn worn by, or attached to, zombies."
+    },
+    {
+      "name": "zombie_pop_loot_effect",
+      "key": "ZombiePopLootEffect",
+      "label": "좀비 수에 따른 루팅 보정",
+      "category": "loot",
+      "type": "integer",
+      "default": 0,
+      "min": 0,
+      "max": 20,
+      "help": "If greater than 0, the spawn of loot is increased relative to the number of nearby zombies,  with the effect multiplied by this number."
+    },
+    {
+      "name": "insane_loot_factor",
+      "key": "InsaneLootFactor",
+      "label": "극악 희귀 배율",
+      "category": "loot",
+      "type": "number",
+      "default": 0.05,
+      "min": 0.0,
+      "max": 0.2,
+      "step": 0.01
+    },
+    {
+      "name": "extreme_loot_factor",
+      "key": "ExtremeLootFactor",
+      "label": "매우 희귀 배율",
+      "category": "loot",
+      "type": "number",
+      "default": 0.2,
+      "min": 0.05,
+      "max": 0.6,
+      "step": 0.01
+    },
+    {
+      "name": "rare_loot_factor",
+      "key": "RareLootFactor",
+      "label": "희귀 배율",
+      "category": "loot",
+      "type": "number",
+      "default": 0.6,
+      "min": 0.2,
+      "max": 1.0,
+      "step": 0.01
+    },
+    {
+      "name": "normal_loot_factor",
+      "key": "NormalLootFactor",
+      "label": "보통 배율",
+      "category": "loot",
+      "type": "number",
+      "default": 1.0,
+      "min": 0.6,
+      "max": 2.0,
+      "step": 0.01
+    },
+    {
+      "name": "common_loot_factor",
+      "key": "CommonLootFactor",
+      "label": "흔함 배율",
+      "category": "loot",
+      "type": "number",
+      "default": 2.0,
+      "min": 1.0,
+      "max": 3.0,
+      "step": 0.01
+    },
+    {
+      "name": "abundant_loot_factor",
+      "key": "AbundantLootFactor",
+      "label": "풍부함 배율",
+      "category": "loot",
+      "type": "number",
+      "default": 3.0,
+      "min": 2.0,
+      "max": 4.0,
+      "step": 0.01
+    },
+    {
+      "name": "temperature",
+      "key": "Temperature",
+      "label": "기온",
+      "category": "world",
+      "type": "integer",
+      "default": 3,
+      "options": [
+        {
+          "value": 1,
+          "label": "Very Cold"
+        },
+        {
+          "value": 2,
+          "label": "Cold"
+        },
+        {
+          "value": 3,
+          "label": "Normal"
+        },
+        {
+          "value": 4,
+          "label": "Hot"
+        },
+        {
+          "value": 5,
+          "label": "Very Hot"
+        }
+      ],
+      "min": 1,
+      "max": 5,
+      "help": "The global temperature."
+    },
+    {
+      "name": "rain",
+      "key": "Rain",
+      "label": "강우량",
+      "category": "world",
+      "type": "integer",
+      "default": 3,
+      "options": [
+        {
+          "value": 1,
+          "label": "Very Dry"
+        },
+        {
+          "value": 2,
+          "label": "Dry"
+        },
+        {
+          "value": 3,
+          "label": "Normal"
+        },
+        {
+          "value": 4,
+          "label": "Rainy"
+        },
+        {
+          "value": 5,
+          "label": "Very Rainy"
+        }
+      ],
+      "min": 1,
+      "max": 5,
+      "help": "How often it rains."
+    },
+    {
+      "name": "erosion_speed",
+      "key": "ErosionSpeed",
+      "label": "침식 속도",
+      "category": "world",
+      "type": "integer",
+      "default": 4,
+      "options": [
+        {
+          "value": 1,
+          "label": "Very Fast (20 Days)"
+        },
+        {
+          "value": 2,
+          "label": "Fast (50 Days)"
+        },
+        {
+          "value": 3,
+          "label": "Normal (100 Days)"
+        },
+        {
+          "value": 4,
+          "label": "Slow (200 Days)"
+        },
+        {
+          "value": 5,
+          "label": "Very Slow (500 Days)"
+        }
+      ],
+      "min": 1,
+      "max": 5,
+      "help": "Number of days until the erosion system (which adds vines, long grass, new trees etc. to the world) will reach 100% growth."
+    },
+    {
+      "name": "erosion_days",
+      "key": "ErosionDays",
+      "label": "침식 완료 일수",
+      "category": "world",
+      "type": "integer",
+      "default": 0,
+      "min": -1,
+      "max": 36500,
+      "help": "For a custom Erosion Speed. Zero means use the Erosion Speed option. Maximum is 36,500 days (approximately 100 years)."
+    },
+    {
+      "name": "farming_speed",
+      "key": "Farming",
+      "label": "작물 성장 속도",
+      "category": "world",
+      "type": "integer",
+      "default": 3,
+      "options": [
+        {
+          "value": 1,
+          "label": "Very Fast"
+        },
+        {
+          "value": 2,
+          "label": "Fast"
+        },
+        {
+          "value": 3,
+          "label": "Normal"
+        },
+        {
+          "value": 4,
+          "label": "Slow"
+        },
+        {
+          "value": 5,
+          "label": "Very Slow"
+        }
+      ],
+      "min": 1,
+      "max": 5,
+      "help": "The speed of plant growth."
+    },
+    {
+      "name": "compost_time",
+      "key": "CompostTime",
+      "label": "퇴비 생성 시간",
+      "category": "world",
+      "type": "integer",
+      "default": 2,
+      "options": [
+        {
+          "value": 1,
+          "label": "1 Week"
+        },
+        {
+          "value": 2,
+          "label": "2 Weeks"
+        },
+        {
+          "value": 3,
+          "label": "3 Weeks"
+        },
+        {
+          "value": 4,
+          "label": "4 Weeks"
+        },
+        {
+          "value": 5,
+          "label": "6 Weeks"
+        },
+        {
+          "value": 6,
+          "label": "8 Weeks"
+        },
+        {
+          "value": 7,
+          "label": "10 Weeks"
+        },
+        {
+          "value": 8,
+          "label": "12 Weeks"
+        }
+      ],
+      "min": 1,
+      "max": 8,
+      "help": "How long it takes for food to break down in a composter."
+    },
+    {
+      "name": "stats_decrease",
+      "key": "StatsDecrease",
+      "label": "허기·갈증 감소 속도",
+      "category": "survival",
+      "type": "integer",
+      "default": 3,
+      "options": [
+        {
+          "value": 1,
+          "label": "Very Fast"
+        },
+        {
+          "value": 2,
+          "label": "Fast"
+        },
+        {
+          "value": 3,
+          "label": "Normal"
+        },
+        {
+          "value": 4,
+          "label": "Slow"
+        },
+        {
+          "value": 5,
+          "label": "Very Slow"
+        }
+      ],
+      "min": 1,
+      "max": 5,
+      "help": "How fast the player's hunger, thirst, and fatigue will decrease."
+    },
+    {
+      "name": "nature_abundance",
+      "key": "NatureAbundance",
+      "label": "자연 자원",
+      "category": "world",
+      "type": "integer",
+      "default": 3,
+      "options": [
+        {
+          "value": 1,
+          "label": "Very Poor"
+        },
+        {
+          "value": 2,
+          "label": "Poor"
+        },
+        {
+          "value": 3,
+          "label": "Normal"
+        },
+        {
+          "value": 4,
+          "label": "Abundant"
+        },
+        {
+          "value": 5,
+          "label": "Very Abundant"
+        }
+      ],
+      "min": 1,
+      "max": 5,
+      "help": "The abundance of items found in Foraging mode."
+    },
+    {
+      "name": "alarm_frequency",
+      "key": "Alarm",
+      "label": "주택 경보기 빈도",
+      "category": "survival",
+      "type": "integer",
+      "default": 4,
+      "options": [
+        {
+          "value": 1,
+          "label": "Never"
+        },
+        {
+          "value": 2,
+          "label": "Extremely Rare"
+        },
+        {
+          "value": 3,
+          "label": "Rare"
+        },
+        {
+          "value": 4,
+          "label": "Sometimes"
+        },
+        {
+          "value": 5,
+          "label": "Often"
+        },
+        {
+          "value": 6,
+          "label": "Very Often"
+        }
+      ],
+      "min": 1,
+      "max": 6,
+      "help": "How likely the player is to activate a house alarm when breaking into a new house."
+    },
+    {
+      "name": "locked_houses",
+      "key": "LockedHouses",
+      "label": "잠긴 건물 빈도",
+      "category": "survival",
+      "type": "integer",
+      "default": 6,
+      "options": [
+        {
+          "value": 1,
+          "label": "Never"
+        },
+        {
+          "value": 2,
+          "label": "Extremely Rare"
+        },
+        {
+          "value": 3,
+          "label": "Rare"
+        },
+        {
+          "value": 4,
+          "label": "Sometimes"
+        },
+        {
+          "value": 5,
+          "label": "Often"
+        },
+        {
+          "value": 6,
+          "label": "Very Often"
+        }
+      ],
+      "min": 1,
+      "max": 6,
+      "help": "How frequently the doors of homes and buildings will be locked when discovered."
+    },
+    {
+      "name": "starter_kit",
+      "key": "StarterKit",
+      "label": "시작 키트",
+      "category": "survival",
+      "type": "boolean",
+      "default": false,
+      "help": "Spawn with Chips, a Water Bottle, a Small Backpack, a Baseball Bat, and a Hammer."
+    },
+    {
+      "name": "nutrition",
+      "key": "Nutrition",
+      "label": "영양 시스템",
+      "category": "survival",
+      "type": "boolean",
+      "default": true,
+      "help": "Nutritional value of food affects the player's condition. Turning this off will stop the player gaining or losing weight."
+    },
+    {
+      "name": "food_rot_speed",
+      "key": "FoodRotSpeed",
+      "label": "식품 부패 속도",
+      "category": "survival",
+      "type": "integer",
+      "default": 3,
+      "options": [
+        {
+          "value": 1,
+          "label": "Very Fast"
+        },
+        {
+          "value": 2,
+          "label": "Fast"
+        },
+        {
+          "value": 3,
+          "label": "Normal"
+        },
+        {
+          "value": 4,
+          "label": "Slow"
+        },
+        {
+          "value": 5,
+          "label": "Very Slow"
+        }
+      ],
+      "min": 1,
+      "max": 5,
+      "help": "How fast that food will spoil, inside or outside of a fridge."
+    },
+    {
+      "name": "fridge_factor",
+      "key": "FridgeFactor",
+      "label": "냉장고 효율",
+      "category": "survival",
+      "type": "integer",
+      "default": 3,
+      "options": [
+        {
+          "value": 1,
+          "label": "Very Low"
+        },
+        {
+          "value": 2,
+          "label": "Low"
+        },
+        {
+          "value": 3,
+          "label": "Normal"
+        },
+        {
+          "value": 4,
+          "label": "High"
+        },
+        {
+          "value": 5,
+          "label": "Very High"
+        },
+        {
+          "value": 6,
+          "label": "No decay"
+        }
+      ],
+      "min": 1,
+      "max": 6,
+      "help": "How effective a fridge will be at keeping food fresh for longer."
+    },
+    {
+      "name": "seen_hours_prevent_loot_respawn",
+      "key": "SeenHoursPreventLootRespawn",
+      "label": "최근 방문 지역 루팅 제한 시간",
+      "category": "loot",
+      "type": "integer",
+      "default": 0,
+      "min": 0,
+      "max": 2147483647,
+      "help": "When greater than 0, loot will not respawn in zones that have been visited within this number of in-game hours."
+    },
+    {
+      "name": "hours_for_loot_respawn",
+      "key": "HoursForLootRespawn",
+      "label": "전리품 재생성 시간",
+      "category": "loot",
+      "type": "integer",
+      "default": 0,
+      "min": 0,
+      "max": 2147483647,
+      "help": "When greater than 0, after X hours, all containers in towns and trailer parks in the world will respawn loot. To spawn loot a container must have been looted at least once. Loot respawn is not impacted by visibility or subsequent looting."
+    },
+    {
+      "name": "max_items_for_loot_respawn",
+      "key": "MaxItemsForLootRespawn",
+      "label": "재생성 제한 아이템 수",
+      "category": "loot",
+      "type": "integer",
+      "default": 5,
+      "min": 0,
+      "max": 2147483647,
+      "help": "Containers with a number of items greater, or equal to, this setting will not respawn."
+    },
+    {
+      "name": "construction_prevents_loot_respawn",
+      "key": "ConstructionPreventsLootRespawn",
+      "label": "건축물이 루팅 재생성 방지",
+      "category": "loot",
+      "type": "boolean",
+      "default": true,
+      "help": "Items will not respawn in buildings that players have barricaded or built in."
+    },
+    {
+      "name": "world_item_removal_list",
+      "key": "WorldItemRemovalList",
+      "label": "월드 아이템 정리 목록",
+      "category": "loot",
+      "type": "string",
+      "default": "Base.Hat, Base.Glasses, Base.Maggots, Base.Slug, Base.Slug2, Base.Snail, Base.Worm, Base.Dung_Mouse, Base.Dung_Rat",
+      "help": "A comma-separated list of item types that will be removed after HoursForWorldItemRemoval hours."
+    },
+    {
+      "name": "hours_for_world_item_removal",
+      "key": "HoursForWorldItemRemoval",
+      "label": "바닥 아이템 정리 시간",
+      "category": "loot",
+      "type": "number",
+      "default": 24.0,
+      "min": 0.0,
+      "max": 2147483647.0,
+      "step": 0.01,
+      "help": "Number of hours since an item was dropped on the ground before it is removed.  Items are removed the next time that part of the map is loaded.   Zero means items are not removed."
+    },
+    {
+      "name": "item_removal_list_blacklist_toggle",
+      "key": "ItemRemovalListBlacklistToggle",
+      "label": "정리 목록 반전",
+      "category": "loot",
+      "type": "boolean",
+      "default": false,
+      "help": "If true, any items *not* in WorldItemRemovalList will be removed."
+    },
+    {
+      "name": "time_since_apo",
+      "key": "TimeSinceApo",
+      "label": "종말 이후 경과 개월",
+      "category": "world",
+      "type": "integer",
+      "default": 1,
+      "options": [
+        {
+          "value": 1,
+          "label": "0"
+        },
+        {
+          "value": 2,
+          "label": "1"
+        },
+        {
+          "value": 3,
+          "label": "2"
+        },
+        {
+          "value": 4,
+          "label": "3"
+        },
+        {
+          "value": 5,
+          "label": "4"
+        },
+        {
+          "value": 6,
+          "label": "5"
+        },
+        {
+          "value": 7,
+          "label": "6"
+        },
+        {
+          "value": 8,
+          "label": "7"
+        },
+        {
+          "value": 9,
+          "label": "8"
+        },
+        {
+          "value": 10,
+          "label": "9"
+        },
+        {
+          "value": 11,
+          "label": "10"
+        },
+        {
+          "value": 12,
+          "label": "11"
+        },
+        {
+          "value": 13,
+          "label": "12"
+        }
+      ],
+      "min": 1,
+      "max": 13,
+      "help": "How long after the end of the world to begin. This will affect starting world erosion and food spoilage. Does not affect the starting date."
+    },
+    {
+      "name": "plant_resilience",
+      "key": "PlantResilience",
+      "label": "작물 생명력",
+      "category": "world",
+      "type": "integer",
+      "default": 3,
+      "options": [
+        {
+          "value": 1,
+          "label": "Very High"
+        },
+        {
+          "value": 2,
+          "label": "High"
+        },
+        {
+          "value": 3,
+          "label": "Normal"
+        },
+        {
+          "value": 4,
+          "label": "Low"
+        },
+        {
+          "value": 5,
+          "label": "Very Low"
+        }
+      ],
+      "min": 1,
+      "max": 5,
+      "help": "How much water plants will lose per day, and their ability to avoid disease."
+    },
+    {
+      "name": "plant_abundance",
+      "key": "PlantAbundance",
+      "label": "작물 수확량",
+      "category": "world",
+      "type": "integer",
+      "default": 3,
+      "options": [
+        {
+          "value": 1,
+          "label": "Very Poor"
+        },
+        {
+          "value": 2,
+          "label": "Poor"
+        },
+        {
+          "value": 3,
+          "label": "Normal"
+        },
+        {
+          "value": 4,
+          "label": "Abundant"
+        },
+        {
+          "value": 5,
+          "label": "Very Abundant"
+        }
+      ],
+      "min": 1,
+      "max": 5,
+      "help": "The yield of plants when harvested."
+    },
+    {
+      "name": "end_regen",
+      "key": "EndRegen",
+      "label": "피로 회복 속도",
+      "category": "survival",
+      "type": "integer",
+      "default": 3,
+      "options": [
+        {
+          "value": 1,
+          "label": "Very Fast"
+        },
+        {
+          "value": 2,
+          "label": "Fast"
+        },
+        {
+          "value": 3,
+          "label": "Normal"
+        },
+        {
+          "value": 4,
+          "label": "Slow"
+        },
+        {
+          "value": 5,
+          "label": "Very Slow"
+        }
+      ],
+      "min": 1,
+      "max": 5,
+      "help": "Recovery from being tired after performing actions."
+    },
+    {
+      "name": "helicopter",
+      "key": "Helicopter",
+      "label": "헬리콥터 이벤트",
+      "category": "world",
+      "type": "integer",
+      "default": 2,
+      "options": [
+        {
+          "value": 1,
+          "label": "Never"
+        },
+        {
+          "value": 2,
+          "label": "Once"
+        },
+        {
+          "value": 3,
+          "label": "Sometimes"
+        },
+        {
+          "value": 4,
+          "label": "Often"
+        }
+      ],
+      "min": 1,
+      "max": 4,
+      "help": "How regularly a helicopter passes over the Event Zone."
+    },
+    {
+      "name": "meta_event",
+      "key": "MetaEvent",
+      "label": "메타 이벤트",
+      "category": "world",
+      "type": "integer",
+      "default": 2,
+      "options": [
+        {
+          "value": 1,
+          "label": "Never"
+        },
+        {
+          "value": 2,
+          "label": "Sometimes"
+        },
+        {
+          "value": 3,
+          "label": "Often"
+        }
+      ],
+      "min": 1,
+      "max": 3,
+      "help": "How often zombie-attracting metagame events like distant gunshots will occur."
+    },
+    {
+      "name": "sleeping_event",
+      "key": "SleepingEvent",
+      "label": "수면 이벤트",
+      "category": "world",
+      "type": "integer",
+      "default": 1,
+      "options": [
+        {
+          "value": 1,
+          "label": "Never"
+        },
+        {
+          "value": 2,
+          "label": "Sometimes"
+        },
+        {
+          "value": 3,
+          "label": "Often"
+        }
+      ],
+      "min": 1,
+      "max": 3,
+      "help": "How often events during the player's sleep, like nightmares, occur."
+    },
+    {
+      "name": "generator_fuel_consumption",
+      "key": "GeneratorFuelConsumption",
+      "label": "발전기 연료 소비",
+      "category": "infrastructure",
+      "type": "number",
+      "default": 0.1,
+      "min": 0.0,
+      "max": 100.0,
+      "step": 0.01,
+      "help": "How much fuel is consumed by generators per in-game hour."
+    },
+    {
+      "name": "generator_spawning",
+      "key": "GeneratorSpawning",
+      "label": "발전기 생성 빈도",
+      "category": "infrastructure",
+      "type": "integer",
+      "default": 4,
+      "options": [
+        {
+          "value": 1,
+          "label": "None (not recommended)"
+        },
+        {
+          "value": 2,
+          "label": "Insanely Rare"
+        },
+        {
+          "value": 3,
+          "label": "Extremely Rare"
+        },
+        {
+          "value": 4,
+          "label": "Rare"
+        },
+        {
+          "value": 5,
+          "label": "Normal"
+        },
+        {
+          "value": 6,
+          "label": "Common"
+        },
+        {
+          "value": 7,
+          "label": "Abundant"
+        }
+      ],
+      "min": 1,
+      "max": 7,
+      "help": "The chance of electrical generators spawning on the map."
+    },
+    {
+      "name": "annotated_map_chance",
+      "key": "AnnotatedMapChance",
+      "label": "주석 지도 빈도",
+      "category": "survival",
+      "type": "integer",
+      "default": 4,
+      "options": [
+        {
+          "value": 1,
+          "label": "Never"
+        },
+        {
+          "value": 2,
+          "label": "Extremely Rare"
+        },
+        {
+          "value": 3,
+          "label": "Rare"
+        },
+        {
+          "value": 4,
+          "label": "Sometimes"
+        },
+        {
+          "value": 5,
+          "label": "Often"
+        },
+        {
+          "value": 6,
+          "label": "Very Often"
+        }
+      ],
+      "min": 1,
+      "max": 6,
+      "help": "How often a looted map will have notes on it, written by a deceased survivor."
+    },
+    {
+      "name": "character_free_points",
+      "key": "CharacterFreePoints",
+      "label": "캐릭터 추가 포인트",
+      "category": "survival",
+      "type": "integer",
+      "default": 0,
+      "min": -100,
+      "max": 100,
+      "help": "Adds free points during character creation."
+    },
+    {
+      "name": "construction_bonus_points",
+      "key": "ConstructionBonusPoints",
+      "label": "건축물 내구도",
+      "category": "survival",
+      "type": "integer",
+      "default": 3,
+      "options": [
+        {
+          "value": 1,
+          "label": "Very Low"
+        },
+        {
+          "value": 2,
+          "label": "Low"
+        },
+        {
+          "value": 3,
+          "label": "Normal"
+        },
+        {
+          "value": 4,
+          "label": "High"
+        },
+        {
+          "value": 5,
+          "label": "Very High"
+        }
+      ],
+      "min": 1,
+      "max": 5,
+      "help": "Gives player-built constructions extra hit points so they are  more resistant to zombie damage."
+    },
+    {
+      "name": "night_darkness",
+      "key": "NightDarkness",
+      "label": "밤 밝기",
+      "category": "survival",
+      "type": "integer",
+      "default": 3,
+      "options": [
+        {
+          "value": 1,
+          "label": "Pitch Black"
+        },
+        {
+          "value": 2,
+          "label": "Dark"
+        },
+        {
+          "value": 3,
+          "label": "Normal"
+        },
+        {
+          "value": 4,
+          "label": "Bright"
+        }
+      ],
+      "min": 1,
+      "max": 4,
+      "help": "The level of ambient lighting at night."
+    },
+    {
+      "name": "night_length",
+      "key": "NightLength",
+      "label": "밤 길이",
+      "category": "survival",
+      "type": "integer",
+      "default": 3,
+      "options": [
+        {
+          "value": 1,
+          "label": "Always Night"
+        },
+        {
+          "value": 2,
+          "label": "Long"
+        },
+        {
+          "value": 3,
+          "label": "Normal"
+        },
+        {
+          "value": 4,
+          "label": "Short"
+        },
+        {
+          "value": 5,
+          "label": "Always Day"
+        }
+      ],
+      "min": 1,
+      "max": 5,
+      "help": "The time from dusk to dawn."
+    },
+    {
+      "name": "bone_fracture",
+      "key": "BoneFracture",
+      "label": "골절 허용",
+      "category": "survival",
+      "type": "boolean",
+      "default": true,
+      "help": "If survivors can get broken limbs from impacts, zombie damage, falls etc."
+    },
+    {
+      "name": "injury_severity",
+      "key": "InjurySeverity",
+      "label": "부상 심각도",
+      "category": "survival",
+      "type": "integer",
+      "default": 2,
+      "options": [
+        {
+          "value": 1,
+          "label": "Low"
+        },
+        {
+          "value": 2,
+          "label": "Normal"
+        },
+        {
+          "value": 3,
+          "label": "High"
+        }
+      ],
+      "min": 1,
+      "max": 3,
+      "help": "The impact that injuries have on your body, and their healing time."
+    },
+    {
+      "name": "hours_for_corpse_removal",
+      "key": "HoursForCorpseRemoval",
+      "label": "시체 제거 시간",
+      "category": "survival",
+      "type": "number",
+      "default": 216.0,
+      "min": -1.0,
+      "max": 2147483647.0,
+      "step": 0.01,
+      "help": "How long, in hours, before dead zombie bodies disappear from the world.  If 0, maggots will not spawn on corpses."
+    },
+    {
+      "name": "decaying_corpse_health_impact",
+      "key": "DecayingCorpseHealthImpact",
+      "label": "부패 시체 영향",
+      "category": "survival",
+      "type": "integer",
+      "default": 3,
+      "options": [
+        {
+          "value": 1,
+          "label": "None"
+        },
+        {
+          "value": 2,
+          "label": "Low"
+        },
+        {
+          "value": 3,
+          "label": "Normal"
+        },
+        {
+          "value": 4,
+          "label": "High"
+        },
+        {
+          "value": 5,
+          "label": "Insane"
+        }
+      ],
+      "min": 1,
+      "max": 5,
+      "help": "The impact that nearby decaying bodies has on the player's health and emotions."
+    },
+    {
+      "name": "zombie_health_impact",
+      "key": "ZombieHealthImpact",
+      "label": "살아있는 좀비의 건강 영향",
+      "category": "survival",
+      "type": "boolean",
+      "default": false,
+      "help": "Whether nearby \"living\" zombies have the same impact on the player's health and emotions."
+    },
+    {
+      "name": "blood_level",
+      "key": "BloodLevel",
+      "label": "혈흔 양",
+      "category": "survival",
+      "type": "integer",
+      "default": 3,
+      "options": [
+        {
+          "value": 1,
+          "label": "None"
+        },
+        {
+          "value": 2,
+          "label": "Low"
+        },
+        {
+          "value": 3,
+          "label": "Normal"
+        },
+        {
+          "value": 4,
+          "label": "High"
+        },
+        {
+          "value": 5,
+          "label": "Ultra Gore"
+        }
+      ],
+      "min": 1,
+      "max": 5,
+      "help": "How much blood is sprayed on floors and walls by injuries."
+    },
+    {
+      "name": "clothing_degradation",
+      "key": "ClothingDegradation",
+      "label": "의류 마모 속도",
+      "category": "survival",
+      "type": "integer",
+      "default": 3,
+      "options": [
+        {
+          "value": 1,
+          "label": "Disabled"
+        },
+        {
+          "value": 2,
+          "label": "Slow"
+        },
+        {
+          "value": 3,
+          "label": "Normal"
+        },
+        {
+          "value": 4,
+          "label": "Fast"
+        }
+      ],
+      "min": 1,
+      "max": 4,
+      "help": "How quickly clothing degrades, becomes dirty, and bloodied."
+    },
+    {
+      "name": "fire_spread",
+      "key": "FireSpread",
+      "label": "화재 확산",
+      "category": "survival",
+      "type": "boolean",
+      "default": true,
+      "help": "If fires spread when started."
+    },
+    {
+      "name": "days_for_rotten_food_removal",
+      "key": "DaysForRottenFoodRemoval",
+      "label": "썩은 음식 제거 일수",
+      "category": "survival",
+      "type": "integer",
+      "default": -1,
+      "min": -1,
+      "max": 2147483647,
+      "help": "Number of in-game days before rotten food is removed from the map.  -1 means rotten food is never removed."
+    },
+    {
+      "name": "allow_exterior_generator",
+      "key": "AllowExteriorGenerator",
+      "label": "실외 발전기 허용",
+      "category": "infrastructure",
+      "type": "boolean",
+      "default": true,
+      "help": "If enabled, generators will work on exterior tiles.  This will allow, for example, the powering of gas pumps."
+    },
+    {
+      "name": "max_fog_intensity",
+      "key": "MaxFogIntensity",
+      "label": "최대 안개 강도",
+      "category": "world",
+      "type": "integer",
+      "default": 1,
+      "options": [
+        {
+          "value": 1,
+          "label": "Normal"
+        },
+        {
+          "value": 2,
+          "label": "Moderate"
+        },
+        {
+          "value": 3,
+          "label": "Low"
+        },
+        {
+          "value": 4,
+          "label": "None"
+        }
+      ],
+      "min": 1,
+      "max": 4,
+      "help": "Maximum intensity of fog."
+    },
+    {
+      "name": "max_rain_fx_intensity",
+      "key": "MaxRainFxIntensity",
+      "label": "최대 비 효과",
+      "category": "world",
+      "type": "integer",
+      "default": 1,
+      "options": [
+        {
+          "value": 1,
+          "label": "Normal"
+        },
+        {
+          "value": 2,
+          "label": "Moderate"
+        },
+        {
+          "value": 3,
+          "label": "Low"
+        }
+      ],
+      "min": 1,
+      "max": 3,
+      "help": "Maximum intensity of rain."
+    },
+    {
+      "name": "enable_snow_on_ground",
+      "key": "EnableSnowOnGround",
+      "label": "지면 적설",
+      "category": "world",
+      "type": "boolean",
+      "default": true,
+      "help": "If snow will accumulate on the ground.  If disabled, snow will still show on vegetation and rooftops."
+    },
+    {
+      "name": "attack_block_movements",
+      "key": "AttackBlockMovements",
+      "label": "공격 중 이동 제한",
+      "category": "combat",
+      "type": "boolean",
+      "default": true,
+      "help": "If melee attacking slows you down."
+    },
+    {
+      "name": "survivor_house_chance",
+      "key": "SurvivorHouseChance",
+      "label": "생존자 주택 빈도",
+      "category": "map",
+      "type": "integer",
+      "default": 3,
+      "options": [
+        {
+          "value": 1,
+          "label": "Never"
+        },
+        {
+          "value": 2,
+          "label": "Extremely Rare"
+        },
+        {
+          "value": 3,
+          "label": "Rare"
+        },
+        {
+          "value": 4,
+          "label": "Sometimes"
+        },
+        {
+          "value": 5,
+          "label": "Often"
+        },
+        {
+          "value": 6,
+          "label": "Very Often"
+        },
+        {
+          "value": 7,
+          "label": "Always Tries"
+        }
+      ],
+      "min": 1,
+      "max": 7,
+      "help": "The chance of finding randomized buildings on the map (eg. burnt out houses,  ones containing loot stashes or dead bodies)."
+    },
+    {
+      "name": "vehicle_story_chance",
+      "key": "VehicleStoryChance",
+      "label": "도로 차량 스토리",
+      "category": "map",
+      "type": "integer",
+      "default": 3,
+      "options": [
+        {
+          "value": 1,
+          "label": "Never"
+        },
+        {
+          "value": 2,
+          "label": "Extremely Rare"
+        },
+        {
+          "value": 3,
+          "label": "Rare"
+        },
+        {
+          "value": 4,
+          "label": "Sometimes"
+        },
+        {
+          "value": 5,
+          "label": "Often"
+        },
+        {
+          "value": 6,
+          "label": "Very Often"
+        },
+        {
+          "value": 7,
+          "label": "Always Tries"
+        }
+      ],
+      "min": 1,
+      "max": 7,
+      "help": "The chance of road stories (eg. police roadblocks) spawning."
+    },
+    {
+      "name": "zone_story_chance",
+      "key": "ZoneStoryChance",
+      "label": "지역 스토리",
+      "category": "map",
+      "type": "integer",
+      "default": 3,
+      "options": [
+        {
+          "value": 1,
+          "label": "Never"
+        },
+        {
+          "value": 2,
+          "label": "Extremely Rare"
+        },
+        {
+          "value": 3,
+          "label": "Rare"
+        },
+        {
+          "value": 4,
+          "label": "Sometimes"
+        },
+        {
+          "value": 5,
+          "label": "Often"
+        },
+        {
+          "value": 6,
+          "label": "Very Often"
+        },
+        {
+          "value": 7,
+          "label": "Always Tries"
+        }
+      ],
+      "min": 1,
+      "max": 7,
+      "help": "The chance of stories specific to map zones (eg. a campsite in a forest) spawning."
+    },
+    {
+      "name": "all_clothes_unlocked",
+      "key": "AllClothesUnlocked",
+      "label": "모든 의류 해제",
+      "category": "survival",
+      "type": "boolean",
+      "default": false,
+      "help": "Allows you to select from every piece of clothing in the game when customizing your character"
+    },
+    {
+      "name": "enable_tainted_water_text",
+      "key": "EnableTaintedWaterText",
+      "label": "오염된 물 경고",
+      "category": "survival",
+      "type": "boolean",
+      "default": true,
+      "help": "If tainted water will show a warning marking it as such."
+    },
+    {
+      "name": "enable_vehicles",
+      "key": "EnableVehicles",
+      "label": "차량 활성화",
+      "category": "vehicles",
+      "type": "boolean",
+      "default": true,
+      "help": "If vehicles will spawn."
+    },
+    {
+      "name": "car_spawn_rate",
+      "key": "CarSpawnRate",
+      "label": "차량 생성 빈도",
+      "category": "vehicles",
+      "type": "integer",
+      "default": 3,
+      "options": [
+        {
+          "value": 1,
+          "label": "None"
+        },
+        {
+          "value": 2,
+          "label": "Very Low"
+        },
+        {
+          "value": 3,
+          "label": "Low"
+        },
+        {
+          "value": 4,
+          "label": "Normal"
+        },
+        {
+          "value": 5,
+          "label": "High"
+        }
+      ],
+      "min": 1,
+      "max": 5,
+      "help": "How frequently vehicles can be discovered on the map."
+    },
+    {
+      "name": "zombie_attraction_multiplier",
+      "key": "ZombieAttractionMultiplier",
+      "label": "차량 소음 유인 배율",
+      "category": "vehicles",
+      "type": "number",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 100.0,
+      "step": 0.01,
+      "help": "General engine loudness to zombies."
+    },
+    {
+      "name": "vehicle_easy_use",
+      "key": "VehicleEasyUse",
+      "label": "차량 간편 사용",
+      "category": "vehicles",
+      "type": "boolean",
+      "default": false,
+      "help": "Whether found vehicles are locked, need keys to start etc."
+    },
+    {
+      "name": "initial_gas",
+      "key": "InitialGas",
+      "label": "초기 차량 연료",
+      "category": "vehicles",
+      "type": "integer",
+      "default": 2,
+      "options": [
+        {
+          "value": 1,
+          "label": "Very Low"
+        },
+        {
+          "value": 2,
+          "label": "Low"
+        },
+        {
+          "value": 3,
+          "label": "Normal"
+        },
+        {
+          "value": 4,
+          "label": "High"
+        },
+        {
+          "value": 5,
+          "label": "Very High"
+        },
+        {
+          "value": 6,
+          "label": "Full"
+        }
+      ],
+      "min": 1,
+      "max": 6,
+      "help": "How full the gas tank of discovered vehicles will be."
+    },
+    {
+      "name": "fuel_station_gas_infinite",
+      "key": "FuelStationGasInfinite",
+      "label": "주유소 무한 연료",
+      "category": "vehicles",
+      "type": "boolean",
+      "default": false,
+      "help": "If enabled, gas pumps will never run out of fuel"
+    },
+    {
+      "name": "fuel_station_gas_min",
+      "key": "FuelStationGasMin",
+      "label": "주유소 최소 연료",
+      "category": "vehicles",
+      "type": "number",
+      "default": 0.0,
+      "min": 0.0,
+      "max": 1.0,
+      "step": 0.01,
+      "help": "The minimum amount of gasoline that can spawn in gas pumps. Check the \"Advanced\" box below to use a custom amount."
+    },
+    {
+      "name": "fuel_station_gas_max",
+      "key": "FuelStationGasMax",
+      "label": "주유소 최대 연료",
+      "category": "vehicles",
+      "type": "number",
+      "default": 0.8,
+      "min": 0.0,
+      "max": 1.0,
+      "step": 0.01,
+      "help": "The maximum amount of gasoline that can spawn in gas pumps. Check the \"Advanced\" box below to use a custom amount."
+    },
+    {
+      "name": "fuel_station_gas_empty_chance",
+      "key": "FuelStationGasEmptyChance",
+      "label": "빈 주유기 확률",
+      "category": "vehicles",
+      "type": "integer",
+      "default": 20,
+      "min": 0,
+      "max": 100,
+      "help": "The chance, as a percentage, that individual gas pumps will initially have no fuel."
+    },
+    {
+      "name": "locked_car",
+      "key": "LockedCar",
+      "label": "잠긴 차량 빈도",
+      "category": "vehicles",
+      "type": "integer",
+      "default": 4,
+      "options": [
+        {
+          "value": 1,
+          "label": "Never"
+        },
+        {
+          "value": 2,
+          "label": "Extremely Rare"
+        },
+        {
+          "value": 3,
+          "label": "Rare"
+        },
+        {
+          "value": 4,
+          "label": "Sometimes"
+        },
+        {
+          "value": 5,
+          "label": "Often"
+        },
+        {
+          "value": 6,
+          "label": "Very Often"
+        }
+      ],
+      "min": 1,
+      "max": 6,
+      "help": "How likely cars will be locked"
+    },
+    {
+      "name": "car_gas_consumption",
+      "key": "CarGasConsumption",
+      "label": "차량 연료 소비",
+      "category": "vehicles",
+      "type": "number",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 100.0,
+      "step": 0.01,
+      "help": "How gas-hungry vehicles are."
+    },
+    {
+      "name": "car_general_condition",
+      "key": "CarGeneralCondition",
+      "label": "차량 전체 상태",
+      "category": "vehicles",
+      "type": "integer",
+      "default": 3,
+      "options": [
+        {
+          "value": 1,
+          "label": "Very Low"
+        },
+        {
+          "value": 2,
+          "label": "Low"
+        },
+        {
+          "value": 3,
+          "label": "Normal"
+        },
+        {
+          "value": 4,
+          "label": "High"
+        },
+        {
+          "value": 5,
+          "label": "Very High"
+        }
+      ],
+      "min": 1,
+      "max": 5,
+      "help": "General condition discovered vehicles will be in."
+    },
+    {
+      "name": "car_damage_on_impact",
+      "key": "CarDamageOnImpact",
+      "label": "충돌 시 차량 피해",
+      "category": "vehicles",
+      "type": "integer",
+      "default": 3,
+      "options": [
+        {
+          "value": 1,
+          "label": "Very Low"
+        },
+        {
+          "value": 2,
+          "label": "Low"
+        },
+        {
+          "value": 3,
+          "label": "Normal"
+        },
+        {
+          "value": 4,
+          "label": "High"
+        },
+        {
+          "value": 5,
+          "label": "Very High"
+        }
+      ],
+      "min": 1,
+      "max": 5,
+      "help": "The amount of damage dealt to vehicles that crash."
+    },
+    {
+      "name": "damage_to_player_from_hit_by_a_car",
+      "key": "DamageToPlayerFromHitByACar",
+      "label": "차량 충돌 플레이어 피해",
+      "category": "vehicles",
+      "type": "integer",
+      "default": 1,
+      "options": [
+        {
+          "value": 1,
+          "label": "None"
+        },
+        {
+          "value": 2,
+          "label": "Low"
+        },
+        {
+          "value": 3,
+          "label": "Normal"
+        },
+        {
+          "value": 4,
+          "label": "High"
+        },
+        {
+          "value": 5,
+          "label": "Very High"
+        }
+      ],
+      "min": 1,
+      "max": 5,
+      "help": "Damage received by the player from being crashed into."
+    },
+    {
+      "name": "traffic_jam",
+      "key": "TrafficJam",
+      "label": "교통 체증 잔해",
+      "category": "vehicles",
+      "type": "boolean",
+      "default": true,
+      "help": "If traffic jams consisting of wrecked cars  will appear on main roads."
+    },
+    {
+      "name": "car_alarm",
+      "key": "CarAlarm",
+      "label": "차량 경보기 빈도",
+      "category": "vehicles",
+      "type": "integer",
+      "default": 3,
+      "options": [
+        {
+          "value": 1,
+          "label": "Never"
+        },
+        {
+          "value": 2,
+          "label": "Extremely Rare"
+        },
+        {
+          "value": 3,
+          "label": "Rare"
+        },
+        {
+          "value": 4,
+          "label": "Sometimes"
+        },
+        {
+          "value": 5,
+          "label": "Often"
+        },
+        {
+          "value": 6,
+          "label": "Very Often"
+        }
+      ],
+      "min": 1,
+      "max": 6,
+      "help": "How frequently discovered vehicles have active alarms."
+    },
+    {
+      "name": "player_damage_from_crash",
+      "key": "PlayerDamageFromCrash",
+      "label": "사고 시 탑승자 피해",
+      "category": "vehicles",
+      "type": "boolean",
+      "default": true,
+      "help": "If the player can get injured from being in a car accident."
+    },
+    {
+      "name": "siren_shutoff_hours",
+      "key": "SirenShutoffHours",
+      "label": "사이렌 종료 시간",
+      "category": "vehicles",
+      "type": "number",
+      "default": 0.0,
+      "min": 0.0,
+      "max": 168.0,
+      "step": 0.01,
+      "help": "How many in-game hours before a wailing siren shuts off."
+    },
+    {
+      "name": "chance_has_gas",
+      "key": "ChanceHasGas",
+      "label": "차량 연료 보유 확률",
+      "category": "vehicles",
+      "type": "integer",
+      "default": 2,
+      "options": [
+        {
+          "value": 1,
+          "label": "Low"
+        },
+        {
+          "value": 2,
+          "label": "Normal"
+        },
+        {
+          "value": 3,
+          "label": "High"
+        }
+      ],
+      "min": 1,
+      "max": 3,
+      "help": "The chance of finding a vehicle with gas in its tank."
+    },
+    {
+      "name": "recently_survivor_vehicles",
+      "key": "RecentlySurvivorVehicles",
+      "label": "관리된 차량 빈도",
+      "category": "vehicles",
+      "type": "integer",
+      "default": 2,
+      "options": [
+        {
+          "value": 1,
+          "label": "None"
+        },
+        {
+          "value": 2,
+          "label": "Low"
+        },
+        {
+          "value": 3,
+          "label": "Normal"
+        },
+        {
+          "value": 4,
+          "label": "High"
+        }
+      ],
+      "min": 1,
+      "max": 4,
+      "help": "Whether a player can discover a car that has been cared for  after the Knox infection struck."
+    },
+    {
+      "name": "multi_hit",
+      "key": "MultiHitZombies",
+      "label": "다중 타격",
+      "category": "combat",
+      "type": "boolean",
+      "default": false,
+      "help": "If certain melee weapons will be able to strike multiple zombies in one hit."
+    },
+    {
+      "name": "rear_vulnerability",
+      "key": "RearVulnerability",
+      "label": "후방 취약도",
+      "category": "combat",
+      "type": "integer",
+      "default": 3,
+      "options": [
+        {
+          "value": 1,
+          "label": "Low"
+        },
+        {
+          "value": 2,
+          "label": "Medium"
+        },
+        {
+          "value": 3,
+          "label": "High"
+        }
+      ],
+      "min": 1,
+      "max": 3,
+      "help": "Chance of being bitten when a zombie attacks from behind."
+    },
+    {
+      "name": "siren_effects_zombies",
+      "key": "SirenEffectsZombies",
+      "label": "사이렌 좀비 유인",
+      "category": "vehicles",
+      "type": "boolean",
+      "default": true,
+      "help": "If zombies will head towards the sound of vehicle sirens."
+    },
+    {
+      "name": "animal_stats_modifier",
+      "key": "AnimalStatsModifier",
+      "label": "동물 욕구 감소 속도",
+      "category": "animals",
+      "type": "integer",
+      "default": 4,
+      "options": [
+        {
+          "value": 1,
+          "label": "Ultra Fast"
+        },
+        {
+          "value": 2,
+          "label": "Very Fast"
+        },
+        {
+          "value": 3,
+          "label": "Fast"
+        },
+        {
+          "value": 4,
+          "label": "Normal"
+        },
+        {
+          "value": 5,
+          "label": "Slow"
+        },
+        {
+          "value": 6,
+          "label": "Very Slow"
+        }
+      ],
+      "min": 1,
+      "max": 6,
+      "help": "Speed at which animals stats (hunger, thirst etc.) reduce."
+    },
+    {
+      "name": "animal_meta_stats_modifier",
+      "key": "AnimalMetaStatsModifier",
+      "label": "비활성 동물 욕구 감소",
+      "category": "animals",
+      "type": "integer",
+      "default": 4,
+      "options": [
+        {
+          "value": 1,
+          "label": "Ultra Fast"
+        },
+        {
+          "value": 2,
+          "label": "Very Fast"
+        },
+        {
+          "value": 3,
+          "label": "Fast"
+        },
+        {
+          "value": 4,
+          "label": "Normal"
+        },
+        {
+          "value": 5,
+          "label": "Slow"
+        },
+        {
+          "value": 6,
+          "label": "Very Slow"
+        }
+      ],
+      "min": 1,
+      "max": 6,
+      "help": "Speed at which animals stats (hunger, thirst etc.) reduce while in meta."
+    },
+    {
+      "name": "animal_pregnancy_time",
+      "key": "AnimalPregnancyTime",
+      "label": "동물 임신 기간",
+      "category": "animals",
+      "type": "integer",
+      "default": 4,
+      "options": [
+        {
+          "value": 1,
+          "label": "Ultra Fast"
+        },
+        {
+          "value": 2,
+          "label": "Very Fast"
+        },
+        {
+          "value": 3,
+          "label": "Fast"
+        },
+        {
+          "value": 4,
+          "label": "Normal"
+        },
+        {
+          "value": 5,
+          "label": "Slow"
+        },
+        {
+          "value": 6,
+          "label": "Very Slow"
+        }
+      ],
+      "min": 1,
+      "max": 6,
+      "help": "How long animals will be pregnant for before giving birth."
+    },
+    {
+      "name": "animal_age_modifier",
+      "key": "AnimalAgeModifier",
+      "label": "동물 성장 속도",
+      "category": "animals",
+      "type": "integer",
+      "default": 4,
+      "options": [
+        {
+          "value": 1,
+          "label": "Ultra Fast"
+        },
+        {
+          "value": 2,
+          "label": "Very Fast"
+        },
+        {
+          "value": 3,
+          "label": "Fast"
+        },
+        {
+          "value": 4,
+          "label": "Normal"
+        },
+        {
+          "value": 5,
+          "label": "Slow"
+        },
+        {
+          "value": 6,
+          "label": "Very Slow"
+        }
+      ],
+      "min": 1,
+      "max": 6,
+      "help": "Speed at which animals age."
+    },
+    {
+      "name": "animal_milk_inc_modifier",
+      "key": "AnimalMilkIncModifier",
+      "label": "우유 생산 속도",
+      "category": "animals",
+      "type": "integer",
+      "default": 4,
+      "options": [
+        {
+          "value": 1,
+          "label": "Ultra Fast"
+        },
+        {
+          "value": 2,
+          "label": "Very Fast"
+        },
+        {
+          "value": 3,
+          "label": "Fast"
+        },
+        {
+          "value": 4,
+          "label": "Normal"
+        },
+        {
+          "value": 5,
+          "label": "Slow"
+        },
+        {
+          "value": 6,
+          "label": "Very Slow"
+        }
+      ],
+      "min": 1,
+      "max": 6
+    },
+    {
+      "name": "animal_wool_inc_modifier",
+      "key": "AnimalWoolIncModifier",
+      "label": "털 성장 속도",
+      "category": "animals",
+      "type": "integer",
+      "default": 4,
+      "options": [
+        {
+          "value": 1,
+          "label": "Ultra Fast"
+        },
+        {
+          "value": 2,
+          "label": "Very Fast"
+        },
+        {
+          "value": 3,
+          "label": "Fast"
+        },
+        {
+          "value": 4,
+          "label": "Normal"
+        },
+        {
+          "value": 5,
+          "label": "Slow"
+        },
+        {
+          "value": 6,
+          "label": "Very Slow"
+        }
+      ],
+      "min": 1,
+      "max": 6
+    },
+    {
+      "name": "animal_ranch_chance",
+      "key": "AnimalRanchChance",
+      "label": "농장 동물 생성 빈도",
+      "category": "animals",
+      "type": "integer",
+      "default": 5,
+      "options": [
+        {
+          "value": 1,
+          "label": "Never"
+        },
+        {
+          "value": 2,
+          "label": "Extremely Rare"
+        },
+        {
+          "value": 3,
+          "label": "Rare"
+        },
+        {
+          "value": 4,
+          "label": "Sometimes"
+        },
+        {
+          "value": 5,
+          "label": "Often"
+        },
+        {
+          "value": 6,
+          "label": "Very Often"
+        },
+        {
+          "value": 7,
+          "label": "Always"
+        }
+      ],
+      "min": 1,
+      "max": 7,
+      "help": "The chance of finding animals in farm."
+    },
+    {
+      "name": "animal_grass_regrow_time",
+      "key": "AnimalGrassRegrowTime",
+      "label": "목초 재성장 시간",
+      "category": "animals",
+      "type": "integer",
+      "default": 240,
+      "min": 1,
+      "max": 9999,
+      "help": "The number of hours grass will regrow after being  eaten by an animal or cut by the player."
+    },
+    {
+      "name": "animal_meta_predator",
+      "key": "AnimalMetaPredator",
+      "label": "야간 포식자",
+      "category": "animals",
+      "type": "boolean",
+      "default": false,
+      "help": "If a meta (ie. not actually visible in-game) fox may attack  your chickens if the hutch's door is left open at night."
+    },
+    {
+      "name": "animal_mating_season",
+      "key": "AnimalMatingSeason",
+      "label": "번식기 적용",
+      "category": "animals",
+      "type": "boolean",
+      "default": true,
+      "help": "If on, animals will only mate during their breeding season (if any).  Otherwise they can reproduce/lay eggs all year round."
+    },
+    {
+      "name": "animal_egg_hatch",
+      "key": "AnimalEggHatch",
+      "label": "알 부화 속도",
+      "category": "animals",
+      "type": "integer",
+      "default": 4,
+      "options": [
+        {
+          "value": 1,
+          "label": "Ultra Fast"
+        },
+        {
+          "value": 2,
+          "label": "Very Fast"
+        },
+        {
+          "value": 3,
+          "label": "Fast"
+        },
+        {
+          "value": 4,
+          "label": "Normal"
+        },
+        {
+          "value": 5,
+          "label": "Slow"
+        },
+        {
+          "value": 6,
+          "label": "Very Slow"
+        }
+      ],
+      "min": 1,
+      "max": 6,
+      "help": "How long before baby animals will hatch from eggs."
+    },
+    {
+      "name": "animal_sound_attract_zombies",
+      "key": "AnimalSoundAttractZombies",
+      "label": "동물 소리 좀비 유인",
+      "category": "animals",
+      "type": "boolean",
+      "default": true,
+      "help": "If true, animal calls will attract nearby zombies."
+    },
+    {
+      "name": "animal_track_chance",
+      "key": "AnimalTrackChance",
+      "label": "동물 흔적 빈도",
+      "category": "animals",
+      "type": "integer",
+      "default": 4,
+      "options": [
+        {
+          "value": 1,
+          "label": "Never"
+        },
+        {
+          "value": 2,
+          "label": "Extremely Rare"
+        },
+        {
+          "value": 3,
+          "label": "Rare"
+        },
+        {
+          "value": 4,
+          "label": "Sometimes"
+        },
+        {
+          "value": 5,
+          "label": "Often"
+        },
+        {
+          "value": 6,
+          "label": "Very Often"
+        }
+      ],
+      "min": 1,
+      "max": 6,
+      "help": "The chance of animals leaving tracks."
+    },
+    {
+      "name": "animal_path_chance",
+      "key": "AnimalPathChance",
+      "label": "사냥 경로 빈도",
+      "category": "animals",
+      "type": "integer",
+      "default": 4,
+      "options": [
+        {
+          "value": 1,
+          "label": "Never"
+        },
+        {
+          "value": 2,
+          "label": "Extremely Rare"
+        },
+        {
+          "value": 3,
+          "label": "Rare"
+        },
+        {
+          "value": 4,
+          "label": "Sometimes"
+        },
+        {
+          "value": 5,
+          "label": "Often"
+        },
+        {
+          "value": 6,
+          "label": "Very Often"
+        }
+      ],
+      "min": 1,
+      "max": 6,
+      "help": "The chance of creating a path for animals to be hunted."
+    },
+    {
+      "name": "maximum_rat_index",
+      "key": "MaximumRatIndex",
+      "label": "최대 해충 지수",
+      "category": "animals",
+      "type": "integer",
+      "default": 25,
+      "min": 0,
+      "max": 50,
+      "help": "The frequency and intensity of eg. rats in infested buildings."
+    },
+    {
+      "name": "days_until_maximum_rat_index",
+      "key": "DaysUntilMaximumRatIndex",
+      "label": "최대 해충 도달 일수",
+      "category": "animals",
+      "type": "integer",
+      "default": 90,
+      "min": 0,
+      "max": 365,
+      "help": "How long it takes for the Maximum Vermin Index to be reached."
+    },
+    {
+      "name": "meta_knowledge",
+      "key": "MetaKnowledge",
+      "label": "미확인 미디어 표시",
+      "category": "survival",
+      "type": "integer",
+      "default": 3,
+      "options": [
+        {
+          "value": 1,
+          "label": "Fully revealed"
+        },
+        {
+          "value": 2,
+          "label": "Shown as ???"
+        },
+        {
+          "value": 3,
+          "label": "Completely hidden"
+        }
+      ],
+      "min": 1,
+      "max": 3,
+      "help": "If a piece of media hasn't been fully seen or read, this setting determines whether it's displayed fully, displayed as \"???\", or hidden completely."
+    },
+    {
+      "name": "see_not_learnt_recipe",
+      "key": "SeeNotLearntRecipe",
+      "label": "미학습 레시피 표시",
+      "category": "survival",
+      "type": "boolean",
+      "default": true,
+      "help": "If true, you will be able to see any recipes that can be done with a station, even if you haven't learnt them yet."
+    },
+    {
+      "name": "maximum_looted_building_rooms",
+      "key": "MaximumLootedBuildingRooms",
+      "label": "루팅 건물 최대 방 수",
+      "category": "survival",
+      "type": "integer",
+      "default": 50,
+      "min": 0,
+      "max": 200,
+      "help": "If a building has more than this amount of rooms it will not be looted."
+    },
+    {
+      "name": "enable_poisoning",
+      "key": "EnablePoisoning",
+      "label": "음식 독성 허용",
+      "category": "survival",
+      "type": "integer",
+      "default": 1,
+      "options": [
+        {
+          "value": 1,
+          "label": "True"
+        },
+        {
+          "value": 2,
+          "label": "False"
+        },
+        {
+          "value": 3,
+          "label": "Only bleach poisoning is disabled"
+        }
+      ],
+      "min": 1,
+      "max": 3,
+      "help": "If poison can be added to food."
+    },
+    {
+      "name": "maggot_spawn",
+      "key": "MaggotSpawn",
+      "label": "구더기 생성",
+      "category": "survival",
+      "type": "integer",
+      "default": 1,
+      "options": [
+        {
+          "value": 1,
+          "label": "In and Around Bodies"
+        },
+        {
+          "value": 2,
+          "label": "In Bodies Only"
+        },
+        {
+          "value": 3,
+          "label": "Never"
+        }
+      ],
+      "min": 1,
+      "max": 3,
+      "help": "If/when maggots can spawn in corpses."
+    },
+    {
+      "name": "light_bulb_lifespan",
+      "key": "LightBulbLifespan",
+      "label": "전구 수명",
+      "category": "infrastructure",
+      "type": "number",
+      "default": 2.0,
+      "min": 0.0,
+      "max": 1000.0,
+      "step": 0.01,
+      "help": "The higher the value, the longer lightbulbs last before breaking.  If 0, lightbulbs will never break.  Does not affect vehicle headlights."
+    },
+    {
+      "name": "fish_abundance",
+      "key": "FishAbundance",
+      "label": "어류 자원",
+      "category": "world",
+      "type": "integer",
+      "default": 2,
+      "options": [
+        {
+          "value": 1,
+          "label": "Very Poor"
+        },
+        {
+          "value": 2,
+          "label": "Poor"
+        },
+        {
+          "value": 3,
+          "label": "Normal"
+        },
+        {
+          "value": 4,
+          "label": "Abundant"
+        },
+        {
+          "value": 5,
+          "label": "Very Abundant"
+        }
+      ],
+      "min": 1,
+      "max": 5,
+      "help": "The abundance of fish in rivers and lakes."
+    },
+    {
+      "name": "level_for_media_x_p_cutoff",
+      "key": "LevelForMediaXPCutoff",
+      "label": "미디어 경험치 제한 레벨",
+      "category": "survival",
+      "type": "integer",
+      "default": 3,
+      "min": 0,
+      "max": 10,
+      "help": "When a skill is at this level or above, television/VHS/other media  will not provide XP for it."
+    },
+    {
+      "name": "level_for_dismantle_x_p_cutoff",
+      "key": "LevelForDismantleXPCutoff",
+      "label": "해체 경험치 제한 레벨",
+      "category": "survival",
+      "type": "integer",
+      "default": 0,
+      "min": 0,
+      "max": 10,
+      "help": "When a skill is at this level or above, scrapping furniture does not provide XP for the relevant skill. Does not apply to Electrical."
+    },
+    {
+      "name": "blood_splat_lifespan_days",
+      "key": "BloodSplatLifespanDays",
+      "label": "혈흔 유지 일수",
+      "category": "survival",
+      "type": "integer",
+      "default": 0,
+      "min": 0,
+      "max": 365,
+      "help": "Number of days before old blood splats are removed. Removal happens when map chunks are loaded. 0 means they will never disappear."
+    },
+    {
+      "name": "literature_cooldown",
+      "key": "LiteratureCooldown",
+      "label": "서적 재사용 대기 일수",
+      "category": "survival",
+      "type": "integer",
+      "default": 45,
+      "min": 1,
+      "max": 365,
+      "help": "Number of days before one can benefit from reading previously read literature items."
+    },
+    {
+      "name": "negative_traits_penalty",
+      "key": "NegativeTraitsPenalty",
+      "label": "부정 특성 점수 페널티",
+      "category": "survival",
+      "type": "integer",
+      "default": 1,
+      "options": [
+        {
+          "value": 1,
+          "label": "None"
+        },
+        {
+          "value": 2,
+          "label": "1 point penalty for every 3 negative traits selected"
+        },
+        {
+          "value": 3,
+          "label": "1 point penalty for every 2 negative traits selected"
+        },
+        {
+          "value": 4,
+          "label": "1 point penalty for every negative trait selected after the first"
+        }
+      ],
+      "min": 1,
+      "max": 4,
+      "help": "If there are diminishing returns on bonus trait points provided from selecting multiple negative traits."
+    },
+    {
+      "name": "minutes_per_page",
+      "key": "MinutesPerPage",
+      "label": "페이지당 읽기 시간",
+      "category": "survival",
+      "type": "number",
+      "default": 2.0,
+      "min": 0.0,
+      "max": 60.0,
+      "step": 0.01,
+      "help": "The number of in-game minutes it takes to read one page of a skill book."
+    },
+    {
+      "name": "kill_inside_crops",
+      "key": "KillInsideCrops",
+      "label": "실내 작물 고사",
+      "category": "world",
+      "type": "boolean",
+      "default": true,
+      "help": "When enabled, crops and herbs grown inside buildings will die. Does not affect houseplants."
+    },
+    {
+      "name": "plant_growing_seasons",
+      "key": "PlantGrowingSeasons",
+      "label": "계절별 작물 성장",
+      "category": "world",
+      "type": "boolean",
+      "default": true,
+      "help": "When enabled, the growth of plants is affected by seasons."
+    },
+    {
+      "name": "place_dirt_aboveground",
+      "key": "PlaceDirtAboveground",
+      "label": "상층 흙 배치",
+      "category": "world",
+      "type": "boolean",
+      "default": false,
+      "help": "<BHC> [!] It is recommended that you DO NOT change this. Changing this can result in performance issues. [!] <RGB:1,1,1>   When enabled, dirt can be placed, and farming performed on other than the ground level."
+    },
+    {
+      "name": "farming_speed_new",
+      "key": "FarmingSpeedNew",
+      "label": "작물 성장 배율",
+      "category": "world",
+      "type": "number",
+      "default": 1.0,
+      "min": 0.1,
+      "max": 100.0,
+      "step": 0.01,
+      "help": "The speed of plant growth."
+    },
+    {
+      "name": "farming_amount_new",
+      "key": "FarmingAmountNew",
+      "label": "작물 수확 배율",
+      "category": "world",
+      "type": "number",
+      "default": 1.0,
+      "min": 0.1,
+      "max": 10.0,
+      "step": 0.01,
+      "help": "The abundance of harvested crops."
+    },
+    {
+      "name": "maximum_looted",
+      "key": "MaximumLooted",
+      "label": "이미 털린 건물 최대 확률",
+      "category": "loot",
+      "type": "integer",
+      "default": 25,
+      "min": 0,
+      "max": 200,
+      "help": "The chance that any building will already be looted when found. Check the \"Advanced\" box below to use a custom number."
+    },
+    {
+      "name": "days_until_maximum_looted",
+      "key": "DaysUntilMaximumLooted",
+      "label": "최대 털림 확률 도달 일수",
+      "category": "loot",
+      "type": "integer",
+      "default": 90,
+      "min": 0,
+      "max": 3650,
+      "help": "How long it takes for Maximum Looted Building Chance to be reached."
+    },
+    {
+      "name": "rural_looted",
+      "key": "RuralLooted",
+      "label": "시골 건물 털림 배율",
+      "category": "loot",
+      "type": "number",
+      "default": 0.5,
+      "min": 0.0,
+      "max": 2.0,
+      "step": 0.01,
+      "help": "The chance that any rural building will already be looted when found. Check the \"Advanced\" box below to use a custom number."
+    },
+    {
+      "name": "maximum_diminished_loot",
+      "key": "MaximumDiminishedLoot",
+      "label": "최대 전리품 감소율",
+      "category": "loot",
+      "type": "integer",
+      "default": 20,
+      "min": 0,
+      "max": 100,
+      "help": "The maximum loot that won't spawn when Days Until Maximum Diminished Loot is reached. Check the \"Advanced\" box below to use an exact percentage."
+    },
+    {
+      "name": "days_until_maximum_diminished_loot",
+      "key": "DaysUntilMaximumDiminishedLoot",
+      "label": "최대 감소 도달 일수",
+      "category": "loot",
+      "type": "integer",
+      "default": 3650,
+      "min": 0,
+      "max": 3650,
+      "help": "How long it takes for Maximum Diminished Loot Percentage to be reached."
+    },
+    {
+      "name": "muscle_strain_factor",
+      "key": "MuscleStrainFactor",
+      "label": "근육 피로 배율",
+      "category": "survival",
+      "type": "number",
+      "default": 0.7,
+      "min": 0.0,
+      "max": 10.0,
+      "step": 0.01,
+      "help": "Functions as a multiplier when applying muscle strain from swinging weapons or carrying heavy loads."
+    },
+    {
+      "name": "discomfort_factor",
+      "key": "DiscomfortFactor",
+      "label": "착용 불편 배율",
+      "category": "survival",
+      "type": "number",
+      "default": 0.8,
+      "min": 0.0,
+      "max": 10.0,
+      "step": 0.01,
+      "help": "Functions as a multiplier when applying discomfort from worn items."
+    },
+    {
+      "name": "wound_infection_factor",
+      "key": "WoundInfectionFactor",
+      "label": "상처 감염 피해 배율",
+      "category": "survival",
+      "type": "number",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 10.0,
+      "step": 0.01,
+      "help": "If greater than zero damage can be taken from serious wound infections."
+    },
+    {
+      "name": "no_black_clothes",
+      "key": "NoBlackClothes",
+      "label": "과도하게 어두운 의류 방지",
+      "category": "survival",
+      "type": "boolean",
+      "default": true,
+      "help": "If true clothing with randomized tints will not be so dark to be virtually black."
+    },
+    {
+      "name": "easy_climbing",
+      "key": "EasyClimbing",
+      "label": "등반 실패 비활성화",
+      "category": "survival",
+      "type": "boolean",
+      "default": false,
+      "help": "Disables the failure chances when climbing sheet ropes or over walls."
+    },
+    {
+      "name": "maximum_fire_fuel_hours",
+      "key": "MaximumFireFuelHours",
+      "label": "최대 화로 연료 시간",
+      "category": "survival",
+      "type": "integer",
+      "default": 8,
+      "min": 1,
+      "max": 168,
+      "help": "The maximum hours of fuel that can be placed in a campfire, wood stove etc."
+    },
+    {
+      "name": "firearm_use_damage_chance",
+      "key": "FirearmUseDamageChance",
+      "label": "총기 피해 판정 방식",
+      "category": "combat",
+      "type": "integer",
+      "default": 2,
+      "options": [
+        {
+          "value": 1,
+          "label": "Disabled"
+        },
+        {
+          "value": 2,
+          "label": "Zombies only"
+        },
+        {
+          "value": 3,
+          "label": "All types of target"
+        }
+      ],
+      "min": 1,
+      "max": 3,
+      "help": "Replaces Chance-To-Hit mechanics with Chance-To-Damage calculations.  This mode prioritizes player aiming."
+    },
+    {
+      "name": "firearm_noise_multiplier",
+      "key": "FirearmNoiseMultiplier",
+      "label": "총기 소음 배율",
+      "category": "combat",
+      "type": "number",
+      "default": 1.0,
+      "min": 0.2,
+      "max": 2.0,
+      "step": 0.01,
+      "help": "A multiplier for the distance at which zombies can hear gunshots."
+    },
+    {
+      "name": "firearm_jam_multiplier",
+      "key": "FirearmJamMultiplier",
+      "label": "총기 걸림 배율",
+      "category": "combat",
+      "type": "number",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 10.0,
+      "step": 0.01,
+      "help": "Multiplier for firearm jamming chance. 0 disables jamming."
+    },
+    {
+      "name": "firearm_moodle_multiplier",
+      "key": "FirearmMoodleMultiplier",
+      "label": "기분 상태 명중 보정",
+      "category": "combat",
+      "type": "number",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 10.0,
+      "step": 0.01,
+      "help": "Multiplier for Moodle effects on hit chance. 0 disables Moodle penalty."
+    },
+    {
+      "name": "firearm_weather_multiplier",
+      "key": "FirearmWeatherMultiplier",
+      "label": "날씨 명중 보정",
+      "category": "combat",
+      "type": "number",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 10.0,
+      "step": 0.01,
+      "help": "Multiplier for the effects of weather (wind, rain and fog) on hit chance. 0 disables weather effect."
+    },
+    {
+      "name": "firearm_head_gear_effect",
+      "key": "FirearmHeadGearEffect",
+      "label": "머리 장비 명중 영향",
+      "category": "combat",
+      "type": "boolean",
+      "default": true,
+      "help": "Enable to have headgear like welding masks affect hit chance"
+    },
+    {
+      "name": "clay_lake_chance",
+      "key": "ClayLakeChance",
+      "label": "호수 점토 확률",
+      "category": "world",
+      "type": "number",
+      "default": 0.05,
+      "min": 0.0,
+      "max": 1.0,
+      "step": 0.01,
+      "help": "Chance to turn a dirt floor into a clay floor. Applies to lakes."
+    },
+    {
+      "name": "clay_river_chance",
+      "key": "ClayRiverChance",
+      "label": "강 점토 확률",
+      "category": "world",
+      "type": "number",
+      "default": 0.05,
+      "min": 0.0,
+      "max": 1.0,
+      "step": 0.01,
+      "help": "Chance to turn a dirt floor into a clay floor. Applies to rivers."
+    },
+    {
+      "name": "generator_tile_range",
+      "key": "GeneratorTileRange",
+      "label": "발전기 수평 범위",
+      "category": "infrastructure",
+      "type": "integer",
+      "default": 20,
+      "min": 1,
+      "max": 100
+    },
+    {
+      "name": "generator_vertical_power_range",
+      "key": "GeneratorVerticalPowerRange",
+      "label": "발전기 수직 범위",
+      "category": "infrastructure",
+      "type": "integer",
+      "default": 3,
+      "min": 1,
+      "max": 15,
+      "help": "How many levels both above and below a generator it can provide with electricity."
+    },
+    {
+      "name": "basement__spawn_frequency",
+      "key": "Basement.SpawnFrequency",
+      "label": "지하실 생성 빈도",
+      "category": "map",
+      "type": "integer",
+      "default": 4,
+      "options": [
+        {
+          "value": 1,
+          "label": "Never"
+        },
+        {
+          "value": 2,
+          "label": "Extremely Rare"
+        },
+        {
+          "value": 3,
+          "label": "Rare"
+        },
+        {
+          "value": 4,
+          "label": "Sometimes"
+        },
+        {
+          "value": 5,
+          "label": "Often"
+        },
+        {
+          "value": 6,
+          "label": "Very Often"
+        },
+        {
+          "value": 7,
+          "label": "Always"
+        }
+      ],
+      "min": 1,
+      "max": 7,
+      "help": "How frequently basements spawn at random locations."
+    },
+    {
+      "name": "map__allow_mini_map",
+      "key": "Map.AllowMiniMap",
+      "label": "미니맵 허용",
+      "category": "map",
+      "type": "boolean",
+      "default": false,
+      "help": "If enabled, a mini-map window will be available."
+    },
+    {
+      "name": "map__allow_world_map",
+      "key": "Map.AllowWorldMap",
+      "label": "월드맵 허용",
+      "category": "map",
+      "type": "boolean",
+      "default": true,
+      "help": "If enabled, the world map can be accessed."
+    },
+    {
+      "name": "map__map_all_known",
+      "key": "Map.MapAllKnown",
+      "label": "전체 지도 공개",
+      "category": "map",
+      "type": "boolean",
+      "default": false,
+      "help": "If enabled, the world map will be completely filled in on starting the game."
+    },
+    {
+      "name": "map__map_needs_light",
+      "key": "Map.MapNeedsLight",
+      "label": "지도 열람 시 빛 필요",
+      "category": "map",
+      "type": "boolean",
+      "default": true,
+      "help": "If enabled, maps can't be read unless there's a source of light available."
+    },
+    {
+      "name": "zombie_lore__speed",
+      "key": "ZombieLore.Speed",
+      "label": "좀비 이동 속도",
+      "category": "zombie_lore",
+      "type": "integer",
+      "default": 4,
+      "options": [
+        {
+          "value": 1,
+          "label": "Sprinters"
+        },
+        {
+          "value": 2,
+          "label": "Fast Shamblers"
+        },
+        {
+          "value": 3,
+          "label": "Shamblers"
+        },
+        {
+          "value": 4,
+          "label": "Random"
+        }
+      ],
+      "min": 1,
+      "max": 4,
+      "help": "How fast zombies move."
+    },
+    {
+      "name": "zombie_lore__sprinter_percentage",
+      "key": "ZombieLore.SprinterPercentage",
+      "label": "질주 좀비 비율",
+      "category": "zombie_lore",
+      "type": "integer",
+      "default": 0,
+      "min": 0,
+      "max": 100,
+      "help": "If Random Speed is enabled, this controls what percentage of zombies are Sprinters. Check the \"Advanced\" box below to use a custom percentage."
+    },
+    {
+      "name": "zombie_lore__strength",
+      "key": "ZombieLore.Strength",
+      "label": "좀비 공격력",
+      "category": "zombie_lore",
+      "type": "integer",
+      "default": 2,
+      "options": [
+        {
+          "value": 1,
+          "label": "Superhuman"
+        },
+        {
+          "value": 2,
+          "label": "Normal"
+        },
+        {
+          "value": 3,
+          "label": "Weak"
+        },
+        {
+          "value": 4,
+          "label": "Random"
+        }
+      ],
+      "min": 1,
+      "max": 4,
+      "help": "The damage zombies inflict per attack."
+    },
+    {
+      "name": "zombie_lore__toughness",
+      "key": "ZombieLore.Toughness",
+      "label": "좀비 내구력",
+      "category": "zombie_lore",
+      "type": "integer",
+      "default": 4,
+      "options": [
+        {
+          "value": 1,
+          "label": "Tough"
+        },
+        {
+          "value": 2,
+          "label": "Normal"
+        },
+        {
+          "value": 3,
+          "label": "Fragile"
+        },
+        {
+          "value": 4,
+          "label": "Random"
+        }
+      ],
+      "min": 1,
+      "max": 4,
+      "help": "The difficulty of killing a zombie."
+    },
+    {
+      "name": "zombie_lore__transmission",
+      "key": "ZombieLore.Transmission",
+      "label": "감염 전파 방식",
+      "category": "zombie_lore",
+      "type": "integer",
+      "default": 1,
+      "options": [
+        {
+          "value": 1,
+          "label": "Blood and Saliva"
+        },
+        {
+          "value": 2,
+          "label": "Saliva Only"
+        },
+        {
+          "value": 3,
+          "label": "Everyone's Infected"
+        },
+        {
+          "value": 4,
+          "label": "None"
+        }
+      ],
+      "min": 1,
+      "max": 4,
+      "help": "How the Knox Virus spreads."
+    },
+    {
+      "name": "zombie_lore__mortality",
+      "key": "ZombieLore.Mortality",
+      "label": "감염 발병 시간",
+      "category": "zombie_lore",
+      "type": "integer",
+      "default": 5,
+      "options": [
+        {
+          "value": 1,
+          "label": "Instant"
+        },
+        {
+          "value": 2,
+          "label": "0-30 Seconds"
+        },
+        {
+          "value": 3,
+          "label": "0-1 Minutes"
+        },
+        {
+          "value": 4,
+          "label": "0-12 Hours"
+        },
+        {
+          "value": 5,
+          "label": "2-3 Days"
+        },
+        {
+          "value": 6,
+          "label": "1-2 Weeks"
+        },
+        {
+          "value": 7,
+          "label": "Never"
+        }
+      ],
+      "min": 1,
+      "max": 7,
+      "help": "How quickly the infection takes effect."
+    },
+    {
+      "name": "zombie_lore__reanimate",
+      "key": "ZombieLore.Reanimate",
+      "label": "사망 후 부활 시간",
+      "category": "zombie_lore",
+      "type": "integer",
+      "default": 3,
+      "options": [
+        {
+          "value": 1,
+          "label": "Instant"
+        },
+        {
+          "value": 2,
+          "label": "0-30 Seconds"
+        },
+        {
+          "value": 3,
+          "label": "0-1 Minutes"
+        },
+        {
+          "value": 4,
+          "label": "0-12 Hours"
+        },
+        {
+          "value": 5,
+          "label": "2-3 Days"
+        },
+        {
+          "value": 6,
+          "label": "1-2 Weeks"
+        }
+      ],
+      "min": 1,
+      "max": 6,
+      "help": "How quickly infected corpses rise as zombies."
+    },
+    {
+      "name": "zombie_lore__cognition",
+      "key": "ZombieLore.Cognition",
+      "label": "좀비 지능",
+      "category": "zombie_lore",
+      "type": "integer",
+      "default": 3,
+      "options": [
+        {
+          "value": 1,
+          "label": "Navigate and Use Doors"
+        },
+        {
+          "value": 2,
+          "label": "Navigate"
+        },
+        {
+          "value": 3,
+          "label": "Basic Navigation"
+        },
+        {
+          "value": 4,
+          "label": "Random"
+        }
+      ],
+      "min": 1,
+      "max": 4,
+      "help": "Zombie intelligence."
+    },
+    {
+      "name": "zombie_lore__door_opening_percentage",
+      "key": "ZombieLore.DoorOpeningPercentage",
+      "label": "문 열기 확률",
+      "category": "zombie_lore",
+      "type": "integer",
+      "default": 0,
+      "min": 0,
+      "max": 100
+    },
+    {
+      "name": "zombie_lore__crawl_under_vehicle",
+      "key": "ZombieLore.CrawlUnderVehicle",
+      "label": "차량 아래 기어가기",
+      "category": "zombie_lore",
+      "type": "integer",
+      "default": 5,
+      "options": [
+        {
+          "value": 1,
+          "label": "Crawlers Only"
+        },
+        {
+          "value": 2,
+          "label": "Extremely Rare"
+        },
+        {
+          "value": 3,
+          "label": "Rare"
+        },
+        {
+          "value": 4,
+          "label": "Sometimes"
+        },
+        {
+          "value": 5,
+          "label": "Often"
+        },
+        {
+          "value": 6,
+          "label": "Very Often"
+        },
+        {
+          "value": 7,
+          "label": "Always"
+        }
+      ],
+      "min": 1,
+      "max": 7,
+      "help": "How often zombies can crawl under parked vehicles."
+    },
+    {
+      "name": "zombie_lore__memory",
+      "key": "ZombieLore.Memory",
+      "label": "좀비 기억력",
+      "category": "zombie_lore",
+      "type": "integer",
+      "default": 2,
+      "options": [
+        {
+          "value": 1,
+          "label": "Long"
+        },
+        {
+          "value": 2,
+          "label": "Normal"
+        },
+        {
+          "value": 3,
+          "label": "Short"
+        },
+        {
+          "value": 4,
+          "label": "None"
+        },
+        {
+          "value": 5,
+          "label": "Random"
+        },
+        {
+          "value": 6,
+          "label": "Random between Normal and None"
+        }
+      ],
+      "min": 1,
+      "max": 6,
+      "help": "How long zombies remember a player after seeing or hearing them."
+    },
+    {
+      "name": "zombie_lore__sight",
+      "key": "ZombieLore.Sight",
+      "label": "좀비 시야",
+      "category": "zombie_lore",
+      "type": "integer",
+      "default": 5,
+      "options": [
+        {
+          "value": 1,
+          "label": "Eagle"
+        },
+        {
+          "value": 2,
+          "label": "Normal"
+        },
+        {
+          "value": 3,
+          "label": "Poor"
+        },
+        {
+          "value": 4,
+          "label": "Random"
+        },
+        {
+          "value": 5,
+          "label": "Random between Normal and Poor"
+        }
+      ],
+      "min": 1,
+      "max": 5,
+      "help": "Zombie vision radius."
+    },
+    {
+      "name": "zombie_lore__hearing",
+      "key": "ZombieLore.Hearing",
+      "label": "좀비 청각",
+      "category": "zombie_lore",
+      "type": "integer",
+      "default": 5,
+      "options": [
+        {
+          "value": 1,
+          "label": "Pinpoint"
+        },
+        {
+          "value": 2,
+          "label": "Normal"
+        },
+        {
+          "value": 3,
+          "label": "Poor"
+        },
+        {
+          "value": 4,
+          "label": "Random"
+        },
+        {
+          "value": 5,
+          "label": "Random between Normal and Poor"
+        }
+      ],
+      "min": 1,
+      "max": 5,
+      "help": "Zombie hearing radius."
+    },
+    {
+      "name": "zombie_lore__spotted_logic",
+      "key": "ZombieLore.SpottedLogic",
+      "label": "고급 은신 판정",
+      "category": "zombie_lore",
+      "type": "boolean",
+      "default": true,
+      "help": "Activates the new advanced stealth mechanics, which allows you to hide from zombies behind cars, takes traits and weather into account, and much more."
+    },
+    {
+      "name": "zombie_lore__thump_no_chasing",
+      "key": "ZombieLore.ThumpNoChasing",
+      "label": "추적 중이 아닐 때 구조물 공격",
+      "category": "zombie_lore",
+      "type": "boolean",
+      "default": false,
+      "help": "If zombies that have not seen/heard player can attack doors and constructions while roaming."
+    },
+    {
+      "name": "zombie_lore__thump_on_construction",
+      "key": "ZombieLore.ThumpOnConstruction",
+      "label": "플레이어 건축물 파괴",
+      "category": "zombie_lore",
+      "type": "boolean",
+      "default": true,
+      "help": "If zombies can destroy player constructions and defenses."
+    },
+    {
+      "name": "zombie_lore__active_only",
+      "key": "ZombieLore.ActiveOnly",
+      "label": "활동 시간대",
+      "category": "zombie_lore",
+      "type": "integer",
+      "default": 1,
+      "options": [
+        {
+          "value": 1,
+          "label": "Both"
+        },
+        {
+          "value": 2,
+          "label": "Night"
+        },
+        {
+          "value": 3,
+          "label": "Day"
+        }
+      ],
+      "min": 1,
+      "max": 3,
+      "help": "Whether zombies are more \"active\" during the day or night.  \"Active\" zombies will use the speed set in the \"Speed\" setting.  \"Inactive\" zombies will be slower, and tend not to give chase."
+    },
+    {
+      "name": "zombie_lore__trigger_house_alarm",
+      "key": "ZombieLore.TriggerHouseAlarm",
+      "label": "좀비의 주택 경보기 작동",
+      "category": "zombie_lore",
+      "type": "boolean",
+      "default": true,
+      "help": "If zombies trigger house alarms when breaking through windows or doors."
+    },
+    {
+      "name": "drag_down",
+      "key": "ZombieLore.ZombiesDragDown",
+      "label": "좀비 끌어내리기",
+      "category": "zombie_lore",
+      "type": "boolean",
+      "default": true,
+      "help": "If multiple attacking zombies can drag you down and kill you.  Dependent on zombie strength."
+    },
+    {
+      "name": "zombie_lore__zombies_crawlers_drag_down",
+      "key": "ZombieLore.ZombiesCrawlersDragDown",
+      "label": "기어다니는 좀비 끌어내리기 기여",
+      "category": "zombie_lore",
+      "type": "boolean",
+      "default": false,
+      "help": "If crawler zombies beside a player contribute to the chance of being dragged down and killed by a group of zombies."
+    },
+    {
+      "name": "fence_lunge",
+      "key": "ZombieLore.ZombiesFenceLunge",
+      "label": "울타리 돌진",
+      "category": "zombie_lore",
+      "type": "boolean",
+      "default": true,
+      "help": "If zombies have a chance to lunge at you after climbing over a fence or through a window if you're too close."
+    },
+    {
+      "name": "zombie_lore__zombies_armor_factor",
+      "key": "ZombieLore.ZombiesArmorFactor",
+      "label": "좀비 방어구 효과",
+      "category": "zombie_lore",
+      "type": "number",
+      "default": 2.0,
+      "min": 0.0,
+      "max": 100.0,
+      "step": 0.01,
+      "help": "Serves as a multiplier when determining the effectiveness of armor worn by zombies."
+    },
+    {
+      "name": "zombie_lore__zombies_max_defense",
+      "key": "ZombieLore.ZombiesMaxDefense",
+      "label": "좀비 최대 방어율",
+      "category": "zombie_lore",
+      "type": "integer",
+      "default": 85,
+      "min": 0,
+      "max": 100,
+      "help": "The maximum defense percentage that any worn protective garments can provide to a zombie."
+    },
+    {
+      "name": "zombie_lore__chance_of_attached_weapon",
+      "key": "ZombieLore.ChanceOfAttachedWeapon",
+      "label": "부착 무기 확률",
+      "category": "zombie_lore",
+      "type": "integer",
+      "default": 6,
+      "min": 0,
+      "max": 100,
+      "help": "Percentage chance of having a random attached weapon."
+    },
+    {
+      "name": "zombie_lore__zombies_fall_damage",
+      "key": "ZombieLore.ZombiesFallDamage",
+      "label": "좀비 낙하 피해",
+      "category": "zombie_lore",
+      "type": "number",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 100.0,
+      "step": 0.01,
+      "help": "How much damage zombies take when falling from height."
+    },
+    {
+      "name": "zombie_lore__disable_fake_dead",
+      "key": "ZombieLore.DisableFakeDead",
+      "label": "가짜 시체 부활",
+      "category": "zombie_lore",
+      "type": "integer",
+      "default": 1,
+      "options": [
+        {
+          "value": 1,
+          "label": "World Zombies"
+        },
+        {
+          "value": 2,
+          "label": "World and Combat Zombies"
+        },
+        {
+          "value": 3,
+          "label": "Never"
+        }
+      ],
+      "min": 1,
+      "max": 3,
+      "help": "Whether some dead-looking zombies will reanimate and attack the player."
+    },
+    {
+      "name": "zombie_lore__player_spawn_zombie_removal",
+      "key": "ZombieLore.PlayerSpawnZombieRemoval",
+      "label": "시작 위치 좀비 제거 범위",
+      "category": "zombie_lore",
+      "type": "integer",
+      "default": 1,
+      "options": [
+        {
+          "value": 1,
+          "label": "Inside the building and around it"
+        },
+        {
+          "value": 2,
+          "label": "Inside the building"
+        },
+        {
+          "value": 3,
+          "label": "Inside the room"
+        },
+        {
+          "value": 4,
+          "label": "Zombies can spawn anywhere"
+        }
+      ],
+      "min": 1,
+      "max": 4,
+      "help": "Zombies will not spawn where players spawn."
+    },
+    {
+      "name": "zombie_lore__fence_thumpers_required",
+      "key": "ZombieLore.FenceThumpersRequired",
+      "label": "높은 울타리 파괴 필요 좀비 수",
+      "category": "zombie_lore",
+      "type": "integer",
+      "default": 25,
+      "min": -1,
+      "max": 100,
+      "help": "How many zombies it takes to damage a tall fence."
+    },
+    {
+      "name": "zombie_lore__fence_damage_multiplier",
+      "key": "ZombieLore.FenceDamageMultiplier",
+      "label": "울타리 피해 배율",
+      "category": "zombie_lore",
+      "type": "number",
+      "default": 1.0,
+      "min": 0.01,
+      "max": 100.0,
+      "step": 0.01,
+      "help": "How quickly zombies damage tall fences."
+    },
+    {
+      "name": "zombie_config__population_multiplier",
+      "key": "ZombieConfig.PopulationMultiplier",
+      "label": "전체 개체수 배율",
+      "category": "zombie_advanced",
+      "type": "number",
+      "default": 0.65,
+      "min": 0.0,
+      "max": 4.0,
+      "step": 0.01,
+      "help": "Set by the \"Zombie Count\" population option, or by a custom number here. Insane = 2.5, Very High = 1.6, High = 1.2, Normal = 0.65, Low = 0.15, None = 0.0."
+    },
+    {
+      "name": "zombie_config__population_start_multiplier",
+      "key": "ZombieConfig.PopulationStartMultiplier",
+      "label": "시작 개체수 배율",
+      "category": "zombie_advanced",
+      "type": "number",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 4.0,
+      "step": 0.01,
+      "help": "A multiplier for the desired zombie population at the start of the game. Insane = 3.0, Very High = 2.0, High = 1.5, Normal = 1.0, Low = 0.5, None = 0.0."
+    },
+    {
+      "name": "zombie_config__population_peak_multiplier",
+      "key": "ZombieConfig.PopulationPeakMultiplier",
+      "label": "최고 개체수 배율",
+      "category": "zombie_advanced",
+      "type": "number",
+      "default": 1.5,
+      "min": 0.0,
+      "max": 4.0,
+      "step": 0.01,
+      "help": "A multiplier for the desired zombie population on the peak day. Insane = 3.0, Very High = 2.0, High = 1.5, Normal = 1.0, Low = 0.5, None = 0.0."
+    },
+    {
+      "name": "zombie_config__population_peak_day",
+      "key": "ZombieConfig.PopulationPeakDay",
+      "label": "최고 개체수 도달 일",
+      "category": "zombie_advanced",
+      "type": "integer",
+      "default": 28,
+      "min": 1,
+      "max": 365,
+      "help": "The day when the population reaches its peak."
+    },
+    {
+      "name": "respawn_hours",
+      "key": "ZombieConfig.RespawnHours",
+      "label": "재생성 주기",
+      "category": "zombie_advanced",
+      "type": "number",
+      "default": 0.0,
+      "min": 0.0,
+      "max": 8760.0,
+      "step": 0.01,
+      "help": "The number of hours that must pass before zombies may respawn in a cell. If 0, spawning is disabled."
+    },
+    {
+      "name": "respawn_unseen_hours",
+      "key": "ZombieConfig.RespawnUnseenHours",
+      "label": "미확인 지역 재생성 대기",
+      "category": "zombie_advanced",
+      "type": "number",
+      "default": 0.0,
+      "min": 0.0,
+      "max": 8760.0,
+      "step": 0.01,
+      "help": "The number of hours that a chunk must be unseen before zombies may respawn in it."
+    },
+    {
+      "name": "respawn_multiplier",
+      "key": "ZombieConfig.RespawnMultiplier",
+      "label": "회차당 재생성 비율",
+      "category": "zombie_advanced",
+      "type": "number",
+      "default": 0.0,
+      "min": 0.0,
+      "max": 1.0,
+      "step": 0.01,
+      "help": "The fraction of a cell's desired population that may respawn every RespawnHours."
+    },
+    {
+      "name": "zombie_config__redistribute_hours",
+      "key": "ZombieConfig.RedistributeHours",
+      "label": "빈 지역 이동 주기",
+      "category": "zombie_advanced",
+      "type": "number",
+      "default": 12.0,
+      "min": 0.0,
+      "max": 8760.0,
+      "step": 0.01,
+      "help": "The number of hours that must pass before zombies migrate  to empty parts of the same cell. If 0, migration is disabled."
+    },
+    {
+      "name": "zombie_config__follow_sound_distance",
+      "key": "ZombieConfig.FollowSoundDistance",
+      "label": "소리 추적 거리",
+      "category": "zombie_advanced",
+      "type": "integer",
+      "default": 100,
+      "min": 10,
+      "max": 1000,
+      "help": "The distance a zombie will try to walk towards the last sound it heard."
+    },
+    {
+      "name": "zombie_config__rally_group_size",
+      "key": "ZombieConfig.RallyGroupSize",
+      "label": "무리 크기",
+      "category": "zombie_advanced",
+      "type": "integer",
+      "default": 20,
+      "min": 0,
+      "max": 1000,
+      "help": "The size of groups real zombies form when idle. 0 means zombies don't form groups. Groups don't form inside buildings or forest zones."
+    },
+    {
+      "name": "zombie_config__rally_group_size_variance",
+      "key": "ZombieConfig.RallyGroupSizeVariance",
+      "label": "무리 크기 변동률",
+      "category": "zombie_advanced",
+      "type": "integer",
+      "default": 50,
+      "min": 0,
+      "max": 100,
+      "help": "The amount, as a percentage, that zombie groups can vary in size from the default (both larger and smaller).   For example, at 50% variance with a default group size of 20, groups will vary in size from 10-30."
+    },
+    {
+      "name": "zombie_config__rally_travel_distance",
+      "key": "ZombieConfig.RallyTravelDistance",
+      "label": "무리 합류 거리",
+      "category": "zombie_advanced",
+      "type": "integer",
+      "default": 20,
+      "min": 5,
+      "max": 50,
+      "help": "The distance real zombies travel to form groups when idle."
+    },
+    {
+      "name": "zombie_config__rally_group_separation",
+      "key": "ZombieConfig.RallyGroupSeparation",
+      "label": "무리 간 거리",
+      "category": "zombie_advanced",
+      "type": "integer",
+      "default": 15,
+      "min": 5,
+      "max": 25,
+      "help": "The distance between zombie groups."
+    },
+    {
+      "name": "zombie_config__rally_group_radius",
+      "key": "ZombieConfig.RallyGroupRadius",
+      "label": "무리 반경",
+      "category": "zombie_advanced",
+      "type": "integer",
+      "default": 3,
+      "min": 1,
+      "max": 10,
+      "help": "How close members of a zombie group stay to the group's \"leader\"."
+    },
+    {
+      "name": "zombie_config__zombies_count_before_delete",
+      "key": "ZombieConfig.ZombiesCountBeforeDelete",
+      "label": "정리 전 최대 추적 좀비 수",
+      "category": "zombie_advanced",
+      "type": "integer",
+      "default": 300,
+      "min": 0,
+      "max": 5000,
+      "help": "Controls the maximum number of zombies tracked before cleanup occurs. 0 means zombies will not be cleaned up. The default value (300) is strongly recommended. Increasing this value or setting to 0 may cause severe performance problems. For troubleshooting and bug-report purposes, please reproduce any issue with the default setting before submitting a report."
+    },
+    {
+      "name": "xp_multiplier",
+      "key": "MultiplierConfig.Global",
+      "label": "전체 경험치 배율",
+      "category": "experience",
+      "type": "number",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 1000.0,
+      "step": 0.01,
+      "help": "The rate at which all skills level up."
+    },
+    {
+      "name": "multiplier_config__global_toggle",
+      "key": "MultiplierConfig.GlobalToggle",
+      "label": "전체 경험치 배율 일괄 적용",
+      "category": "experience",
+      "type": "boolean",
+      "default": true,
+      "help": "When enabled, all skills will use the Global Multiplier."
+    },
+    {
+      "name": "multiplier_config__fitness",
+      "key": "MultiplierConfig.Fitness",
+      "label": "체력 경험치 배율",
+      "category": "experience",
+      "type": "number",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 1000.0,
+      "step": 0.01,
+      "help": "Rate at which Fitness skill levels up."
+    },
+    {
+      "name": "multiplier_config__strength",
+      "key": "MultiplierConfig.Strength",
+      "label": "힘 경험치 배율",
+      "category": "experience",
+      "type": "number",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 1000.0,
+      "step": 0.01,
+      "help": "Rate at which Strength skill levels up."
+    },
+    {
+      "name": "multiplier_config__sprinting",
+      "key": "MultiplierConfig.Sprinting",
+      "label": "달리기 경험치 배율",
+      "category": "experience",
+      "type": "number",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 1000.0,
+      "step": 0.01,
+      "help": "Rate at which Sprinting skill levels up."
+    },
+    {
+      "name": "multiplier_config__lightfoot",
+      "key": "MultiplierConfig.Lightfoot",
+      "label": "가벼운 발걸음 경험치 배율",
+      "category": "experience",
+      "type": "number",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 1000.0,
+      "step": 0.01,
+      "help": "Rate at which Lightfooted skill levels up."
+    },
+    {
+      "name": "multiplier_config__nimble",
+      "key": "MultiplierConfig.Nimble",
+      "label": "민첩함 경험치 배율",
+      "category": "experience",
+      "type": "number",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 1000.0,
+      "step": 0.01,
+      "help": "Rate at which Nimble skill levels up."
+    },
+    {
+      "name": "multiplier_config__sneak",
+      "key": "MultiplierConfig.Sneak",
+      "label": "은신 경험치 배율",
+      "category": "experience",
+      "type": "number",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 1000.0,
+      "step": 0.01,
+      "help": "Rate at which Sneaking skill levels up."
+    },
+    {
+      "name": "multiplier_config__axe",
+      "key": "MultiplierConfig.Axe",
+      "label": "도끼 경험치 배율",
+      "category": "experience",
+      "type": "number",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 1000.0,
+      "step": 0.01,
+      "help": "Rate at which Axe skill levels up."
+    },
+    {
+      "name": "multiplier_config__blunt",
+      "key": "MultiplierConfig.Blunt",
+      "label": "장병기 둔기 경험치 배율",
+      "category": "experience",
+      "type": "number",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 1000.0,
+      "step": 0.01,
+      "help": "Rate at which Long Blunt skill levels up."
+    },
+    {
+      "name": "multiplier_config__small_blunt",
+      "key": "MultiplierConfig.SmallBlunt",
+      "label": "단병기 둔기 경험치 배율",
+      "category": "experience",
+      "type": "number",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 1000.0,
+      "step": 0.01,
+      "help": "Rate at which Short Blunt skill levels up."
+    },
+    {
+      "name": "multiplier_config__long_blade",
+      "key": "MultiplierConfig.LongBlade",
+      "label": "장검 경험치 배율",
+      "category": "experience",
+      "type": "number",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 1000.0,
+      "step": 0.01,
+      "help": "Rate at which Long Blade skill levels up."
+    },
+    {
+      "name": "multiplier_config__small_blade",
+      "key": "MultiplierConfig.SmallBlade",
+      "label": "단검 경험치 배율",
+      "category": "experience",
+      "type": "number",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 1000.0,
+      "step": 0.01,
+      "help": "Rate at which Short Blade skill levels up."
+    },
+    {
+      "name": "multiplier_config__spear",
+      "key": "MultiplierConfig.Spear",
+      "label": "창 경험치 배율",
+      "category": "experience",
+      "type": "number",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 1000.0,
+      "step": 0.01,
+      "help": "Rate at which Spear skill levels up."
+    },
+    {
+      "name": "multiplier_config__maintenance",
+      "key": "MultiplierConfig.Maintenance",
+      "label": "유지보수 경험치 배율",
+      "category": "experience",
+      "type": "number",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 1000.0,
+      "step": 0.01,
+      "help": "Rate at which Maintenance skill levels up."
+    },
+    {
+      "name": "multiplier_config__woodwork",
+      "key": "MultiplierConfig.Woodwork",
+      "label": "목공 경험치 배율",
+      "category": "experience",
+      "type": "number",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 1000.0,
+      "step": 0.01,
+      "help": "Rate at which Carpentry skill levels up."
+    },
+    {
+      "name": "multiplier_config__cooking",
+      "key": "MultiplierConfig.Cooking",
+      "label": "요리 경험치 배율",
+      "category": "experience",
+      "type": "number",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 1000.0,
+      "step": 0.01,
+      "help": "Rate at which Cooking skill levels up."
+    },
+    {
+      "name": "multiplier_config__farming",
+      "key": "MultiplierConfig.Farming",
+      "label": "농업 경험치 배율",
+      "category": "experience",
+      "type": "number",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 1000.0,
+      "step": 0.01,
+      "help": "Rate at which Agriculture skill levels up."
+    },
+    {
+      "name": "multiplier_config__doctor",
+      "key": "MultiplierConfig.Doctor",
+      "label": "응급처치 경험치 배율",
+      "category": "experience",
+      "type": "number",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 1000.0,
+      "step": 0.01,
+      "help": "Rate at which First Aid skill levels up."
+    },
+    {
+      "name": "multiplier_config__electricity",
+      "key": "MultiplierConfig.Electricity",
+      "label": "전기 경험치 배율",
+      "category": "experience",
+      "type": "number",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 1000.0,
+      "step": 0.01,
+      "help": "Rate at which Electrical skill levels up."
+    },
+    {
+      "name": "multiplier_config__metal_welding",
+      "key": "MultiplierConfig.MetalWelding",
+      "label": "용접 경험치 배율",
+      "category": "experience",
+      "type": "number",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 1000.0,
+      "step": 0.01,
+      "help": "Rate at which Welding skill levels up."
+    },
+    {
+      "name": "multiplier_config__mechanics",
+      "key": "MultiplierConfig.Mechanics",
+      "label": "차량 정비 경험치 배율",
+      "category": "experience",
+      "type": "number",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 1000.0,
+      "step": 0.01,
+      "help": "Rate at which Mechanics skill levels up."
+    },
+    {
+      "name": "multiplier_config__tailoring",
+      "key": "MultiplierConfig.Tailoring",
+      "label": "재봉 경험치 배율",
+      "category": "experience",
+      "type": "number",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 1000.0,
+      "step": 0.01,
+      "help": "Rate at which Tailoring skill levels up."
+    },
+    {
+      "name": "multiplier_config__aiming",
+      "key": "MultiplierConfig.Aiming",
+      "label": "조준 경험치 배율",
+      "category": "experience",
+      "type": "number",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 1000.0,
+      "step": 0.01,
+      "help": "Rate at which Aiming skill levels up."
+    },
+    {
+      "name": "multiplier_config__reloading",
+      "key": "MultiplierConfig.Reloading",
+      "label": "재장전 경험치 배율",
+      "category": "experience",
+      "type": "number",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 1000.0,
+      "step": 0.01,
+      "help": "Rate at which Reloading skill levels up."
+    },
+    {
+      "name": "multiplier_config__fishing",
+      "key": "MultiplierConfig.Fishing",
+      "label": "낚시 경험치 배율",
+      "category": "experience",
+      "type": "number",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 1000.0,
+      "step": 0.01,
+      "help": "Rate at which Fishing skill levels up."
+    },
+    {
+      "name": "multiplier_config__trapping",
+      "key": "MultiplierConfig.Trapping",
+      "label": "덫 사냥 경험치 배율",
+      "category": "experience",
+      "type": "number",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 1000.0,
+      "step": 0.01,
+      "help": "Rate at which Trapping skill levels up."
+    },
+    {
+      "name": "multiplier_config__plant_scavenging",
+      "key": "MultiplierConfig.PlantScavenging",
+      "label": "채집 경험치 배율",
+      "category": "experience",
+      "type": "number",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 1000.0,
+      "step": 0.01,
+      "help": "Rate at which Foraging skill levels up."
+    },
+    {
+      "name": "multiplier_config__flint_knapping",
+      "key": "MultiplierConfig.FlintKnapping",
+      "label": "석기 제작 경험치 배율",
+      "category": "experience",
+      "type": "number",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 1000.0,
+      "step": 0.01,
+      "help": "Rate at which Knapping skill levels up."
+    },
+    {
+      "name": "multiplier_config__masonry",
+      "key": "MultiplierConfig.Masonry",
+      "label": "석공 경험치 배율",
+      "category": "experience",
+      "type": "number",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 1000.0,
+      "step": 0.01,
+      "help": "Rate at which Masonry skill levels up."
+    },
+    {
+      "name": "multiplier_config__pottery",
+      "key": "MultiplierConfig.Pottery",
+      "label": "도예 경험치 배율",
+      "category": "experience",
+      "type": "number",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 1000.0,
+      "step": 0.01,
+      "help": "Rate at which Pottery skill levels up."
+    },
+    {
+      "name": "multiplier_config__carving",
+      "key": "MultiplierConfig.Carving",
+      "label": "조각 경험치 배율",
+      "category": "experience",
+      "type": "number",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 1000.0,
+      "step": 0.01,
+      "help": "Rate at which Carving skill levels up."
+    },
+    {
+      "name": "multiplier_config__husbandry",
+      "key": "MultiplierConfig.Husbandry",
+      "label": "동물 돌보기 경험치 배율",
+      "category": "experience",
+      "type": "number",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 1000.0,
+      "step": 0.01,
+      "help": "Rate at which Animal Care skill levels up."
+    },
+    {
+      "name": "multiplier_config__tracking",
+      "key": "MultiplierConfig.Tracking",
+      "label": "추적 경험치 배율",
+      "category": "experience",
+      "type": "number",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 1000.0,
+      "step": 0.01,
+      "help": "Rate at which Tracking skill levels up."
+    },
+    {
+      "name": "multiplier_config__blacksmith",
+      "key": "MultiplierConfig.Blacksmith",
+      "label": "대장장이 경험치 배율",
+      "category": "experience",
+      "type": "number",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 1000.0,
+      "step": 0.01,
+      "help": "Rate at which Blacksmithing skill levels up."
+    },
+    {
+      "name": "multiplier_config__butchering",
+      "key": "MultiplierConfig.Butchering",
+      "label": "도축 경험치 배율",
+      "category": "experience",
+      "type": "number",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 1000.0,
+      "step": 0.01,
+      "help": "Rate at which Butchering skill levels up."
+    },
+    {
+      "name": "multiplier_config__glassmaking",
+      "key": "MultiplierConfig.Glassmaking",
+      "label": "유리 제작 경험치 배율",
+      "category": "experience",
+      "type": "number",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 1000.0,
+      "step": 0.01,
+      "help": "Rate at which Glassmaking skill levels up."
+    }
+  ]
+}

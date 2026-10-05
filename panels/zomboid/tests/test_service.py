@@ -52,7 +52,12 @@ class ServiceTests(unittest.TestCase):
         ini = self.service.server_config_dir / "servertest.ini"
         sandbox = self.service.server_config_dir / "servertest_SandboxVars.lua"
         self.assertIn("DefaultPort=16261", ini.read_text())
-        self.assertIn("ZombieConfig.RespawnHours", sandbox.read_text())
+        content = sandbox.read_text()
+        self.assertIn("VERSION = 6", content)
+        self.assertIn("ZombieConfig = {", content)
+        self.assertIn("        RespawnHours =", content)
+        self.assertNotIn("ZombieConfig.RespawnHours", content)
+        self.assertIn("MultiplierConfig = {", content)
 
     def test_status_is_safe_without_docker_container(self):
         status = self.service.status()

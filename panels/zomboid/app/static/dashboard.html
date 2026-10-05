@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>TechTim Project Zomboid Server Panel</title>
   <link rel="icon" href="/static/zomboid-panel-mark.png?v=1">
-  <link rel="stylesheet" href="/static/app.css?v=1.2.5">
-  <script src="/static/app.js?v=1.2.3" defer></script>
+  <link rel="stylesheet" href="/static/app.css?v=1.3.0">
+  <script src="/static/app.js?v=1.3.0" defer></script>
 </head>
 <body>
 <div class="app-shell">
@@ -119,8 +119,10 @@
     </section>
 
     <section class="view" data-page="sandbox">
-      <div class="page-head"><div><p class="eyebrow">SANDBOX VARIABLES</p><h2>샌드박스 배율</h2><p>좀비, 루팅, 시간, 성장 및 재생성 배율을 관리합니다.</p></div><button class="primary" id="save-sandbox">배율 저장</button></div>
-      <form id="sandbox-form" class="form-sections"><fieldset><legend>월드 시간 · 인프라</legend><div class="form-grid"><label>좀비 개체수<select name="zombies"><option value="1">미친 수준</option><option value="2">매우 많음</option><option value="3">많음</option><option value="4">보통</option><option value="5">적음</option><option value="6">없음</option></select></label><label>분포<select name="distribution"><option value="1">도시 집중</option><option value="2">균등 분포</option></select></label><label>하루 길이 단계<input name="day_length" type="number" min="1" max="26"></label><label>수도 중단 단계<input name="water_shut" type="number" min="1" max="8"></label><label>전기 중단 단계<input name="elec_shut" type="number" min="1" max="8"></label><label>침식 속도<input name="erosion_speed" type="number" min="1" max="5"></label></div></fieldset><fieldset><legend>루팅 · 성장</legend><div class="form-grid"><label>식량 희귀도<input name="food_loot" type="number" min="1" max="6"></label><label>무기 희귀도<input name="weapon_loot" type="number" min="1" max="6"></label><label>기타 희귀도<input name="other_loot" type="number" min="1" max="6"></label><label>경험치 배율<input name="xp_multiplier" type="number" min="0.1" max="100" step="0.1"></label><label>농사 속도<input name="farming_speed" type="number" min="1" max="5"></label><label>자연 자원<input name="nature_abundance" type="number" min="1" max="5"></label></div></fieldset><fieldset><legend>생존 · 좀비 재생성</legend><div class="form-grid"><label>재생성 시간<input name="respawn_hours" type="number" min="0" step="1"></label><label>미확인 지역 시간<input name="respawn_unseen_hours" type="number" min="0" step="1"></label><label>재생성 비율<input name="respawn_multiplier" type="number" min="0" max="1" step="0.01"></label><label>후방 취약도<input name="rear_vulnerability" type="number" min="1" max="3"></label></div><div class="toggle-grid"><label><input name="starter_kit" type="checkbox"> 시작 키트</label><label><input name="nutrition" type="checkbox"> 영양 시스템</label><label><input name="multi_hit" type="checkbox"> 다중 타격</label><label><input name="drag_down" type="checkbox"> 좀비 끌어내리기</label><label><input name="fence_lunge" type="checkbox"> 울타리 돌진</label></div></fieldset></form>
+      <div class="page-head"><div><p class="eyebrow">BUILD 42 · SANDBOX VARIABLES</p><h2>샌드박스 배율</h2><p>Build 42 전체 설정을 13개 카테고리에서 검색하고 관리합니다.</p></div><button class="primary" id="save-sandbox">전체 설정 저장</button></div>
+      <div class="sandbox-toolbar panel"><label><span>설정 검색</span><input id="sandbox-search" type="search" placeholder="예: 좀비, 전리품, 발전기, Population"></label><div><strong id="sandbox-result-count">269개 설정</strong><small>서버가 중지된 상태에서 저장할 수 있습니다.</small></div></div>
+      <nav id="sandbox-categories" class="sandbox-categories" aria-label="샌드박스 설정 카테고리"></nav>
+      <form id="sandbox-form" class="sandbox-settings" aria-live="polite"><div class="sandbox-loading">전체 샌드박스 설정을 불러오는 중입니다.</div></form>
     </section>
 
     <section class="view" data-page="mods">
