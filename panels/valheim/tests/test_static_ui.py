@@ -90,10 +90,11 @@ class StaticUiTests(unittest.TestCase):
         self.assertIn("async function loadMods", script)
         self.assertIn("function renderModPackages", script)
         self.assertIn("/api/mods/install", script)
+        self.assertIn("/api/mods/cleanup", script)
         html = self.read("dashboard.html")
         self.assertIn('aria-label="현재 서버 폴더 경로"', html)
         for control in ("mods-install", "mods-search", "mods-filter", "mods-list", "mods-config-editor",
-                        "mods-export", "mods-import", "mods-disable-all", "mods-diagnose"):
+                        "mods-export", "mods-import", "mods-disable-all", "mods-diagnose", "mods-cleanup"):
             self.assertIn(f'id="{control}"', html)
 
     def test_responsive_shell_has_mobile_breakpoints(self):

@@ -28,16 +28,18 @@ class ModManagerTests(unittest.TestCase):
         self.server.mkdir()
         self.manager = ModManager(self.root, self.server, 20 * 1024**2)
 
-    def loader(self, version="5.4.2202"):
+    def loader(self, version="5.4.2351"):
         return package(self.root, f"denikson-BepInExPack_Valheim-{version}.zip", {
             "manifest.json": manifest("BepInExPack_Valheim", version),
             "BepInExPack_Valheim/BepInEx/core/BepInEx.dll": b"loader",
             "BepInExPack_Valheim/BepInEx/core/BepInEx.Preloader.dll": b"preloader",
             "BepInExPack_Valheim/doorstop_libs/libdoorstop_x64.so": b"doorstop",
-            "BepInExPack_Valheim/start_server_bepinex.sh": b"not-executed",
+            "BepInExPack_Valheim/.doorstop_version": b"4.4.0",
+            "BepInExPack_Valheim/doorstop_config.ini": b"[General]\nenabled=true\ntarget_assembly=BepInEx\\core\\BepInEx.Preloader.dll\n",
+            "BepInExPack_Valheim/start_server_bepinex.sh": b"export DOORSTOP_ENABLED=1\nexport DOORSTOP_TARGET_ASSEMBLY=./BepInEx/core/BepInEx.Preloader.dll\n",
         })
 
-    def plugin(self, name="ExampleMod", version="1.0.0", dependencies=("denikson-BepInExPack_Valheim-5.4.2202",)):
+    def plugin(self, name="ExampleMod", version="1.0.0", dependencies=("denikson-BepInExPack_Valheim-5.4.2351",)):
         return package(self.root, f"TechTim-{name}-{version}.zip", {
             "manifest.json": manifest(name, version, dependencies),
             f"{name}.dll": f"{name}-{version}",
@@ -46,7 +48,7 @@ class ModManagerTests(unittest.TestCase):
 
     def test_install_enables_loader_and_plugin_in_dependency_order(self):
         results = self.manager.install_files([(self.plugin(), "TechTim-ExampleMod-1.0.0.zip"),
-                                              (self.loader(), "denikson-BepInExPack_Valheim-5.4.2202.zip")])
+                                              (self.loader(), "denikson-BepInExPack_Valheim-5.4.2351.zip")])
         self.assertEqual(len(results), 2)
         self.assertTrue(all(result["enabled"] for result in results), results)
         self.assertTrue(self.manager.loader_ready())
@@ -85,6 +87,34 @@ class ModManagerTests(unittest.TestCase):
         self.manager.remove(updated["id"])
         self.assertFalse(any(package["name"] == "ExampleMod" for package in self.manager.packages()))
         self.assertTrue(any(self.manager.trash.iterdir()))
+
+    def test_existing_mod_cleanup_preserves_server_and_archives_originals(self):
+        loader, plugin = self.loader(), self.plugin()
+        self.manager.install_files([(loader, loader.name), (plugin, plugin.name)])
+        (self.server / "BepInEx" / "config").mkdir(parents=True, exist_ok=True)
+        (self.server / "BepInEx" / "config" / "manual.cfg").write_text("enabled=true")
+        (self.server / "valheim_server.x86_64").write_bytes(b"server")
+        (self.server / "unrelated.dll").write_bytes(b"keep")
+
+        plan = self.manager.cleanup_plan()
+        self.assertGreaterEqual(plan["file_count"], 6)
+        self.assertIn("/server/BepInEx", [entry["path"] for entry in plan["entries"]])
+        with self.assertRaisesRegex(ValueError, "다시 확인"):
+            self.manager.cleanup_existing("bad")
+
+        changed_plan = self.manager.cleanup_plan()
+        (self.server / "BepInEx" / "config" / "changed.cfg").write_text("changed")
+        with self.assertRaisesRegex(ValueError, "변경"):
+            self.manager.cleanup_existing(changed_plan["token"])
+
+        result = self.manager.cleanup_existing(self.manager.cleanup_plan()["token"])
+        archive = self.server / result["archive"].removeprefix("/server/")
+        self.assertEqual(self.manager.packages(), [])
+        self.assertFalse(self.manager.loader_ready())
+        self.assertTrue((archive / "server" / "BepInEx" / "config" / "manual.cfg").is_file())
+        self.assertTrue((archive / "registered-mods").is_dir())
+        self.assertEqual((self.server / "valheim_server.x86_64").read_bytes(), b"server")
+        self.assertEqual((self.server / "unrelated.dll").read_bytes(), b"keep")
 
     def test_configuration_edit_creates_backup(self):
         config = self.server / "BepInEx" / "config" / "example.cfg"

@@ -140,9 +140,9 @@ class LifecycleTests(ServiceCase):
 
         status = read_json(self.service.root / "panel-update-status.json", {})
         self.assertEqual(status["status"], "completed")
-        self.assertEqual(status["version"], "1.4.0")
+        self.assertEqual(status["version"], "1.5.0")
         self.assertEqual(status["image_id"], "runtime-imag")
-        self.assertIn("1.4.0", status["message"])
+        self.assertIn("1.5.0", status["message"])
 
     def test_panel_update_check_uses_registry_digest_and_cache(self):
         self.docker.containers.add(self.settings.panel_container)

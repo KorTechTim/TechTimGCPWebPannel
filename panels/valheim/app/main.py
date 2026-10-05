@@ -49,6 +49,10 @@ class ModConfigurationUpdate(BaseModel):
     content: str = Field(max_length=1024 * 1024)
 
 
+class ModCleanupRequest(BaseModel):
+    token: str = Field(pattern=r"^[0-9a-f]{64}$")
+
+
 def create_app(settings=None, docker_factory=None):
     settings = settings or Settings.from_env()
     service = PanelService(settings, docker_factory)
@@ -400,6 +404,20 @@ def create_app(settings=None, docker_factory=None):
     def list_mods(request: Request):
         auth.require(request)
         return service.mods.public_packages()
+
+    @app.get("/api/mods/cleanup")
+    def preview_mod_cleanup(request: Request):
+        auth.require(request)
+        service.require_stopped()
+        return service.mods.cleanup_plan()
+
+    @app.post("/api/mods/cleanup")
+    def cleanup_mods(payload: ModCleanupRequest, request: Request):
+        auth.require(request)
+        with service.operation("기존 모드 정리"):
+            service.require_stopped()
+            result = service.mods.cleanup_existing(payload.token)
+        return {"status": "ok", "message": "기존 BepInEx와 모드를 정리하고 원본을 보관했습니다.", **result}
 
     @app.post("/api/mods/install")
     async def install_mods(request: Request, files: list[UploadFile] = File(...)):

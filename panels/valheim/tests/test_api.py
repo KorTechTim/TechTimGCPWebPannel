@@ -63,11 +63,13 @@ class ApiTests(ServiceCase):
             ('get', '/api/backups', {}), ('get', '/api/permissions', {}), ('get', '/api/restart-schedule', {}),
             ('get', '/api/server-files', {}),
             ('get', '/api/mods', {}), ('get', '/api/mods/configs', {}), ('get', '/api/mods/diagnose', {}),
+            ('get', '/api/mods/cleanup', {}),
             ('get', '/api/panel/update/check', {}),
             ('post', '/api/install', {}), ('post', '/api/panel/update', {}), ('post', '/api/server/start', {}),
             ('post', '/api/config', {'json': {}}),
             ('post', '/api/server-files/mkdir', {'json': {'name': 'mods'}}),
             ('post', '/api/mods/disable-all', {}),
+            ('post', '/api/mods/cleanup', {'json': {'token': '0' * 64}}),
         ]:
             with self.subTest(url=url): self.assertEqual(getattr(self.client, method)(url, **kwargs).status_code, 401)
 
@@ -192,19 +194,21 @@ class ApiTests(ServiceCase):
 
     def test_mod_management_install_toggle_config_and_diagnose(self):
         self.authenticated(); self.installed()
-        loader_manifest = json.dumps({"name": "BepInExPack_Valheim", "version_number": "5.4.2202", "dependencies": []})
+        loader_manifest = json.dumps({"name": "BepInExPack_Valheim", "version_number": "5.4.2351", "dependencies": []})
         plugin_manifest = json.dumps({"name": "ExampleMod", "version_number": "1.0.0",
-                                      "dependencies": ["denikson-BepInExPack_Valheim-5.4.2202"]})
+                                      "dependencies": ["denikson-BepInExPack_Valheim-5.4.2351"]})
         loader = mod_archive({
             "manifest.json": loader_manifest,
             "Pack/BepInEx/core/BepInEx.dll": b"loader",
             "Pack/BepInEx/core/BepInEx.Preloader.dll": b"preloader",
             "Pack/doorstop_libs/libdoorstop_x64.so": b"doorstop",
+            "Pack/.doorstop_version": b"4.4.0",
+            "Pack/doorstop_config.ini": b"[General]\nenabled=true\ntarget_assembly=BepInEx\\core\\BepInEx.Preloader.dll\n",
         })
         plugin = mod_archive({"manifest.json": plugin_manifest, "ExampleMod.dll": b"plugin"})
         response = self.client.post('/api/mods/install', files=[
             ("files", ("TechTim-ExampleMod-1.0.0.zip", plugin, "application/zip")),
-            ("files", ("denikson-BepInExPack_Valheim-5.4.2202.zip", loader, "application/zip")),
+            ("files", ("denikson-BepInExPack_Valheim-5.4.2351.zip", loader, "application/zip")),
         ])
         self.assertEqual(response.status_code, 200, response.text)
         payload = self.client.get('/api/mods').json()
@@ -224,6 +228,13 @@ class ApiTests(ServiceCase):
         self.assertEqual(saved.status_code, 200)
         self.assertEqual(config.read_text(), "enabled=false\n")
         self.assertIn("BepInEx 로더", self.client.get('/api/mods/diagnose').json()["report"])
+
+        cleanup = self.client.get('/api/mods/cleanup').json()
+        self.assertGreater(cleanup["file_count"], 0)
+        cleaned = self.client.post('/api/mods/cleanup', json={"token": cleanup["token"]})
+        self.assertEqual(cleaned.status_code, 200, cleaned.text)
+        self.assertTrue(cleaned.json()["archive"].startswith("/server/.techtim-mod-cleanup/"))
+        self.assertEqual(self.client.get('/api/mods').json()["packages"], [])
 
     def test_mod_mutations_are_blocked_while_server_runs(self):
         self.authenticated(); self.installed(); self.docker.containers.add()

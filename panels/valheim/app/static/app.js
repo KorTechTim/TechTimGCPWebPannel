@@ -692,7 +692,7 @@ function setModsMessage(text, error = false) { message('mods-message', text, err
 
 function updateModControls() {
   const enabled = writable();
-  ['mods-install', 'mods-import', 'mods-export', 'mods-disable-all', 'mods-config-save'].forEach(id => {
+  ['mods-install', 'mods-import', 'mods-export', 'mods-disable-all', 'mods-cleanup', 'mods-config-save'].forEach(id => {
     const control = $(id); if (control) control.disabled = !enabled || (id === 'mods-config-save' && !$('mods-config-select')?.value);
   });
   document.querySelectorAll('.mod-write-action').forEach(control => { control.disabled = !enabled; });
@@ -819,6 +819,19 @@ $('mods-disable-all').onclick = async () => {
   if (!await confirmAction('모드 모두 끄기', 'BepInEx와 등록된 모든 모드를 끕니다. 파일과 설정은 보관됩니다.', '모두 끄기')) return;
   try { const data = await api('/api/mods/disable-all', {method: 'POST'}); await loadMods(); setModsMessage(data.message); }
   catch (error) { setModsMessage(error.message, true); }
+};
+$('mods-cleanup').onclick = async () => {
+  try {
+    const plan = await api('/api/mods/cleanup');
+    if (!plan.entries.length) { setModsMessage('정리할 기존 BepInEx 또는 모드 파일이 없습니다.'); return; }
+    const targets = plan.entries.map(item => `· ${item.path}`).join('\n');
+    const text = `BepInEx와 모든 모드·설정·등록 목록을 초기화합니다.\n정리 대상: 파일 ${plan.file_count}개 · ${bytes(plan.bytes)}\n${targets}\n\n월드·백업·서버 엔진은 유지되며 원본은 서버 폴더 안에 보관됩니다.`;
+    if (!await confirmAction('기존 BepInEx·모드 정리', text, '원본 보관 후 정리')) return;
+    uiBusy = true; updateControls(); setModsMessage('기존 모드 파일을 원본 보관 폴더로 이동하고 있습니다.');
+    const data = await jsonPost('/api/mods/cleanup', {token: plan.token});
+    await loadMods(); setModsMessage(`${data.message} 보관 위치: ${data.archive}`);
+  } catch (error) { setModsMessage(error.message, true); }
+  finally { uiBusy = false; updateControls(); }
 };
 $('mods-diagnose').onclick = async () => {
   try { const data = await api('/api/mods/diagnose'); $('mods-diagnosis').textContent = data.report; $('mods-diagnosis').hidden = false; }

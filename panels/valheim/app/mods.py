@@ -25,6 +25,10 @@ LOADER_TOP_LEVEL = {
     "BepInEx", "unstripped_corlib", "doorstop_libs", "doorstop_config.ini",
     ".doorstop_version", "start_game_bepinex.sh", "start_server_bepinex.sh", "winhttp.dll", "version.dll",
 }
+MOD_CLEANUP_NAMES = (
+    "BepInEx", "doorstop_libs", "unstripped_corlib", "winhttp.dll", "version.dll",
+    "doorstop_config.ini", ".doorstop_version", "start_game_bepinex.sh", "start_server_bepinex.sh", ".t2-mods",
+)
 
 
 def file_hash(path: Path) -> str:
@@ -53,6 +57,7 @@ class ModManager:
         self.root = data_root / "mods"
         self.trash = data_root / "mod-trash"
         self.exports = data_root / "exports"
+        self.cleanup_root = server_root / ".techtim-mod-cleanup"
         self.max_bytes = max_bytes
         for path in (self.root, self.trash, self.exports):
             path.mkdir(parents=True, exist_ok=True)
@@ -118,7 +123,7 @@ class ModManager:
             if relative.casefold().startswith("bepinex/config/"):
                 continue
             if target.exists():
-                return f"같은 위치에 파일이 있습니다: {relative}"
+                return f"같은 위치에 파일이 있습니다: {relative} · 다시 설치하려면 기존 모드 정리를 이용해주세요."
         return None
 
     def install_files(self, uploads: list[tuple[Path, str]]) -> list[dict]:
@@ -238,6 +243,58 @@ class ModManager:
         self._validate_disable(package, self.packages())
         self._discard(package, trash=True)
 
+    def cleanup_plan(self) -> dict:
+        targets = self._cleanup_targets()
+        entries = []
+        fingerprint = []
+        total_files = 0
+        total_bytes = 0
+        for key, label, path in targets:
+            files, size, records = self._cleanup_snapshot(path)
+            entries.append({"key": key, "path": label, "file_count": files, "bytes": size})
+            fingerprint.append({"key": key, "records": records})
+            total_files += files
+            total_bytes += size
+        token = hashlib.sha256(json.dumps(fingerprint, ensure_ascii=False, separators=(",", ":")).encode()).hexdigest()
+        return {"token": token, "entries": entries, "file_count": total_files, "bytes": total_bytes}
+
+    def cleanup_existing(self, approved_token: str) -> dict:
+        if not re.fullmatch(r"[0-9a-f]{64}", str(approved_token or "")):
+            raise ValueError("기존 모드 정리 내용을 다시 확인해주세요.")
+        plan = self.cleanup_plan()
+        if not plan["entries"]:
+            raise ValueError("정리할 기존 BepInEx 또는 모드 파일이 없습니다.")
+        if plan["token"] != approved_token:
+            raise ValueError("정리 대상이 변경되었습니다. 목록을 다시 확인해주세요.")
+
+        archive = self.cleanup_root / f"{datetime.now():%Y%m%d-%H%M%S}-{secrets.token_hex(4)}"
+        archive.mkdir(parents=True, exist_ok=False)
+        journal = archive / "cleanup.json"
+        write_json(journal, {"status": "moving", "plan": plan})
+        moved = []
+        try:
+            for key, _, source in self._cleanup_targets():
+                destination = inside(archive, key)
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                source.replace(destination)
+                moved.append((source, destination))
+            self.root.mkdir(parents=True, exist_ok=True)
+            write_json(journal, {"status": "complete", "plan": plan})
+        except BaseException as failure:
+            rollback_errors = []
+            for source, destination in reversed(moved):
+                try:
+                    if source.exists() and source.is_dir() and not any(source.iterdir()):
+                        source.rmdir()
+                    source.parent.mkdir(parents=True, exist_ok=True)
+                    destination.replace(source)
+                except OSError as error:
+                    rollback_errors.append(str(error))
+            if rollback_errors:
+                raise OSError(f"모드 정리 실패 후 일부 파일을 복원하지 못했습니다: {' / '.join(rollback_errors)}") from failure
+            raise
+        return {**plan, "archive": f"/server/{archive.relative_to(self.server).as_posix()}"}
+
     def disable_all(self) -> int:
         packages = self.packages()
         enabled = [package for package in packages if package["enabled"]]
@@ -247,7 +304,7 @@ class ModManager:
             untracked = [path for path in bepinex.rglob("*.dll") if not path.is_symlink()
                          and path.relative_to(self.server).as_posix() not in tracked]
             if untracked:
-                raise ValueError("수동 설치한 미등록 모드가 있습니다. 서버 폴더에서 먼저 별도로 보관해주세요.")
+                raise ValueError("수동 설치한 미등록 모드가 있습니다. 기존 모드 정리로 원본을 보관한 뒤 다시 설치해주세요.")
         count = 0
         for package in sorted(enabled, key=lambda item: item["is_loader"]):
             self.set_enabled(package["id"], False, check_dependents=False)
@@ -358,6 +415,35 @@ class ModManager:
         minimum = semantic_version(match.group("version")) if match else None
         return bool(match and installed and minimum and package["package_id"] == f"{match.group('owner')}-{match.group('name')}"
                     and installed >= minimum)
+
+    def _cleanup_targets(self) -> list[tuple[str, str, Path]]:
+        targets = []
+        for name in MOD_CLEANUP_NAMES:
+            path = inside(self.server, name)
+            if path.exists() or path.is_symlink():
+                targets.append((f"server/{name}", f"/server/{name}", path))
+        if self.root.exists() and any(self.root.iterdir()):
+            targets.append(("registered-mods", "등록된 모드 원본과 목록", self.root))
+        return targets
+
+    @staticmethod
+    def _cleanup_snapshot(path: Path) -> tuple[int, int, list[list[object]]]:
+        records = []
+        file_count = 0
+        total_bytes = 0
+        nodes = [path]
+        if path.is_dir() and not path.is_symlink():
+            nodes.extend(sorted(path.rglob("*")))
+        for node in nodes:
+            details = node.lstat()
+            relative = "." if node == path else node.relative_to(path).as_posix()
+            kind = "link" if node.is_symlink() else "dir" if node.is_dir() else "file"
+            size = details.st_size if kind == "file" else 0
+            if kind != "dir":
+                file_count += 1
+                total_bytes += size
+            records.append([relative, kind, size, details.st_mtime_ns])
+        return file_count, total_bytes, records
 
     def _import(self, upload: Path, original_name: str, allow_duplicate: bool = False) -> dict:
         suffix = Path(original_name).suffix.casefold()

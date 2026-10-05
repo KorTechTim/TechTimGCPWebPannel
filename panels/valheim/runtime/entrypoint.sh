@@ -52,6 +52,9 @@ case "${1:-serve}" in
     if [ -s /server/BepInEx/core/BepInEx.dll ] \
       && [ -s /server/BepInEx/core/BepInEx.Preloader.dll ] \
       && [ -s /server/doorstop_libs/libdoorstop_x64.so ]; then
+      # Doorstop 4 uses ENABLED/TARGET_ASSEMBLY; keep the older names for legacy packs.
+      export DOORSTOP_ENABLED=1
+      export DOORSTOP_TARGET_ASSEMBLY=/server/BepInEx/core/BepInEx.Preloader.dll
       export DOORSTOP_ENABLE=TRUE
       export DOORSTOP_INVOKE_DLL_PATH=/server/BepInEx/core/BepInEx.Preloader.dll
       export DOORSTOP_CORLIB_OVERRIDE_PATH=/server/unstripped_corlib
