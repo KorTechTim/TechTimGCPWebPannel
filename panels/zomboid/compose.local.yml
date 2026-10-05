@@ -1,0 +1,22 @@
+services:
+  zomboid-panel:
+    build: .
+    image: techtim/zomboid-panel:local
+    container_name: zomboid-panel
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:8080:8080'
+    environment:
+      DATA_DIR: /data
+      HOST_DATA_DIR: ${ZOMBOID_DATA_DIR:?Set an absolute host directory}
+      ZOMBOID_RUNTIME_IMAGE: techtim/zomboid-runtime:local
+      PULL_RUNTIME_IMAGE: '0'
+      PANEL_IMAGE: techtim/zomboid-panel:local
+      STORAGE_CLEANUP_THRESHOLD_PERCENT: '80'
+      STORAGE_CLEANUP_TARGET_PERCENT: '75'
+      STORAGE_CLEANUP_INTERVAL_SECONDS: '300'
+      STORAGE_MIN_BACKUPS: '3'
+    volumes:
+      - ${ZOMBOID_DATA_DIR}:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /proc:/host/proc:ro

@@ -1,0 +1,81 @@
+name: Build Zomboid Panel
+on:
+  pull_request:
+    paths: ['panels/zomboid/**', 'zomboid/**', '.github/workflows/build-zomboid-panel.yml']
+  push:
+    branches: [main]
+    paths: ['panels/zomboid/**', 'zomboid/**', '.github/workflows/build-zomboid-panel.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r panels/zomboid/requirements-dev.txt
+      - name: Run Zomboid tests
+        env:
+          PYTHONPATH: panels/zomboid
+          DATA_DIR: /tmp/zomboid-tests-bootstrap
+          HOST_DATA_DIR: /tmp/zomboid-tests-bootstrap
+          SCHEDULER_ENABLED: '0'
+        run: python -m unittest discover -s panels/zomboid/tests -v
+      - name: Check scripts
+        run: |
+          bash -n zomboid/zomboid-webui-install.sh
+          bash -n zomboid/gcp-create.sh
+          bash -n panels/zomboid/runtime/entrypoint.sh
+          node --check panels/zomboid/app/static/app.js
+          node --check panels/zomboid/app/static/login.js
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        include:
+          - image: zomboid-panel
+            context: ./panels/zomboid
+          - image: zomboid-runtime
+            context: ./panels/zomboid/runtime
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          platforms: linux/amd64
+          push: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
+          tags: |
+            ghcr.io/kortechtim/${{ matrix.image }}:latest
+            ghcr.io/kortechtim/${{ matrix.image }}:${{ github.sha }}
+      - name: Publish non-root Zomboid runtime channel
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && matrix.image == 'zomboid-runtime'
+        run: |
+          docker buildx imagetools create \
+            --tag ghcr.io/kortechtim/zomboid-runtime:steamcmd-nonroot-v1 \
+            ghcr.io/kortechtim/zomboid-runtime:${GITHUB_SHA}
+      - name: Verify Zomboid runtime drops root privileges
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && matrix.image == 'zomboid-runtime'
+        run: |
+          docker pull "ghcr.io/kortechtim/zomboid-runtime:${GITHUB_SHA}"
+          docker run --rm \
+            --cap-drop ALL \
+            --cap-add CHOWN \
+            --cap-add DAC_OVERRIDE \
+            --cap-add SETGID \
+            --cap-add SETUID \
+            --security-opt no-new-privileges:true \
+            "ghcr.io/kortechtim/zomboid-runtime:${GITHUB_SHA}" check-user
