@@ -16,10 +16,12 @@ from starlette.background import BackgroundTask
 
 from .auth import Auth, SESSION_COOKIE, SESSION_SECONDS
 from .config import PANEL_VERSION, RestartSchedule, SandboxConfig, Settings, sandbox_schema
+from .discord_webhook import normalize_webhook_url
 from .service import BusyError, PanelService
 from .storage import inside
 
 STATIC_DIR = Path(__file__).parent / "static"
+TEXT_EDITOR_MAX_BYTES = 2 * 1024 * 1024
 
 
 class Login(BaseModel):
@@ -64,6 +66,18 @@ class ConsoleCommand(BaseModel):
         if not command or any(ord(char) < 32 for char in command):
             raise ValueError("명령어에는 줄바꿈이나 제어 문자를 사용할 수 없습니다.")
         return command
+
+
+class DiscordConfigUpdate(BaseModel):
+    enabled: bool = False
+    webhook_url: str = Field(default="", max_length=500)
+    clear_webhook: bool = False
+    username: str = Field(default="TechTim Project Zomboid Server", min_length=1, max_length=80)
+    notify_server_start: bool = True
+    notify_server_stop: bool = True
+    notify_server_restart: bool = True
+    notify_backup: bool = True
+    notify_errors: bool = True
 
 
 def create_app(settings=None, docker_factory=None):
@@ -211,6 +225,44 @@ def create_app(settings=None, docker_factory=None):
     def save_schedule(payload: RestartSchedule, request: Request):
         auth.require(request); return service.save_schedule(payload.model_dump())
 
+    @app.get("/api/discord")
+    def get_discord_config(request: Request):
+        auth.require(request)
+        return {"status": "ok", "config": service.public_discord_config()}
+
+    @app.post("/api/discord")
+    def save_discord_config(payload: DiscordConfigUpdate, request: Request):
+        auth.require(request)
+        existing = service.discord_config()
+        webhook_url = existing.webhook_url
+        if payload.clear_webhook:
+            webhook_url = ""
+        elif payload.webhook_url.strip():
+            webhook_url = normalize_webhook_url(payload.webhook_url)
+        if payload.enabled and not webhook_url:
+            raise ValueError("Discord 연동을 사용하려면 웹훅 URL을 먼저 등록해주세요.")
+        values = payload.model_dump(exclude={"clear_webhook"})
+        values["webhook_url"] = webhook_url
+        return {
+            "status": "ok",
+            "message": "Discord 연동 설정이 저장되었습니다.",
+            "config": service.save_discord_config(values),
+        }
+
+    @app.post("/api/discord/test")
+    def test_discord_webhook(request: Request):
+        auth.require(request)
+        try:
+            service.deliver_discord_event(
+                "test",
+                "Discord 연동 테스트 성공",
+                "TechTim Project Zomboid Server Panel과 Discord 채널이 정상적으로 연결되었습니다.",
+                [{"name": "알림 상태", "value": "정상", "inline": True}],
+            )
+        except Exception as error:
+            raise HTTPException(status_code=502, detail=str(error)) from error
+        return {"status": "sent", "message": "Discord 테스트 메시지를 전송했습니다."}
+
     @app.get("/api/status")
     @app.get("/api/server/status")
     def status(request: Request):
@@ -343,6 +395,38 @@ def create_app(settings=None, docker_factory=None):
         entries.sort(key=lambda item: (item["type"] != "dir", item["name"].casefold()))
         return {"root": "/data", "path": relative(target),
                 "parent": relative(target.parent) if target != service.data.resolve() else "", "entries": entries}
+
+    def editable_text_file(path):
+        target = data_path(path)
+        if not target.is_file():
+            raise FileNotFoundError(path)
+        if target.stat().st_size > TEXT_EDITOR_MAX_BYTES:
+            raise HTTPException(413, "2MB 이하의 텍스트 파일만 편집할 수 있습니다.")
+        raw = target.read_bytes()
+        if b"\x00" in raw:
+            raise ValueError("바이너리 파일은 텍스트 편집기로 열 수 없습니다.")
+        try:
+            return target, raw.decode("utf-8")
+        except UnicodeDecodeError as error:
+            raise ValueError("UTF-8 텍스트 파일만 편집할 수 있습니다.") from error
+
+    @app.get("/api/files/text")
+    def read_explorer_text_file(path: str, request: Request):
+        auth.require(request); service.require_stopped()
+        target, content = editable_text_file(path)
+        return {"path": relative(target), "name": target.name, "content": content,
+                "size": target.stat().st_size}
+
+    @app.post("/api/files/text")
+    def write_explorer_text_file(path: str, payload: TextFileUpdate, request: Request):
+        auth.require(request); service.require_stopped()
+        target, _content = editable_text_file(path)
+        encoded = payload.content.encode("utf-8")
+        if len(encoded) > TEXT_EDITOR_MAX_BYTES:
+            raise HTTPException(413, "2MB 이하의 텍스트 파일만 편집할 수 있습니다.")
+        service._atomic_text(target, payload.content)
+        return {"status": "ok", "path": relative(target), "name": target.name,
+                "size": len(encoded), "message": "파일을 저장했습니다."}
 
     @app.post("/api/files/directory")
     def create_directory(payload: DirectoryCreate, request: Request):

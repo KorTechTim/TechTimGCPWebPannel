@@ -182,6 +182,26 @@ class RestartSchedule(BaseModel):
         return sorted(set(values))
 
 
+class DiscordConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    enabled: bool = False
+    webhook_url: str = Field(default="", max_length=500)
+    username: str = Field(default="TechTim Project Zomboid Server", min_length=1, max_length=80)
+    notify_server_start: bool = True
+    notify_server_stop: bool = True
+    notify_server_restart: bool = True
+    notify_backup: bool = True
+    notify_errors: bool = True
+
+    @field_validator("username")
+    @classmethod
+    def clean_username(cls, value):
+        value = value.strip()
+        if not value or any(ord(char) < 32 for char in value):
+            raise ValueError("Discord 표시 이름을 확인해주세요.")
+        return value
+
+
 def ini_values(config: ServerConfig) -> dict[str, str]:
     return {
         "Public": str(config.public).lower(), "PublicName": config.server_name,

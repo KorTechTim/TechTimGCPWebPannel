@@ -113,6 +113,13 @@ class ServiceTests(unittest.TestCase):
         self.assertIn("[REDACTED]", report)
         self.assertNotIn("support-secret", report)
 
+    def test_completed_server_operation_maps_to_discord_event(self):
+        events = []
+        self.service.notify_discord_event = lambda *args: events.append(args)
+        self.service._notify_completed_operation("서버 시작")
+        self.assertEqual(events[0][0], "server_start")
+        self.assertIn("서버 시작", events[0][1])
+
 
 if __name__ == "__main__":
     unittest.main()

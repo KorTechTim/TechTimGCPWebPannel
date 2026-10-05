@@ -13,12 +13,37 @@ import zipfile
 import docker
 from docker.errors import APIError, DockerException, NotFound
 
-from .config import (PANEL_VERSION, SERVER_PROFILE, STEAM_APP_ID, SandboxConfig,
-                     ServerConfig, RestartSchedule, Settings, ini_values,
-                     migrate_sandbox_payload, sandbox_values)
+from .config import (PANEL_VERSION, SERVER_PROFILE, STEAM_APP_ID, DiscordConfig,
+                     SandboxConfig, ServerConfig, RestartSchedule, Settings,
+                     ini_values, migrate_sandbox_payload, sandbox_values)
+from .discord_webhook import (build_webhook_payload, execute_webhook,
+                              masked_webhook_url, normalize_webhook_url)
 from .storage import read_json, write_json
 
 KST = timezone(timedelta(hours=9), name="KST")
+DISCORD_EVENT_SETTINGS = {
+    "server_start": "notify_server_start",
+    "server_stop": "notify_server_stop",
+    "server_restart": "notify_server_restart",
+    "backup": "notify_backup",
+    "error": "notify_errors",
+}
+DISCORD_EVENT_COLORS = {
+    "server_start": 0x4F8B65,
+    "server_stop": 0x96564C,
+    "server_restart": 0xC58C3F,
+    "backup": 0x4B8495,
+    "error": 0xB7463F,
+    "test": 0x5865F2,
+}
+DISCORD_OPERATION_EVENTS = {
+    "서버 시작": ("server_start", "Project Zomboid 서버 시작", "게임 서버가 정상적으로 시작되었습니다."),
+    "서버 중지": ("server_stop", "Project Zomboid 서버 중지", "게임 서버가 정상적으로 중지되었습니다."),
+    "서버 재시작": ("server_restart", "Project Zomboid 서버 재시작", "게임 서버가 정상적으로 재시작되었습니다."),
+    "예약 재시작": ("server_restart", "예약 재시작 완료", "예약된 게임 서버 재시작을 완료했습니다."),
+    "수동 백업": ("backup", "서버 백업 완료", "세이브와 설정 파일 백업을 생성했습니다."),
+    "백업 복원": ("backup", "서버 백업 복원 완료", "선택한 백업을 서버에 복원했습니다."),
+}
 
 
 class BusyError(RuntimeError):
@@ -41,6 +66,7 @@ class PanelService:
         self.config_path = self.data / "config.json"
         self.sandbox_path = self.data / "sandbox.json"
         self.schedule_path = self.data / "restart-schedule.json"
+        self.discord_path = self.data / "discord-config.json"
         self.operation_path = self.data / "operation.json"
         self.update_status_path = self.data / "panel-update-status.json"
         self.lock = Lock()
@@ -58,6 +84,8 @@ class PanelService:
             write_json(self.sandbox_path, SandboxConfig().model_dump())
         if not self.schedule_path.exists():
             write_json(self.schedule_path, RestartSchedule().model_dump())
+        if not self.discord_path.exists():
+            write_json(self.discord_path, DiscordConfig().model_dump())
         self.render_game_files()
 
     def _client(self):
@@ -85,9 +113,11 @@ class PanelService:
         try:
             action()
             self._operation("completed", name, "작업을 완료했습니다.")
+            self._notify_completed_operation(name)
         except Exception as error:
             self._log("control", f"[{name}] 실패: {error}")
             self._operation("failed", name, str(error))
+            self.notify_discord_event("error", f"{name} 실패", str(error))
         finally:
             with self.lock:
                 self.busy = False
@@ -98,8 +128,10 @@ class PanelService:
         try:
             yield
             self._operation("completed", name, "작업을 완료했습니다.")
+            self._notify_completed_operation(name)
         except Exception as error:
             self._operation("failed", name, str(error))
+            self.notify_discord_event("error", f"{name} 실패", str(error))
             raise
         finally:
             del handle
@@ -203,6 +235,35 @@ class PanelService:
     def schedule(self):
         return RestartSchedule.model_validate(read_json(self.schedule_path, {}))
 
+    def discord_config(self):
+        stored = read_json(self.discord_path, {})
+        defaults = DiscordConfig().model_dump()
+        values = {key: stored.get(key, default) for key, default in defaults.items()}
+        webhook_url = str(values.get("webhook_url") or "").strip()
+        if webhook_url:
+            try:
+                webhook_url = normalize_webhook_url(webhook_url)
+            except ValueError:
+                webhook_url = ""
+        values["webhook_url"] = webhook_url
+        return DiscordConfig.model_validate(values)
+
+    def public_discord_config(self):
+        config = self.discord_config()
+        data = config.model_dump(exclude={"webhook_url"})
+        data["webhook_configured"] = bool(config.webhook_url)
+        data["webhook_hint"] = masked_webhook_url(config.webhook_url)
+        return data
+
+    def save_discord_config(self, payload):
+        config = DiscordConfig.model_validate(payload)
+        write_json(self.discord_path, config.model_dump())
+        try:
+            os.chmod(self.discord_path, 0o600)
+        except OSError:
+            pass
+        return self.public_discord_config()
+
     def public_config(self):
         data = self.config().model_dump()
         for key in ("password", "admin_password", "rcon_password"):
@@ -236,6 +297,46 @@ class PanelService:
         schedule = RestartSchedule.model_validate(payload)
         write_json(self.schedule_path, schedule.model_dump())
         return schedule.model_dump()
+
+    def discord_event_fields(self, extra_fields=None):
+        return [
+            {"name": "서버", "value": self.config().server_name, "inline": True},
+            {"name": "프로필", "value": SERVER_PROFILE, "inline": True},
+            {"name": "발생 시각", "value": datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S KST"), "inline": True},
+            *(extra_fields or []),
+        ]
+
+    def deliver_discord_event(self, event, title, message, fields=None):
+        config = self.discord_config()
+        if not config.webhook_url:
+            raise ValueError("테스트할 Discord 웹훅 URL을 먼저 저장해주세요.")
+        payload = build_webhook_payload(
+            username=config.username,
+            title=title,
+            description=message,
+            color=DISCORD_EVENT_COLORS.get(event, DISCORD_EVENT_COLORS["test"]),
+            fields=self.discord_event_fields(fields),
+        )
+        execute_webhook(config.webhook_url, payload)
+
+    def notify_discord_event(self, event, title, message, fields=None):
+        config = self.discord_config()
+        setting = DISCORD_EVENT_SETTINGS.get(event)
+        if not config.enabled or not config.webhook_url or (setting and not getattr(config, setting, False)):
+            return
+
+        def send():
+            try:
+                self.deliver_discord_event(event, title, message, fields)
+            except Exception as error:
+                self._log("control", f"Discord 알림 전송 실패: {error}")
+
+        Thread(target=send, daemon=True, name=f"zomboid-discord-{event}").start()
+
+    def _notify_completed_operation(self, name):
+        event = DISCORD_OPERATION_EVENTS.get(name)
+        if event:
+            self.notify_discord_event(*event)
 
     def render_game_files(self):
         self.server_config_dir.mkdir(parents=True, exist_ok=True)

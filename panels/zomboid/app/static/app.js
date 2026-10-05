@@ -5,11 +5,30 @@ const $$ = selector => [...document.querySelectorAll(selector)];
 let statusCache = null;
 let configCache = null;
 let sandboxSchemaCache = null;
+let discordWebhookConfigured = false;
 let activeSandboxCategory = 'population';
 let currentLog = 'server';
 let currentPath = '';
+let editingFilePath = '';
+let fileEditorOriginal = '';
 const commandHistory = [];
 let commandHistoryIndex = 0;
+const RESOURCE_REFRESH_MS = 1000;
+const RESOURCE_HISTORY_WINDOW_MS = 8 * 60 * 60 * 1000;
+const RESOURCE_HISTORY_STORAGE_KEY = 'techtim-zomboid-resource-history-v1';
+const STOPPED_ONLY_VIEWS = new Set(['settings', 'sandbox', 'mods', 'players', 'backups', 'advanced', 'files']);
+let resourceRefreshPending = false;
+let resourceHistorySavedAt = 0;
+let copyTooltipTimer = null;
+
+function loadResourceHistory() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(RESOURCE_HISTORY_STORAGE_KEY) || '[]');
+    const cutoff = Date.now() - RESOURCE_HISTORY_WINDOW_MS;
+    return Array.isArray(parsed) ? parsed.filter(point => Array.isArray(point) && point.length === 3 && Number(point[0]) >= cutoff) : [];
+  } catch (_error) { return []; }
+}
+const resourceHistory = loadResourceHistory();
 
 async function api(url, options = {}) {
   const response = await fetch(url, {credentials: 'same-origin', ...options});
@@ -23,6 +42,20 @@ async function api(url, options = {}) {
 function json(method, body) { return {method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)}; }
 function message(text, error = false) { const box = $('#global-message'); box.textContent = text || ''; box.classList.toggle('error', error); }
 async function perform(work, success) { try { message('처리 중입니다.'); const result = await work(); message(success || result?.message || '완료했습니다.'); return result; } catch (error) { message(error.message, true); throw error; } }
+async function copyText(value) {
+  try {
+    if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(value); return; }
+  } catch (_error) { /* Public-IP HTTP access may require the legacy clipboard fallback. */ }
+  const input = document.createElement('textarea');
+  input.value = value;
+  input.setAttribute('readonly', '');
+  input.style.cssText = 'position:fixed;left:-9999px;top:0';
+  document.body.append(input);
+  input.select();
+  const copied = document.execCommand('copy');
+  input.remove();
+  if (!copied) throw new Error('IP를 복사하지 못했습니다.');
+}
 function bytes(value) { if (value == null || !Number.isFinite(Number(value))) return '-'; let n = Number(value); const units = ['B','KB','MB','GB','TB']; let i = 0; while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; } return `${n >= 10 || i === 0 ? n.toFixed(0) : n.toFixed(1)} ${units[i]}`; }
 function lines(text) { return text.split(/\r?\n/).map(value => value.trim()).filter(Boolean); }
 function setMeter(selector, value) { const element = $(selector); if (element) element.style.width = `${Math.max(0, Math.min(100, Number(value) || 0))}%`; }
@@ -32,10 +65,24 @@ function closeDialog(dialog, returnValue = 'cancel') { if (dialog.open) dialog.c
 
 $$('dialog').forEach(dialog => {
   dialog.addEventListener('close', syncModalState);
-  dialog.addEventListener('click', event => { if (event.target === dialog) closeDialog(dialog); });
+  dialog.addEventListener('click', event => { if (event.target === dialog && dialog.dataset.persistent !== 'true') closeDialog(dialog); });
 });
 
-const titles = {overview:'서버 개요',console:'관리 터미널',settings:'기본 서버 설정',sandbox:'샌드박스 배율',mods:'모드 · 워크숍',players:'사용자 관리',backups:'백업 · 복원',advanced:'설정파일 직접수정',schedule:'예약 작업',files:'서버 폴더 탐색기','panel-update':'구동기 업데이트'};
+const titles = {overview:'홈(HOME)',console:'관리 터미널',settings:'기본 서버 설정',sandbox:'샌드박스 배율',mods:'모드 · 워크숍',players:'사용자 관리',backups:'백업 · 복원',advanced:'샌드박스 배율 직접 수정',schedule:'예약 작업',files:'서버 폴더 탐색기',discord:'디스코드 연동'};
+function serverIsRunning(status = statusCache) { return ['running', 'restarting'].includes(status?.server); }
+function showServerRunningLock() {
+  const dialog = $('#server-running-lock-dialog');
+  if (!dialog.open) showDialog(dialog);
+}
+function leaveServerRunningLock() {
+  closeDialog($('#server-running-lock-dialog'), 'home');
+  showView('overview');
+}
+$('#server-running-lock-home').addEventListener('click', leaveServerRunningLock);
+$('#server-running-lock-dialog').addEventListener('cancel', event => { event.preventDefault(); leaveServerRunningLock(); });
+$('#confirm-engine-required').addEventListener('click', () => closeDialog($('#engine-required-dialog'), 'confirm'));
+$('#engine-required-dialog').addEventListener('cancel', event => event.preventDefault());
+
 async function showView(name) {
   if (!titles[name]) name = 'overview';
   $$('.view').forEach(view => view.classList.toggle('active', view.dataset.page === name));
@@ -44,6 +91,10 @@ async function showView(name) {
   $('#page-title').textContent = titles[name];
   history.replaceState(null, '', `#${name}`);
   try {
+    if (STOPPED_ONLY_VIEWS.has(name)) {
+      await refreshStatus();
+      if (serverIsRunning()) { showServerRunningLock(); return; }
+    }
     if (name === 'settings') await loadConfig();
     if (name === 'sandbox') await loadSandbox();
     if (name === 'mods') await loadMods();
@@ -51,9 +102,9 @@ async function showView(name) {
     if (name === 'backups') await loadBackups();
     if (name === 'schedule') await loadSchedule();
     if (name === 'files') await loadFiles(currentPath);
+    if (name === 'discord') await loadDiscord();
     if (name === 'advanced') await loadTextFile();
     if (name === 'console') await loadLogs();
-    if (name === 'panel-update') await checkPanelUpdate(true);
   } catch (error) { message(error.message, true); }
 }
 
@@ -72,8 +123,6 @@ async function refreshStatus() {
   $('#branch-state').textContent = status.engine.branch;
   $('#panel-version').textContent = status.panel_version;
   $('#sidebar-version').textContent = `PANEL ${status.panel_version}`;
-  $('#operation-name').textContent = status.operation.name;
-  $('#operation-message').textContent = status.operation.message;
   $('#connection-endpoint').textContent = `${location.hostname} : ${status.endpoint_port}`;
   $$('[data-action]').forEach(button => {
     const action = button.dataset.action;
@@ -84,26 +133,92 @@ async function refreshStatus() {
   $('#terminal-command').disabled = !terminalReady;
   $('#terminal-command-submit').disabled = !terminalReady;
   $('#terminal-command-state').textContent = terminalReady ? '● 명령 전송 가능' : '● 서버 실행 중에만 명령 전송 가능';
+  const activePage = $('.view.active')?.dataset.page;
+  if (STOPPED_ONLY_VIEWS.has(activePage) && serverIsRunning(status)) showServerRunningLock();
   return status;
 }
 
+function saveResourceHistory(force = false) {
+  const now = Date.now();
+  if (!force && now - resourceHistorySavedAt < 15000) return;
+  try { localStorage.setItem(RESOURCE_HISTORY_STORAGE_KEY, JSON.stringify(resourceHistory)); resourceHistorySavedAt = now; }
+  catch (_error) { /* The live chart still works when browser storage is unavailable. */ }
+}
+
+function appendResourceHistory(cpu, memory) {
+  const now = Date.now();
+  const cpuValue = Number.isFinite(Number(cpu)) ? Math.max(0, Math.min(100, Number(cpu))) : null;
+  const memoryValue = Number.isFinite(Number(memory)) ? Math.max(0, Math.min(100, Number(memory))) : null;
+  if (cpuValue == null && memoryValue == null) return;
+  resourceHistory.push([now, cpuValue, memoryValue]);
+  const cutoff = now - RESOURCE_HISTORY_WINDOW_MS;
+  while (resourceHistory.length && resourceHistory[0][0] < cutoff) resourceHistory.shift();
+  saveResourceHistory();
+}
+
+function drawResourceHistory(canvasId, valueIndex, color) {
+  const canvas = $(canvasId);
+  const rect = canvas.getBoundingClientRect();
+  if (!rect.width) return;
+  const width = Math.max(1, Math.floor(rect.width));
+  const height = 68;
+  const ratio = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = Math.floor(width * ratio); canvas.height = Math.floor(height * ratio);
+  const context = canvas.getContext('2d'); context.scale(ratio, ratio);
+  const top = 5, bottom = height - 6, chartHeight = bottom - top;
+  context.lineWidth = 1;
+  context.strokeStyle = 'rgba(119,160,150,.18)';
+  for (const percent of [0, 25, 50, 75, 100]) {
+    const y = bottom - chartHeight * percent / 100;
+    context.beginPath(); context.moveTo(0, y); context.lineTo(width, y); context.stroke();
+  }
+  const now = Date.now(), start = now - RESOURCE_HISTORY_WINDOW_MS;
+  const samples = resourceHistory.filter(point => point[0] >= start && point[valueIndex] != null);
+  if (!samples.length) return;
+  const step = Math.max(1, Math.ceil(samples.length / width));
+  const points = [];
+  for (let index = 0; index < samples.length; index += step) {
+    const bucket = samples.slice(index, index + step);
+    const sample = bucket[bucket.length - 1];
+    points.push([Math.min(width - 1, Math.max(0, (sample[0] - start) / RESOURCE_HISTORY_WINDOW_MS * width)), bottom - sample[valueIndex] / 100 * chartHeight]);
+  }
+  context.beginPath(); context.moveTo(points[0][0], bottom);
+  for (const point of points) context.lineTo(point[0], point[1]);
+  context.lineTo(points[points.length - 1][0], bottom); context.closePath();
+  const fill = context.createLinearGradient(0, top, 0, bottom); fill.addColorStop(0, `${color}55`); fill.addColorStop(1, `${color}05`);
+  context.fillStyle = fill; context.fill();
+  context.beginPath(); context.moveTo(points[0][0], points[0][1]);
+  for (const point of points.slice(1)) context.lineTo(point[0], point[1]);
+  context.strokeStyle = color; context.lineWidth = 1.7; context.stroke();
+  const latest = points[points.length - 1]; context.beginPath(); context.arc(latest[0], latest[1], 2.4, 0, Math.PI * 2); context.fillStyle = color; context.fill();
+}
+
+function renderResourceHistory() {
+  drawResourceHistory('#cpu-history-chart', 1, '#56c9b4');
+  drawResourceHistory('#memory-history-chart', 2, '#d2a24e');
+}
+
 async function refreshResources() {
-  const data = await api('/api/resources');
-  const cpu = data.cpu.percent;
-  const mem = data.memory.percent;
-  const disk = data.disk.percent;
-  $('#cpu-value').textContent = cpu == null ? '수집 중' : `${cpu.toFixed(1)}%`;
-  $('#memory-value').textContent = mem == null ? '-' : `${mem.toFixed(1)}%`;
-  $('#disk-value').textContent = `${disk.toFixed(1)}%`;
-  $('#memory-detail').textContent = `${bytes(data.memory.used)} / ${bytes(data.memory.total)}`;
-  $('#disk-detail').textContent = `${bytes(data.disk.used)} / ${bytes(data.disk.total)}`;
-  setMeter('#cpu-meter', cpu);
-  setMeter('#memory-meter', mem);
-  setMeter('#disk-meter', disk);
-  const down = `${bytes(data.network.down)}/s`, up = `${bytes(data.network.up)}/s`;
-  $('#network-down').textContent = down;
-  $('#network-up').textContent = up;
-  $('#network-value').textContent = `${down} ↓`;
+  if (resourceRefreshPending) return;
+  resourceRefreshPending = true;
+  try {
+    const data = await api('/api/resources');
+    const cpu = data.cpu.percent;
+    const mem = data.memory.percent;
+    const disk = data.disk.percent;
+    $('#cpu-value').textContent = cpu == null ? '수집 중' : `${cpu.toFixed(1)}%`;
+    $('#memory-value').textContent = mem == null ? '-' : `${mem.toFixed(1)}%`;
+    $('#disk-value').textContent = `${disk.toFixed(1)}%`;
+    $('#memory-detail').textContent = `${bytes(data.memory.used)} / ${bytes(data.memory.total)} · 1초 갱신`;
+    $('#disk-detail').textContent = `${bytes(data.disk.used)} / ${bytes(data.disk.total)}`;
+    setMeter('#disk-meter', disk);
+    appendResourceHistory(cpu, mem);
+    renderResourceHistory();
+    const down = `${bytes(data.network.down)}/s`, up = `${bytes(data.network.up)}/s`;
+    $('#network-down').textContent = down;
+    $('#network-up').textContent = up;
+    $('#network-value').textContent = `${down} ↓`;
+  } finally { resourceRefreshPending = false; }
 }
 
 async function loadLogs() {
@@ -179,8 +294,25 @@ $('#terminal-command-form').addEventListener('submit', async event => {
 });
 
 $('#install-engine').addEventListener('click', () => perform(() => api('/api/install', {method:'POST'}), '엔진 설치·업데이트를 시작했습니다.'));
-$$('[data-action]').forEach(button => button.addEventListener('click', () => perform(() => api(`/api/server/${button.dataset.action}`, {method:'POST'}), '서버 작업을 시작했습니다.')));
-$('#copy-endpoint').addEventListener('click', async () => { await navigator.clipboard.writeText(`${location.hostname}:${statusCache?.endpoint_port || 16261}`); message('서버 주소를 복사했습니다.'); });
+$$('[data-action]').forEach(button => button.addEventListener('click', async () => {
+  const action = button.dataset.action;
+  if (action === 'start') {
+    try {
+      const status = await refreshStatus();
+      if (!status.engine.installed) { showDialog($('#engine-required-dialog')); return; }
+    } catch (error) { message(error.message, true); return; }
+  }
+  perform(() => api(`/api/server/${action}`, {method:'POST'}), '서버 작업을 시작했습니다.').catch(() => {});
+}));
+$('#copy-endpoint').addEventListener('click', async () => {
+  try {
+    await copyText(location.hostname);
+    const tooltip = $('#copy-endpoint-tooltip');
+    tooltip.classList.add('visible');
+    clearTimeout(copyTooltipTimer);
+    copyTooltipTimer = setTimeout(() => tooltip.classList.remove('visible'), 2000);
+  } catch (error) { message(error.message, true); }
+});
 
 function fillForm(form, values) {
   for (const [key, value] of Object.entries(values)) {
@@ -288,16 +420,57 @@ async function loadSandbox() {
   renderSandbox(schema, values);
 }
 $('#sandbox-search').addEventListener('input', event => { if (event.currentTarget.value.trim()) activeSandboxCategory = 'all'; applySandboxFilters(); });
+$('#reset-sandbox').addEventListener('click', () => {
+  if (!sandboxSchemaCache) return;
+  const defaults = Object.fromEntries(sandboxSchemaCache.fields.map(spec => [spec.name, spec.default]));
+  fillForm($('#sandbox-form'), defaults);
+  message('모든 샌드박스 설정을 기본값으로 되돌렸습니다. 전체 설정 저장을 눌러 적용하세요.');
+});
 $('#save-sandbox').addEventListener('click', () => perform(() => api('/api/sandbox', json('POST', formData($('#sandbox-form')))), '샌드박스 배율을 저장했습니다.'));
 
 async function loadMods() {
   const [workshop, config] = await Promise.all([api('/api/workshop'), api('/api/config')]); configCache = config;
-  $('#workshop-items').value = workshop.workshop_items.join('\n'); $('#mod-ids').value = workshop.mod_ids.join('\n'); $('#map-order').value = workshop.map_order.join('\n');
+  renderModPairs(workshop.workshop_items, workshop.mod_ids); $('#map-order').value = workshop.map_order.join('\n');
   $('#workshop-count').textContent = workshop.workshop_items.length; $('#mod-count').textContent = workshop.mod_ids.length; $('#installed-mod-count').textContent = workshop.installed.length;
 }
+function renumberModPairs() {
+  $$('.mod-pair-row').forEach((row, index) => { row.querySelector('.mod-pair-index').textContent = String(index + 1).padStart(2, '0'); });
+}
+function updateModPairCounts() {
+  $('#workshop-count').textContent = $$('.mod-pair-workshop').filter(input => input.value.trim()).length;
+  $('#mod-count').textContent = $$('.mod-pair-id').filter(input => input.value.trim()).length;
+}
+function createModPairRow(workshopId = '', modId = '') {
+  const row = document.createElement('div'); row.className = 'mod-pair-row';
+  const index = document.createElement('span'); index.className = 'mod-pair-index';
+  const workshop = document.createElement('input'); workshop.className = 'mod-pair-workshop'; workshop.type = 'text'; workshop.inputMode = 'numeric'; workshop.pattern = '[0-9]*'; workshop.maxLength = 20; workshop.placeholder = '예: 2392709985'; workshop.ariaLabel = 'Steam Workshop 숫자 ID'; workshop.value = workshopId;
+  const mod = document.createElement('input'); mod.className = 'mod-pair-id'; mod.type = 'text'; mod.maxLength = 128; mod.placeholder = '예: ModOptions'; mod.ariaLabel = '내부 Mod ID'; mod.value = modId;
+  const remove = document.createElement('button'); remove.className = 'mod-pair-remove'; remove.type = 'button'; remove.title = '이 모드 행 삭제'; remove.ariaLabel = '모드 행 삭제'; remove.textContent = '×';
+  workshop.addEventListener('input', updateModPairCounts); mod.addEventListener('input', updateModPairCounts);
+  remove.addEventListener('click', () => { row.remove(); if (!$('#mod-pair-list').children.length) $('#mod-pair-list').append(createModPairRow()); renumberModPairs(); updateModPairCounts(); });
+  row.append(index, workshop, mod, remove); return row;
+}
+function renderModPairs(workshopItems = [], modIds = []) {
+  const list = $('#mod-pair-list'); list.replaceChildren();
+  const count = Math.max(workshopItems.length, modIds.length, 1);
+  for (let index = 0; index < count; index++) list.append(createModPairRow(workshopItems[index] || '', modIds[index] || ''));
+  renumberModPairs(); updateModPairCounts();
+}
+function collectModPairs() {
+  const pairs = $$('.mod-pair-row').map(row => ({workshop: row.querySelector('.mod-pair-workshop').value.trim(), mod: row.querySelector('.mod-pair-id').value.trim()}));
+  const incomplete = pairs.find(pair => Boolean(pair.workshop) !== Boolean(pair.mod));
+  if (incomplete) throw new Error('각 행의 Workshop ID와 내부 Mod ID를 모두 입력해주세요.');
+  const completed = pairs.filter(pair => pair.workshop && pair.mod);
+  if (completed.some(pair => !/^\d{5,20}$/.test(pair.workshop))) throw new Error('Workshop ID는 5~20자리 숫자로 입력해주세요.');
+  const workshopItems = completed.map(pair => pair.workshop); const modIds = completed.map(pair => pair.mod);
+  if (new Set(workshopItems).size !== workshopItems.length) throw new Error('중복된 Workshop ID가 있습니다.');
+  if (new Set(modIds).size !== modIds.length) throw new Error('중복된 내부 Mod ID가 있습니다.');
+  return {workshopItems, modIds};
+}
+$('#add-mod-pair').addEventListener('click', () => { $('#mod-pair-list').append(createModPairRow()); renumberModPairs(); });
 $('#save-mods').addEventListener('click', () => perform(async () => {
   const config = configCache || await api('/api/config');
-  config.workshop_items = lines($('#workshop-items').value); config.mod_ids = lines($('#mod-ids').value); config.map_order = lines($('#map-order').value);
+  const pairs = collectModPairs(); config.workshop_items = pairs.workshopItems; config.mod_ids = pairs.modIds; config.map_order = lines($('#map-order').value);
   configCache = await api('/api/config', json('POST', config)); await loadMods();
 }, '모드 구성을 저장했습니다. 다음 시작 때 적용됩니다.'));
 
@@ -348,6 +521,69 @@ async function loadTextFile() { const data = await api(`/api/text-file/${$('#tex
 $('#text-file-kind').addEventListener('change', () => loadTextFile().catch(error => message(error.message, true)));
 $('#save-text-file').addEventListener('click', () => perform(() => api(`/api/text-file/${$('#text-file-kind').value}`, json('POST', {content: $('#text-file-editor').value})), '고급 설정 파일을 저장했습니다.'));
 
+async function openFileEditor(path) {
+  const dialog = $('#file-editor-dialog');
+  editingFilePath = '';
+  fileEditorOriginal = '';
+  $('#file-editor-title').textContent = path.split('/').at(-1) || '파일 편집';
+  $('#file-editor-path').textContent = `/data/${path}`;
+  $('#file-editor-status').classList.remove('error');
+  $('#file-editor-status').textContent = '파일을 불러오는 중입니다.';
+  $('#file-editor-content').value = '';
+  $('#file-editor-content').disabled = true;
+  $('#save-file-editor').disabled = true;
+  showDialog(dialog);
+  try {
+    const data = await api(`/api/files/text?path=${encodeURIComponent(path)}`);
+    if (!dialog.open) return;
+    editingFilePath = data.path;
+    fileEditorOriginal = data.content;
+    $('#file-editor-title').textContent = data.name;
+    $('#file-editor-path').textContent = `/data/${data.path} · ${bytes(data.size)}`;
+    $('#file-editor-content').value = data.content;
+    $('#file-editor-content').disabled = false;
+    $('#save-file-editor').disabled = true;
+    $('#file-editor-status').textContent = '텍스트 파일을 편집할 수 있습니다. Ctrl/Cmd+S로 저장할 수 있습니다.';
+    $('#file-editor-content').focus();
+  } catch (error) {
+    $('#file-editor-status').classList.add('error');
+    $('#file-editor-status').textContent = error.message;
+  }
+}
+function closeFileEditor() { closeDialog($('#file-editor-dialog')); }
+$('#close-file-editor').addEventListener('click', closeFileEditor);
+$('#cancel-file-editor').addEventListener('click', closeFileEditor);
+$('#file-editor-dialog').addEventListener('close', () => { editingFilePath = ''; fileEditorOriginal = ''; });
+$('#save-file-editor').addEventListener('click', async () => {
+  if (!editingFilePath) return;
+  const button = $('#save-file-editor');
+  const status = $('#file-editor-status');
+  button.disabled = true;
+  status.classList.remove('error');
+  status.textContent = '파일을 저장하고 있습니다.';
+  try {
+    const content = $('#file-editor-content').value;
+    const data = await api(`/api/files/text?path=${encodeURIComponent(editingFilePath)}`, json('POST', {content}));
+    fileEditorOriginal = content;
+    status.textContent = `${data.message} · ${bytes(data.size)}`;
+    await loadFiles(currentPath);
+  } catch (error) {
+    status.classList.add('error');
+    status.textContent = error.message;
+  } finally { button.disabled = !editingFilePath || $('#file-editor-content').value === fileEditorOriginal; }
+});
+$('#file-editor-content').addEventListener('input', event => {
+  $('#file-editor-status').classList.remove('error');
+  $('#save-file-editor').disabled = !editingFilePath || event.currentTarget.value === fileEditorOriginal;
+  if (editingFilePath) $('#file-editor-status').textContent = event.currentTarget.value === fileEditorOriginal ? '저장된 내용과 같습니다.' : '저장하지 않은 변경사항이 있습니다.';
+});
+$('#file-editor-content').addEventListener('keydown', event => {
+  if ((event.ctrlKey || event.metaKey) && event.key.toLocaleLowerCase() === 's') {
+    event.preventDefault();
+    if (!$('#save-file-editor').disabled) $('#save-file-editor').click();
+  }
+});
+
 function renderBreadcrumbs(path) {
   const target = $('#breadcrumbs'); target.replaceChildren(); const root = document.createElement('button'); root.textContent = '/data'; root.addEventListener('click', () => loadFiles('')); target.append(root);
   let accumulated = '';
@@ -358,8 +594,9 @@ async function loadFiles(path = '') {
   for (const entry of data.entries) {
     const row = document.createElement('div'); row.className = 'file-row';
     const icon = document.createElement('img'); icon.className = 'file-entry-icon'; icon.src = entry.type === 'dir' ? '/static/zomboid-file-folder-v1.png' : '/static/zomboid-file-document-v1.png'; icon.alt = entry.type === 'dir' ? '폴더' : '파일';
-    const name = document.createElement('strong'); name.textContent = entry.name;
-    if (entry.type === 'dir') { name.style.cursor = 'pointer'; name.addEventListener('click', () => loadFiles(entry.path)); }
+    const name = document.createElement('button'); name.type = 'button'; name.className = 'file-entry-name'; name.textContent = entry.name;
+    name.title = entry.type === 'dir' ? '폴더 열기' : '텍스트 편집기로 열기';
+    name.addEventListener('click', () => entry.type === 'dir' ? loadFiles(entry.path) : openFileEditor(entry.path));
     const size = document.createElement('small'); size.className = 'file-size'; size.textContent = entry.type === 'file' ? bytes(entry.size) : '폴더'; const date = document.createElement('small'); date.className = 'file-date'; date.textContent = entry.modified;
     const actions = document.createElement('div');
     if (entry.type === 'file') { const download = document.createElement('a'); download.href = `/api/files/download?path=${encodeURIComponent(entry.path)}`; download.textContent = '받기'; actions.append(download); }
@@ -377,6 +614,50 @@ $('#new-folder').addEventListener('click', async () => {
 });
 $('#file-upload').addEventListener('change', async event => { const file = event.target.files[0]; if (!file) return; const data = new FormData(); data.append('path', currentPath); data.append('file', file); await perform(() => api('/api/files/upload', {method:'POST', body:data}), '파일을 올렸습니다.'); event.target.value = ''; await loadFiles(currentPath); });
 
+function renderDiscord(data) {
+  const config = data.config || data;
+  const form = $('#discord-form');
+  discordWebhookConfigured = Boolean(config.webhook_configured);
+  fillForm(form, config);
+  form.elements.webhook_url.value = '';
+  form.elements.webhook_url.placeholder = discordWebhookConfigured ? '새 URL을 입력하면 기존 웹훅이 교체됩니다.' : 'https://discord.com/api/webhooks/...';
+  form.elements.clear_webhook.checked = false;
+  form.elements.webhook_url.disabled = false;
+  $('#discord-enabled-label').textContent = config.enabled ? '사용 중' : '사용 안 함';
+  $('#discord-webhook-hint').textContent = discordWebhookConfigured ? config.webhook_hint : 'Discord 채널 웹훅 URL이 등록되지 않았습니다.';
+  const state = $('#discord-state');
+  state.textContent = config.enabled ? '연동 사용 중' : discordWebhookConfigured ? '웹훅 등록됨' : '연동 꺼짐';
+  state.classList.toggle('online', Boolean(config.enabled && discordWebhookConfigured));
+  $('#test-discord').disabled = !discordWebhookConfigured;
+}
+
+async function loadDiscord() {
+  const data = await api('/api/discord');
+  renderDiscord(data);
+  const status = $('#discord-status');
+  status.className = 'discord-status';
+  status.textContent = discordWebhookConfigured ? '저장된 웹훅으로 Discord 알림을 전송할 수 있습니다.' : 'Discord 채널에서 생성한 웹훅 URL을 등록해주세요.';
+}
+
+$('#discord-form').elements.enabled.addEventListener('change', event => { $('#discord-enabled-label').textContent = event.target.checked ? '사용 중' : '사용 안 함'; });
+$('#discord-form').elements.clear_webhook.addEventListener('change', event => { $('#discord-form').elements.webhook_url.disabled = event.target.checked; });
+$('#save-discord').addEventListener('click', async () => {
+  const status = $('#discord-status');
+  status.className = 'discord-status'; status.textContent = 'Discord 연동 설정을 저장하고 있습니다.';
+  try {
+    const data = await api('/api/discord', json('POST', formData($('#discord-form'))));
+    renderDiscord(data); status.className = 'discord-status success'; status.textContent = data.message;
+  } catch (error) { status.className = 'discord-status error'; status.textContent = error.message; }
+});
+$('#test-discord').addEventListener('click', async () => {
+  const status = $('#discord-status');
+  status.className = 'discord-status'; status.textContent = 'Discord 테스트 메시지를 전송하고 있습니다.';
+  try {
+    const data = await api('/api/discord/test', {method:'POST'});
+    status.className = 'discord-status success'; status.textContent = data.message;
+  } catch (error) { status.className = 'discord-status error'; status.textContent = error.message; }
+});
+
 async function checkPanelUpdate(showMessage = false) {
   const data = await api('/api/panel-update');
   $('#update-dot').hidden = !data.available; $('#update-bubble').hidden = !data.available;
@@ -386,9 +667,56 @@ async function checkPanelUpdate(showMessage = false) {
   if (showMessage && data.error) message(`업데이트 확인 실패: ${data.error}`, true);
   return data;
 }
-$('#apply-update').addEventListener('click', () => perform(() => api('/api/panel-update', {method:'POST'}), '새 구동기 적용을 시작했습니다. 잠시 후 화면을 새로고침합니다.'));
+async function openPanelUpdateDialog() {
+  const dialog = $('#panel-update-dialog');
+  showDialog(dialog);
+  $('#update-image-status').textContent = '확인 중';
+  $('#update-image-detail').textContent = '컨테이너 레지스트리를 확인합니다.';
+  try { await checkPanelUpdate(); }
+  catch (error) { $('#update-image-status').textContent = '확인 실패'; $('#update-image-detail').textContent = error.message; }
+}
+$('#panel-update-button').addEventListener('click', openPanelUpdateDialog);
+$('#open-update-dialog').addEventListener('click', openPanelUpdateDialog);
+$('#close-panel-update').addEventListener('click', () => closeDialog($('#panel-update-dialog')));
+$('#cancel-panel-update').addEventListener('click', () => closeDialog($('#panel-update-dialog')));
+$('#apply-update').addEventListener('click', async event => {
+  event.currentTarget.disabled = true;
+  $('#update-image-status').textContent = '업데이트 시작 중';
+  $('#update-image-detail').textContent = '새 구동기 이미지를 적용하도록 요청하고 있습니다.';
+  try {
+    await api('/api/panel-update', {method:'POST'});
+    $('#update-image-status').textContent = '업데이트 요청 완료';
+    $('#update-image-detail').textContent = '새 이미지를 적용 중입니다. 잠시 후 패널이 다시 연결됩니다.';
+  } catch (error) {
+    $('#update-image-status').textContent = '업데이트 실패';
+    $('#update-image-detail').textContent = error.message;
+    event.currentTarget.disabled = false;
+  }
+});
 
-$('#logout').addEventListener('click', async () => { const data = await api('/api/auth/logout', {method:'POST'}); location.assign(data.redirect); });
+$('#logout').addEventListener('click', () => {
+  $('#logout-confirm-status').hidden = true;
+  $('#logout-confirm-status').textContent = '';
+  $('#confirm-logout').disabled = false;
+  showDialog($('#logout-confirm-dialog'));
+});
+$('#close-logout-confirm').addEventListener('click', () => closeDialog($('#logout-confirm-dialog')));
+$('#cancel-logout').addEventListener('click', () => closeDialog($('#logout-confirm-dialog')));
+$('#confirm-logout').addEventListener('click', async event => {
+  const status = $('#logout-confirm-status');
+  event.currentTarget.disabled = true;
+  status.hidden = false;
+  status.classList.remove('error');
+  status.textContent = '로그아웃하고 있습니다.';
+  try {
+    const data = await api('/api/auth/logout', {method:'POST'});
+    location.assign(data.redirect);
+  } catch (error) {
+    status.classList.add('error');
+    status.textContent = error.message;
+    event.currentTarget.disabled = false;
+  }
+});
 async function refreshAll(notify = false) {
   try { await Promise.all([refreshStatus(), refreshResources(), loadLogs()]); if (notify) message('최신 상태로 갱신했습니다.'); } catch (error) { message(error.message, true); }
 }
@@ -397,6 +725,8 @@ showView(location.hash.slice(1) || 'overview');
 refreshAll();
 checkPanelUpdate().catch(() => {});
 setInterval(() => refreshStatus().catch(() => {}), 3000);
-setInterval(() => refreshResources().catch(() => {}), 5000);
+setInterval(() => refreshResources().catch(() => {}), RESOURCE_REFRESH_MS);
 setInterval(() => loadLogs().catch(() => {}), 5000);
 setInterval(() => checkPanelUpdate().catch(() => {}), 300000);
+window.addEventListener('resize', renderResourceHistory);
+window.addEventListener('pagehide', () => saveResourceHistory(true));

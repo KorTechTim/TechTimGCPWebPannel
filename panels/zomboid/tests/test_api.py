@@ -8,6 +8,9 @@ from app.config import Settings
 from app.main import create_app
 
 
+DISCORD_WEBHOOK = "https://discord.com/api/webhooks/123456789012345678/abcdefghijklmnopqrstuvwxyz_ABCDEFG-123456"
+
+
 class MissingContainers:
     def get(self, _name):
         from docker.errors import NotFound
@@ -23,6 +26,7 @@ class ApiTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         root = Path(self.temp.name)
+        self.root = root
         app = create_app(Settings(data_dir=root, host_data_dir=root, scheduler_enabled=False), lambda: FakeClient())
         self.client = TestClient(app)
         login = self.client.post("/api/auth/login", json={"username": "admin", "password": "admin"})
@@ -59,6 +63,24 @@ class ApiTests(unittest.TestCase):
         escaped = self.client.get("/api/files", params={"path": "../"})
         self.assertEqual(escaped.status_code, 400)
 
+    def test_file_explorer_text_editor_reads_writes_and_rejects_binary(self):
+        text_file = self.root / "notes.json"
+        text_file.write_text('{"enabled": false}\n', encoding="utf-8")
+        opened = self.client.get("/api/files/text", params={"path": "notes.json"})
+        self.assertEqual(opened.status_code, 200)
+        self.assertEqual(opened.json()["content"], '{"enabled": false}\n')
+
+        saved = self.client.post("/api/files/text", params={"path": "notes.json"},
+                                 json={"content": '{"enabled": true}\n'})
+        self.assertEqual(saved.status_code, 200)
+        self.assertEqual(text_file.read_text(encoding="utf-8"), '{"enabled": true}\n')
+
+        binary_file = self.root / "world.bin"
+        binary_file.write_bytes(b"world\x00data")
+        rejected = self.client.get("/api/files/text", params={"path": "world.bin"})
+        self.assertEqual(rejected.status_code, 400)
+        self.assertIn("바이너리", rejected.json()["detail"])
+
     def test_console_command_endpoint(self):
         commands = []
         self.client.app.state.service.console_command = lambda command: commands.append(command) or {
@@ -78,6 +100,40 @@ class ApiTests(unittest.TestCase):
         self.assertTrue(response.headers["content-type"].startswith("text/plain"))
         self.assertIn("attachment;", response.headers["content-disposition"])
         self.assertIn("techtim-zomboid-support-", response.headers["content-disposition"])
+
+    def test_discord_config_is_saved_masked_and_testable(self):
+        saved = self.client.post("/api/discord", json={
+            "enabled": True,
+            "webhook_url": DISCORD_WEBHOOK,
+            "username": "TechTim Survivors",
+            "notify_server_start": True,
+            "notify_server_stop": False,
+            "notify_server_restart": True,
+            "notify_backup": True,
+            "notify_errors": True,
+        })
+        self.assertEqual(saved.status_code, 200)
+        self.assertNotIn(DISCORD_WEBHOOK, saved.text)
+        self.assertTrue(saved.json()["config"]["webhook_configured"])
+        self.assertEqual(saved.json()["config"]["webhook_hint"], "Discord 웹훅 · 1234...5678")
+        stored = self.client.app.state.service.discord_config()
+        self.assertEqual(stored.webhook_url, DISCORD_WEBHOOK)
+
+        calls = []
+        self.client.app.state.service.deliver_discord_event = lambda *args: calls.append(args)
+        tested = self.client.post("/api/discord/test")
+        self.assertEqual(tested.status_code, 200)
+        self.assertEqual(calls[0][0], "test")
+
+        cleared = self.client.post("/api/discord", json={"clear_webhook": True})
+        self.assertEqual(cleared.status_code, 200)
+        self.assertFalse(cleared.json()["config"]["webhook_configured"])
+
+    def test_discord_rejects_invalid_or_missing_webhook(self):
+        invalid = self.client.post("/api/discord", json={"webhook_url": "https://example.com/hook"})
+        self.assertEqual(invalid.status_code, 400)
+        missing = self.client.post("/api/discord", json={"enabled": True})
+        self.assertEqual(missing.status_code, 400)
 
 
 if __name__ == "__main__":

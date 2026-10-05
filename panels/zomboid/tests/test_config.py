@@ -24,6 +24,17 @@ class ConfigTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             ServerConfig(workshop_items=["not-a-number"])
 
+    def test_workshop_mod_pairs_and_map_order_serialize_to_ini(self):
+        config = ServerConfig(
+            workshop_items=["2392709985", "2169435993"],
+            mod_ids=["ModOptions", "BetterSorting"],
+            map_order=["ExampleModMap", "Muldraugh, KY"],
+        )
+        values = ini_values(config)
+        self.assertEqual(values["WorkshopItems"], "2392709985;2169435993")
+        self.assertEqual(values["Mods"], "ModOptions;BetterSorting")
+        self.assertEqual(values["Map"], "ExampleModMap;Muldraugh, KY")
+
     def test_sandbox_values_include_dotted_build42_keys(self):
         values = sandbox_values(SandboxConfig(respawn_multiplier=.25, drag_down=False))
         self.assertEqual(values["ZombieConfig.RespawnMultiplier"], "0.25")
