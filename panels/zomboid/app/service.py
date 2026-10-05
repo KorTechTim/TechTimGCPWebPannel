@@ -517,7 +517,7 @@ class PanelService:
                 command=["serve", str(config.memory_gb), config.admin_password],
                 name=self.settings.server_container, detach=True, network_mode="host",
                 volumes=self._mounts(), environment={"SERVER_PROFILE": SERVER_PROFILE},
-                restart_policy={"Name": "unless-stopped"}, stop_timeout=self.settings.stop_timeout,
+                restart_policy={"Name": "unless-stopped"},
                 cap_drop=["ALL"], cap_add=["CHOWN", "DAC_OVERRIDE", "SETGID", "SETUID"],
                 security_opt=["no-new-privileges:true"],
                 labels={"com.techtim.game": "zomboid", "com.techtim.managed": "true"},
@@ -794,6 +794,8 @@ class PanelService:
 
     def panel_update_status(self):
         status = read_json(self.update_status_path, {})
+        if status.get("status") in {"running", "downloading", "preparing", "replacing", "verifying"}:
+            return {**status, "available": True, "current_version": PANEL_VERSION}
         try:
             with self.client() as client:
                 image = client.images.pull(self.settings.panel_image)
@@ -805,20 +807,48 @@ class PanelService:
         except DockerException as error:
             return {**status, "available": False, "current_version": PANEL_VERSION, "error": str(error)}
 
+    def _write_panel_update_status(self, status, stage, progress, message, **extra):
+        previous = read_json(self.update_status_path, {})
+        started_at = previous.get("started_at")
+        if status == "downloading" or not started_at:
+            started_at = datetime.now(KST).isoformat(timespec="seconds")
+        write_json(self.update_status_path, {
+            "status": status,
+            "stage": stage,
+            "progress": progress,
+            "message": message,
+            "started_at": started_at,
+            "updated_at": datetime.now(KST).isoformat(timespec="seconds"),
+            **extra,
+        })
+
     def update_panel(self):
-        with self.client() as client:
-            image = client.images.pull(self.settings.panel_image)
-            helper_name = f"{self.settings.panel_container}-updater"
-            try:
-                client.containers.get(helper_name).remove(force=True)
-            except NotFound:
-                pass
-            write_json(self.update_status_path, {"status": "running", "message": "새 패널 이미지를 적용하는 중입니다."})
-            client.containers.run(
-                image.id, command=["python", "-m", "app.self_update"], name=helper_name, detach=True,
-                environment={"TARGET_CONTAINER": self.settings.panel_container, "TARGET_IMAGE": self.settings.panel_image,
-                             "PROXY_CONTAINER": self.settings.proxy_container},
-                volumes={"/var/run/docker.sock": {"bind": "/var/run/docker.sock", "mode": "rw"},
-                         str(self.settings.host_data_dir): {"bind": "/update-data", "mode": "rw"}},
-                remove=True,
+        self._write_panel_update_status(
+            "downloading", "download", 8, "최신 구동기 이미지를 다운로드하고 있습니다."
+        )
+        try:
+            with self.client() as client:
+                image = client.images.pull(self.settings.panel_image)
+                image_id = image.id.removeprefix("sha256:")[:12]
+                self._write_panel_update_status(
+                    "preparing", "prepare", 30, "이미지 다운로드를 완료했습니다. 패널 교체를 준비합니다.",
+                    image_id=image_id,
+                )
+                helper_name = f"{self.settings.panel_container}-updater"
+                try:
+                    client.containers.get(helper_name).remove(force=True)
+                except NotFound:
+                    pass
+                client.containers.run(
+                    image.id, command=["python", "-m", "app.self_update"], name=helper_name, detach=True,
+                    environment={"TARGET_CONTAINER": self.settings.panel_container, "TARGET_IMAGE": self.settings.panel_image,
+                                 "PROXY_CONTAINER": self.settings.proxy_container},
+                    volumes={"/var/run/docker.sock": {"bind": "/var/run/docker.sock", "mode": "rw"},
+                             str(self.settings.host_data_dir): {"bind": "/update-data", "mode": "rw"}},
+                    remove=True,
+                )
+        except Exception as error:
+            self._write_panel_update_status(
+                "failed", "failed", 0, f"업데이트를 시작하지 못했습니다: {error}"
             )
+            raise

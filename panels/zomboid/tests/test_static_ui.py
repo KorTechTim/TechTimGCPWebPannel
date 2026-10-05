@@ -43,6 +43,15 @@ class StaticUiTests(unittest.TestCase):
         ):
             self.assertIn(asset, html if asset.startswith("zomboid-nav") or asset.startswith("zomboid-status") else (Path(__file__).parents[1] / "app/static/app.js").read_text())
 
+    def test_server_control_uses_zombie_background_art(self):
+        root = Path(__file__).parents[1]
+        html = (root / "app/static/dashboard.html").read_text()
+        css = (root / "app/static/app.css").read_text()
+        self.assertIn('class="control-card-art"', html)
+        self.assertIn('/static/zomboid-control-zombies-v1.png?v=1', html)
+        self.assertIn('.control-card-art img{', css)
+        self.assertTrue((root / "app/static/zomboid-control-zombies-v1.png").is_file())
+
     def test_header_uses_shared_panel_order(self):
         html = (Path(__file__).parents[1] / "app/static/dashboard.html").read_text()
         expected = ["테크팀 디스코드", "테크팀 유튜브", "공식 가이드", "패널 업데이트", "로그아웃"]
@@ -60,6 +69,14 @@ class StaticUiTests(unittest.TestCase):
         self.assertIn("openPanelUpdateDialog", script)
         self.assertIn("showDialog(dialog)", script)
         self.assertIn(".panel-update-dialog{", css)
+        self.assertIn('id="panel-update-progress"', html)
+        self.assertIn('role="progressbar"', html)
+        self.assertIn('data-update-step="download"', html)
+        self.assertIn('data-update-step="complete"', html)
+        self.assertIn("renderPanelUpdate", script)
+        self.assertIn("startPanelUpdatePolling", script)
+        self.assertIn("status: 'reconnecting'", script)
+        self.assertIn(".panel-update-progress-track", css)
 
     def test_logout_requires_confirmation_dialog(self):
         root = Path(__file__).parents[1]
@@ -153,6 +170,14 @@ class StaticUiTests(unittest.TestCase):
         self.assertIn("zomboid-file-folder-v1.png", script)
         self.assertIn("zomboid-file-document-v1.png", script)
         self.assertIn("file-entry-icon", css)
+
+    def test_file_explorer_typography_is_doubled(self):
+        css = (Path(__file__).parents[1] / "app/static/app.css").read_text()
+        self.assertIn('.view[data-page="files"] .breadcrumbs button{padding:5px 8px;font-size:24px}', css)
+        self.assertIn('.view[data-page="files"] .explorer-tools button{padding:11px 15px;font-size:22px}', css)
+        self.assertIn('.view[data-page="files"] .file-entry-name{font-size:22px', css)
+        self.assertIn('.view[data-page="files"] .file-row small{font-size:20px', css)
+        self.assertIn('.view[data-page="files"] .file-row button,.view[data-page="files"] .file-row a{padding:8px 10px;font-size:22px', css)
 
     def test_file_explorer_opens_text_editor_dialog(self):
         root = Path(__file__).parents[1]

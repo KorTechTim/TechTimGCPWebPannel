@@ -40,6 +40,25 @@ class ConsoleClient:
     def close(self): pass
 
 
+class StartContainers:
+    def __init__(self):
+        self.run_calls = []
+
+    def get(self, _name):
+        from docker.errors import NotFound
+        raise NotFound("missing")
+
+    def run(self, image, **kwargs):
+        if "stop_timeout" in kwargs:
+            raise TypeError("run() got an unexpected keyword argument 'stop_timeout'")
+        self.run_calls.append((image, kwargs))
+
+
+class StartClient:
+    def __init__(self, containers): self.containers = containers
+    def close(self): pass
+
+
 class ServiceTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
@@ -63,6 +82,24 @@ class ServiceTests(unittest.TestCase):
         status = self.service.status()
         self.assertEqual(status["server"], "missing")
         self.assertEqual(status["profile"], "servertest")
+
+    def test_active_panel_update_status_does_not_pull_image_again(self):
+        self.service._write_panel_update_status(
+            "replacing", "replace", 48, "기존 패널을 안전하게 중지하고 있습니다."
+        )
+
+        status = self.service.panel_update_status()
+
+        self.assertEqual(status["status"], "replacing")
+        self.assertEqual(status["stage"], "replace")
+        self.assertEqual(status["progress"], 48)
+        self.assertTrue(status["available"])
+        self.assertNotIn("error", status)
+
+        self.service._write_panel_update_status(
+            "running", "replace", 48, "기존 버전에서 기록한 업데이트 상태입니다."
+        )
+        self.assertEqual(self.service.panel_update_status()["status"], "running")
 
     def test_secret_placeholder_preserves_password(self):
         config = self.service.config().model_dump()
@@ -98,6 +135,27 @@ class ServiceTests(unittest.TestCase):
         self.assertEqual(options["environment"], {"PZ_COMMAND": 'servermsg "Welcome survivors"'})
         with self.assertRaisesRegex(ValueError, "서버 제어 메뉴"):
             service.console_command("quit")
+
+    def test_start_uses_compatible_container_options(self):
+        containers = StartContainers()
+        settings = Settings(
+            data_dir=self.service.settings.data_dir,
+            host_data_dir=self.service.settings.host_data_dir,
+            scheduler_enabled=False,
+            pull_runtime=False,
+        )
+        service = PanelService(settings, lambda: StartClient(containers))
+        (service.server / "start-server.sh").write_text("#!/bin/sh\n")
+        config = service.config().model_dump()
+        config["admin_password"] = "test-password"
+        service.save_config(config)
+
+        service.start()
+
+        self.assertEqual(len(containers.run_calls), 1)
+        _image, options = containers.run_calls[0]
+        self.assertNotIn("stop_timeout", options)
+        self.assertEqual(options["restart_policy"], {"Name": "unless-stopped"})
 
     def test_support_log_report_combines_logs_and_redacts_secrets(self):
         config = self.service.config().model_dump()

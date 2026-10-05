@@ -20,6 +20,10 @@ const STOPPED_ONLY_VIEWS = new Set(['settings', 'sandbox', 'mods', 'players', 'b
 let resourceRefreshPending = false;
 let resourceHistorySavedAt = 0;
 let copyTooltipTimer = null;
+let panelUpdatePollTimer = null;
+let panelUpdateProgress = 0;
+const PANEL_UPDATE_ACTIVE = new Set(['running', 'downloading', 'preparing', 'replacing', 'verifying', 'reconnecting']);
+const PANEL_UPDATE_STAGES = ['download', 'replace', 'verify', 'complete'];
 
 function loadResourceHistory() {
   try {
@@ -713,12 +717,88 @@ $('#test-discord').addEventListener('click', async () => {
   } catch (error) { status.className = 'discord-status error'; status.textContent = error.message; }
 });
 
+function panelUpdateStageIndex(stage) {
+  if (stage === 'prepare') return 0;
+  if (stage === 'rollback') return 2;
+  const index = PANEL_UPDATE_STAGES.indexOf(stage);
+  return index < 0 ? 0 : index;
+}
+
+function renderPanelUpdate(data) {
+  const state = data.status || 'idle';
+  const active = PANEL_UPDATE_ACTIVE.has(state);
+  const failed = state === 'failed';
+  const completed = state === 'completed' && !data.available;
+  const showProgress = active || failed || completed;
+  const labels = {
+    running: '업데이트 진행 중', downloading: '이미지 다운로드 중', preparing: '교체 준비 중', replacing: '패널 교체 중',
+    verifying: '재연결 확인 중', reconnecting: '패널 재연결 중', completed: '업데이트 완료', failed: '업데이트 실패',
+  };
+  const defaultProgress = {running: 48, downloading: 8, preparing: 30, replacing: 48, verifying: 78, reconnecting: 88, completed: 100, failed: 100};
+  const progress = Math.max(0, Math.min(100, Number(data.progress ?? defaultProgress[state] ?? 0)));
+  if (active) panelUpdateProgress = Math.max(panelUpdateProgress, progress);
+  else panelUpdateProgress = progress;
+  const renderedProgress = active ? panelUpdateProgress : progress;
+  const available = Boolean(data.available && !active && !failed);
+
+  $('#update-dot').hidden = !available;
+  $('#update-bubble').hidden = !available;
+  $('#update-current-version').textContent = data.current_version || data.version || statusCache?.panel_version || '-';
+  $('#update-image-status').textContent = available ? '업데이트 가능' : (labels[state] || '최신 이미지 사용 중');
+  $('#update-image-detail').textContent = data.error || data.message || (available ? `${data.current_image} → ${data.latest_image}` : `이미지 ${data.current_image || data.image_id || '-'}`);
+
+  const progressPanel = $('#panel-update-progress');
+  progressPanel.hidden = !showProgress;
+  progressPanel.classList.toggle('is-complete', completed);
+  progressPanel.classList.toggle('is-failed', failed);
+  $('#panel-update-progress-label').textContent = labels[state] || '업데이트 준비';
+  $('#panel-update-progress-percent').textContent = `${Math.round(renderedProgress)}%`;
+  $('#panel-update-progress-bar').style.width = `${renderedProgress}%`;
+  $('#panel-update-progress-track').setAttribute('aria-valuenow', String(Math.round(renderedProgress)));
+  $('#panel-update-progress-message').textContent = data.message || '업데이트 상태를 확인하고 있습니다.';
+
+  const stageIndex = panelUpdateStageIndex(data.stage || (completed ? 'complete' : 'download'));
+  $$('.panel-update-steps li').forEach((step, index) => {
+    step.classList.toggle('done', completed || index < stageIndex);
+    step.classList.toggle('active', !completed && index === stageIndex);
+  });
+
+  const button = $('#apply-update');
+  button.disabled = active || completed || (!available && !failed);
+  button.textContent = active ? '업데이트 중' : failed ? '다시 시도' : '구동기 업데이트';
+  return {active, failed, completed};
+}
+
+function schedulePanelUpdatePoll(delay = 1200) {
+  clearTimeout(panelUpdatePollTimer);
+  panelUpdatePollTimer = setTimeout(pollPanelUpdate, delay);
+}
+
+async function pollPanelUpdate() {
+  try {
+    const data = await api('/api/panel-update');
+    const rendered = renderPanelUpdate(data);
+    if (rendered.active) schedulePanelUpdatePoll();
+    else panelUpdatePollTimer = null;
+  } catch (_error) {
+    renderPanelUpdate({
+      status: 'reconnecting', stage: 'verify', progress: Math.max(panelUpdateProgress, 88),
+      message: '패널을 교체하는 동안 연결이 잠시 중단되었습니다. 자동으로 다시 연결하고 있습니다.',
+      current_version: statusCache?.panel_version,
+    });
+    schedulePanelUpdatePoll(1600);
+  }
+}
+
+function startPanelUpdatePolling() {
+  panelUpdateProgress = Math.max(panelUpdateProgress, 8);
+  schedulePanelUpdatePoll(400);
+}
+
 async function checkPanelUpdate(showMessage = false) {
   const data = await api('/api/panel-update');
-  $('#update-dot').hidden = !data.available; $('#update-bubble').hidden = !data.available;
-  $('#update-current-version').textContent = data.current_version || statusCache?.panel_version || '-';
-  $('#update-image-status').textContent = data.available ? '업데이트 가능' : '최신 이미지 사용 중';
-  $('#update-image-detail').textContent = data.error || (data.available ? `${data.current_image} → ${data.latest_image}` : `이미지 ${data.current_image || '-'}`);
+  const rendered = renderPanelUpdate(data);
+  if (rendered.active) startPanelUpdatePolling();
   if (showMessage && data.error) message(`업데이트 확인 실패: ${data.error}`, true);
   return data;
 }
@@ -727,6 +807,7 @@ async function openPanelUpdateDialog() {
   showDialog(dialog);
   $('#update-image-status').textContent = '확인 중';
   $('#update-image-detail').textContent = '컨테이너 레지스트리를 확인합니다.';
+  $('#panel-update-progress').hidden = true;
   try { await checkPanelUpdate(); }
   catch (error) { $('#update-image-status').textContent = '확인 실패'; $('#update-image-detail').textContent = error.message; }
 }
@@ -736,17 +817,15 @@ $('#close-panel-update').addEventListener('click', () => closeDialog($('#panel-u
 $('#cancel-panel-update').addEventListener('click', () => closeDialog($('#panel-update-dialog')));
 $('#apply-update').addEventListener('click', async event => {
   event.currentTarget.disabled = true;
-  $('#update-image-status').textContent = '업데이트 시작 중';
-  $('#update-image-detail').textContent = '새 구동기 이미지를 적용하도록 요청하고 있습니다.';
+  panelUpdateProgress = 3;
+  renderPanelUpdate({status:'downloading', stage:'download', progress:3, message:'업데이트 요청을 전달하고 있습니다.', current_version:statusCache?.panel_version});
+  startPanelUpdatePolling();
   try {
     await api('/api/panel-update', {method:'POST'});
-    $('#update-image-status').textContent = '업데이트 요청 완료';
-    $('#update-image-detail').textContent = '새 이미지를 적용 중입니다. 잠시 후 패널이 다시 연결됩니다.';
   } catch (error) {
-    $('#update-image-status').textContent = '업데이트 실패';
-    $('#update-image-detail').textContent = error.message;
-    event.currentTarget.disabled = false;
+    renderPanelUpdate({status:'reconnecting', stage:'verify', progress:Math.max(panelUpdateProgress, 30), message:`업데이트 상태를 다시 확인하고 있습니다. ${error.message}`, current_version:statusCache?.panel_version});
   }
+  startPanelUpdatePolling();
 });
 
 $('#logout').addEventListener('click', () => {

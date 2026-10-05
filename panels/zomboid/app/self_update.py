@@ -35,6 +35,19 @@ def write_operation(status, message):
     })
 
 
+def write_status(status, stage, progress, message, **extra):
+    previous = read_json(STATUS, {})
+    write_json(STATUS, {
+        "status": status,
+        "stage": stage,
+        "progress": progress,
+        "message": message,
+        "started_at": previous.get("started_at") or datetime.now(KST).isoformat(timespec="seconds"),
+        "updated_at": datetime.now(KST).isoformat(timespec="seconds"),
+        **extra,
+    })
+
+
 def run_options(container):
     config = container.attrs["Config"]
     host = container.attrs["HostConfig"]
@@ -93,6 +106,7 @@ def main():
         latest_image = client.images.get(target_image)
         latest_image_id = latest_image.id
         options = run_options(target)
+        write_status("replacing", "replace", 48, "기존 패널을 안전하게 중지하고 있습니다.")
         target.stop(timeout=30)
         target.remove()
 
@@ -105,15 +119,13 @@ def main():
 
         try:
             replacement = client.containers.run(latest_image_id, **options)
+            write_status("verifying", "verify", 78, "새 패널을 시작했습니다. 정상 연결을 확인하고 있습니다.")
             wait_for_http(replacement)
             restart_proxy()
             image_id = latest_image_id.removeprefix("sha256:")[:12]
-            write_json(STATUS, {
-                "status": "completed",
-                "message": f"웹패널 {PANEL_VERSION} 업데이트 완료 · 이미지 {image_id}",
-                "version": PANEL_VERSION,
-                "image_id": image_id,
-            })
+            write_status("completed", "complete", 100,
+                         f"웹패널 {PANEL_VERSION} 업데이트를 완료했습니다.",
+                         version=PANEL_VERSION, image_id=image_id)
             write_operation("completed", f"웹패널 {PANEL_VERSION} 업데이트 완료")
         except Exception as error:
             try:
@@ -122,14 +134,17 @@ def main():
                 pass
             try:
                 previous = client.containers.run(previous_image, **options)
+                write_status("verifying", "rollback", 88, "업데이트에 실패해 이전 패널로 복구하고 있습니다.")
                 wait_for_http(previous)
                 restart_proxy()
-                write_json(STATUS, {"status": "failed", "rollback": "completed",
-                                    "message": f"업데이트 실패 후 이전 패널로 복구했습니다: {error}"})
+                write_status("failed", "failed", 100,
+                             f"업데이트에 실패해 이전 패널로 복구했습니다: {error}",
+                             rollback="completed")
                 write_operation("failed", f"웹패널 업데이트 실패 후 이전 버전으로 복구했습니다: {error}")
             except Exception as rollback_error:
-                write_json(STATUS, {"status": "failed", "rollback": "failed",
-                                    "message": f"패널 복구 확인이 필요합니다: {rollback_error}"})
+                write_status("failed", "failed", 100,
+                             f"패널 복구 확인이 필요합니다: {rollback_error}",
+                             rollback="failed")
                 write_operation("failed", f"웹패널 업데이트 및 복구 실패: {rollback_error}")
                 raise
 
@@ -139,6 +154,6 @@ if __name__ == "__main__":
         main()
     except Exception as error:
         if read_json(STATUS, {}).get("status") != "failed":
-            write_json(STATUS, {"status": "failed", "message": str(error)})
+            write_status("failed", "failed", 100, f"웹패널 업데이트에 실패했습니다: {error}")
         write_operation("failed", f"웹패널 업데이트 실패: {error}")
         raise

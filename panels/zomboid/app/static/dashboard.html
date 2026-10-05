@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>T2 Zomboid Server Pannel</title>
   <link rel="icon" href="/static/zomboid-panel-mark.png?v=1">
-  <link rel="stylesheet" href="/static/app.css?v=1.6.10">
-  <script src="/static/app.js?v=1.6.9" defer></script>
+  <link rel="stylesheet" href="/static/app.css?v=1.6.13">
+  <script src="/static/app.js?v=1.6.10" defer></script>
 </head>
 <body>
 <div class="app-shell">
@@ -79,6 +79,7 @@
           <hr>
           <button class="control start" data-action="start">▶ 서버 시작</button>
           <div class="button-pair"><button data-action="stop">■ 중지</button><button data-action="restart">↻ 재시작</button></div>
+          <div class="control-card-art" aria-hidden="true"><img src="/static/zomboid-control-zombies-v1.png?v=1" alt=""></div>
         </section>
       </div>
       <section class="monitor-grid compact">
@@ -199,7 +200,16 @@
 
     <dialog id="panel-update-dialog" class="app-dialog panel-update-dialog" aria-labelledby="panel-update-title">
       <header><div><p class="eyebrow">PANEL MAINTENANCE</p><h2 id="panel-update-title">구동기 업데이트</h2><p>게임 서버 업데이트와 별개로 웹 구동기 이미지만 교체합니다.</p></div><button id="close-panel-update" class="dialog-close" type="button" title="닫기" aria-label="업데이트 창 닫기">×</button></header>
-      <div class="panel-update-body"><section class="panel update-card"><div><small>CURRENT VERSION</small><strong id="update-current-version">1.0.0</strong><span>TechTim GCP Project Zomboid 웹 구동기</span></div><div><small>IMAGE STATUS</small><strong id="update-image-status">확인 중</strong><span id="update-image-detail">컨테이너 레지스트리를 확인합니다.</span></div></section><aside class="callout">업데이트는 현재 패널 구성을 보존한 채 새 이미지를 적용하며, 실패하면 이전 이미지로 자동 복원합니다.</aside></div>
+      <div class="panel-update-body">
+        <section class="panel update-card"><div><small>CURRENT VERSION</small><strong id="update-current-version">1.0.0</strong><span>TechTim GCP Project Zomboid 웹 구동기</span></div><div><small>IMAGE STATUS</small><strong id="update-image-status">확인 중</strong><span id="update-image-detail">컨테이너 레지스트리를 확인합니다.</span></div></section>
+        <section id="panel-update-progress" class="panel-update-progress" aria-labelledby="panel-update-progress-label" hidden>
+          <div class="panel-update-progress-head"><strong id="panel-update-progress-label">업데이트 준비</strong><b id="panel-update-progress-percent">0%</b></div>
+          <div id="panel-update-progress-track" class="panel-update-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="panel-update-progress-bar"></i></div>
+          <ol class="panel-update-steps"><li data-update-step="download">이미지 준비</li><li data-update-step="replace">패널 교체</li><li data-update-step="verify">재연결 확인</li><li data-update-step="complete">완료</li></ol>
+          <p id="panel-update-progress-message" role="status" aria-live="polite">업데이트를 준비하고 있습니다.</p>
+        </section>
+        <aside class="callout">업데이트는 현재 패널 구성을 보존한 채 새 이미지를 적용하며, 실패하면 이전 이미지로 자동 복원합니다.</aside>
+      </div>
       <footer><button id="cancel-panel-update" type="button">닫기</button><button class="primary" id="apply-update" type="button">구동기 업데이트</button></footer>
     </dialog>
 
