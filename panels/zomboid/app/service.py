@@ -151,7 +151,8 @@ class PanelService:
     def logs(self, kind="server", tail=600):
         if kind == "all":
             sections = []
-            for log_kind, title in (("server", "서버 로그"), ("install", "설치 로그"), ("control", "작업 기록")):
+            # Auto-scrolling log panels should land on the live game output.
+            for log_kind, title in (("install", "설치 로그"), ("control", "작업 기록"), ("server", "서버 로그")):
                 sections.extend((f"===== {title} =====", self.logs(log_kind, tail=tail).rstrip(), ""))
             return "\n".join(sections).rstrip() + "\n"
         if kind == "server":
@@ -350,14 +351,22 @@ class PanelService:
         self._merge_key_value_file(ini, values)
         sandbox = self.server_config_dir / f"{SERVER_PROFILE}_SandboxVars.lua"
         existing = sandbox.read_text(encoding="utf-8", errors="replace") if sandbox.exists() else "SandboxVars = {\n    VERSION = 6,\n}\n"
+        original_sandbox = existing
         if re.match(r"^\s*return\s*\{", existing):
             existing = re.sub(r"^\s*return\s*\{", "SandboxVars = {", existing, count=1)
         if not re.search(r"(?m)^\s*SandboxVars\s*=\s*\{", existing):
             existing = "SandboxVars = {\n    VERSION = 6,\n}\n"
         existing = re.sub(r"(?m)^(\s*VERSION\s*=\s*)\d+(,?)", r"\g<1>6\g<2>", existing, count=1)
+        existing, migrated_values = self._migrate_legacy_sandbox_values(existing)
         for key, value in sandbox_values(self.sandbox_config()).items():
             existing = self._merge_sandbox_value(existing, key, value)
+        if migrated_values:
+            backup = sandbox.with_name(f"{sandbox.name}.legacy-flat.bak")
+            if not backup.exists():
+                self._atomic_text(backup, original_sandbox)
         self._atomic_text(sandbox, existing)
+        if migrated_values:
+            self._log("control", f"구형 샌드박스 설정 {migrated_values}개를 백업 후 Build 42 형식으로 자동 복구했습니다.")
         spawnpoints = self.server_config_dir / f"{SERVER_PROFILE}_spawnpoints.lua"
         spawnregions = self.server_config_dir / f"{SERVER_PROFILE}_spawnregions.lua"
         if not spawnpoints.exists():
@@ -365,6 +374,30 @@ class PanelService:
         if not spawnregions.exists():
             self._atomic_text(spawnregions,
                 "function SpawnRegions()\n    return { { name = 'Muldraugh, KY', file = 'media/maps/Muldraugh, KY/spawnpoints.lua' } }\nend\n")
+
+    @classmethod
+    def _migrate_legacy_sandbox_values(cls, content):
+        aliases = {
+            "ZombieLore.DragDown": "ZombieLore.ZombiesDragDown",
+            "ZombieLore.FenceLunge": "ZombieLore.ZombiesFenceLunge",
+        }
+        pattern = re.compile(
+            r"^    (?P<table>[A-Za-z_][A-Za-z0-9_]*)\."
+            r"(?P<key>[A-Za-z_][A-Za-z0-9_]*)\s*=\s*(?P<value>.+?)\s*,?\s*$"
+        )
+        kept_lines = []
+        legacy_values = []
+        for line in content.splitlines(keepends=True):
+            match = pattern.fullmatch(line.rstrip("\r\n"))
+            if not match:
+                kept_lines.append(line)
+                continue
+            key = f"{match.group('table')}.{match.group('key')}"
+            legacy_values.append((aliases.get(key, key), match.group("value")))
+        migrated = "".join(kept_lines)
+        for key, value in legacy_values:
+            migrated = cls._merge_sandbox_value(migrated, key, value)
+        return migrated, len(legacy_values)
 
     @staticmethod
     def _merge_sandbox_value(content, dotted_key, value):

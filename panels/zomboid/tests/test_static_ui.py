@@ -135,7 +135,7 @@ class StaticUiTests(unittest.TestCase):
         css = (root / "app/static/app.css").read_text()
         self.assertIn('id="server-running-lock-dialog"', html)
         self.assertIn('data-persistent="true"', html)
-        self.assertIn("서버 기동중에는 설정할 수 없습니다.", html)
+        self.assertIn("서버 기동중에는 조작할 수 없습니다.", html)
         self.assertIn("설정을 원하실 경우 서버를 종료해주세요.", html)
         self.assertIn("STOPPED_ONLY_VIEWS = new Set(['settings', 'sandbox', 'mods', 'players', 'backups', 'advanced', 'files'])", script)
         self.assertIn("if (STOPPED_ONLY_VIEWS.has(name))", script)

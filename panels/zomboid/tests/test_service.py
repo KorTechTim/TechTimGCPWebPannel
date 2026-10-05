@@ -59,6 +59,17 @@ class StartClient:
     def close(self): pass
 
 
+class LogContainer:
+    def logs(self, **_kwargs):
+        return b"2026-10-05T08:00:00Z live server output\n"
+
+
+class LogClient:
+    def __init__(self): self.containers = self
+    def get(self, _name): return LogContainer()
+    def close(self): pass
+
+
 class ServiceTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
@@ -77,6 +88,36 @@ class ServiceTests(unittest.TestCase):
         self.assertIn("        RespawnHours =", content)
         self.assertNotIn("ZombieConfig.RespawnHours", content)
         self.assertIn("MultiplierConfig = {", content)
+
+    def test_legacy_dotted_sandbox_values_are_backed_up_and_migrated(self):
+        sandbox = self.service.server_config_dir / "servertest_SandboxVars.lua"
+        legacy = (
+            "SandboxVars = {\n"
+            "    VERSION = 5,\n"
+            "    RearVulnerability = 3,\n"
+            "    ZombieLore.DragDown = true,\n"
+            "    ZombieLore.FenceLunge = true,\n"
+            "    ZombieConfig.RespawnHours = 72.0,\n"
+            "}\n"
+        )
+        sandbox.write_text(legacy, encoding="utf-8")
+
+        self.service.render_game_files()
+
+        content = sandbox.read_text(encoding="utf-8")
+        backup = sandbox.with_name(f"{sandbox.name}.legacy-flat.bak")
+        self.assertEqual(backup.read_text(encoding="utf-8"), legacy)
+        self.assertNotIn("ZombieLore.DragDown =", content)
+        self.assertNotIn("ZombieLore.FenceLunge =", content)
+        self.assertNotIn("ZombieConfig.RespawnHours =", content)
+        self.assertIn("ZombieLore = {", content)
+        self.assertIn("        ZombiesDragDown = true,", content)
+        self.assertIn("        ZombiesFenceLunge = true,", content)
+        self.assertNotIn("        DragDown =", content)
+        self.assertNotIn("        FenceLunge =", content)
+        self.assertIn("ZombieConfig = {", content)
+        self.assertIn("        RespawnHours = 0.0,", content)
+        self.assertIn("구형 샌드박스 설정 3개를 백업 후 Build 42 형식으로 자동 복구했습니다.", self.service.logs("control"))
 
     def test_status_is_safe_without_docker_container(self):
         status = self.service.status()
@@ -172,16 +213,17 @@ class ServiceTests(unittest.TestCase):
         self.assertNotIn("support-secret", report)
 
     def test_all_logs_combines_server_install_and_control(self):
-        self.service._log("server", "server ready")
+        service = PanelService(self.service.settings, lambda: LogClient())
         self.service._log("install", "install ready")
         self.service._log("control", "control ready")
-        combined = self.service.logs("all")
+        combined = service.logs("all")
         self.assertIn("===== 서버 로그 =====", combined)
-        self.assertIn("server ready", combined)
+        self.assertIn("live server output", combined)
         self.assertIn("===== 설치 로그 =====", combined)
         self.assertIn("install ready", combined)
         self.assertIn("===== 작업 기록 =====", combined)
         self.assertIn("control ready", combined)
+        self.assertGreater(combined.index("===== 서버 로그 ====="), combined.index("===== 작업 기록 ====="))
 
     def test_completed_server_operation_maps_to_discord_event(self):
         events = []
