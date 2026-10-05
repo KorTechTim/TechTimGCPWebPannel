@@ -231,18 +231,15 @@ class ServiceTests(unittest.TestCase):
         self.assertIn("[REDACTED]", report)
         self.assertNotIn("support-secret", report)
 
-    def test_all_logs_combines_server_install_and_control(self):
-        service = PanelService(self.service.settings, lambda: LogClient())
+    def test_all_logs_only_contains_install_history(self):
         self.service._log("install", "install ready")
         self.service._log("control", "control ready")
-        combined = service.logs("all")
-        self.assertIn("===== 서버 로그 =====", combined)
-        self.assertIn("live server output", combined)
+        combined = self.service.logs("all")
         self.assertIn("===== 설치 로그 =====", combined)
         self.assertIn("install ready", combined)
-        self.assertIn("===== 작업 기록 =====", combined)
-        self.assertIn("control ready", combined)
-        self.assertGreater(combined.index("===== 서버 로그 ====="), combined.index("===== 작업 기록 ====="))
+        self.assertNotIn("===== 작업 기록 =====", combined)
+        self.assertNotIn("control ready", combined)
+        self.assertNotIn("===== 서버 로그 =====", combined)
 
     def test_completed_server_operation_maps_to_discord_event(self):
         events = []
