@@ -56,6 +56,26 @@ class ApiTests(unittest.TestCase):
         escaped = self.client.get("/api/files", params={"path": "../"})
         self.assertEqual(escaped.status_code, 400)
 
+    def test_console_command_endpoint(self):
+        commands = []
+        self.client.app.state.service.console_command = lambda command: commands.append(command) or {
+            "status": "ok", "message": "sent", "command": command,
+        }
+        response = self.client.post("/api/console/command", json={"command": "players"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(commands, ["players"])
+        invalid = self.client.post("/api/console/command", json={"command": "players\nquit"})
+        self.assertEqual(invalid.status_code, 422)
+
+    def test_support_log_export_is_text_attachment(self):
+        self.client.app.state.service.support_log_report = lambda: "support report\n"
+        response = self.client.get("/api/logs/export")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.text, "support report\n")
+        self.assertTrue(response.headers["content-type"].startswith("text/plain"))
+        self.assertIn("attachment;", response.headers["content-disposition"])
+        self.assertIn("techtim-zomboid-support-", response.headers["content-disposition"])
+
 
 if __name__ == "__main__":
     unittest.main()

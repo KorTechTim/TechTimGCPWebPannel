@@ -128,6 +128,71 @@ class PanelService:
             return "아직 기록된 로그가 없습니다."
         return "".join(path.read_text(encoding="utf-8", errors="replace").splitlines(True)[-tail:])
 
+    def _redact_support_text(self, value):
+        text = str(value or "")
+        config = self.config()
+        for secret in (config.password, config.admin_password, config.rcon_password):
+            if secret:
+                text = text.replace(secret, "[REDACTED]")
+        return re.sub(
+            r"(?i)((?:password|passwd|token|secret|authorization)\s*[:=]\s*)([^\s,;]+)",
+            r"\1[REDACTED]",
+            text,
+        )
+
+    def support_log_report(self):
+        status = self.status()
+        diagnostic = {
+            "generated_at": datetime.now(KST).isoformat(timespec="seconds"),
+            "panel_version": PANEL_VERSION,
+            "steam_app_id": STEAM_APP_ID,
+            "runtime_image": self.settings.runtime_image,
+            "server_container": self.settings.server_container,
+            "profile": SERVER_PROFILE,
+            "server_status": status["server"],
+            "engine": status["engine"],
+            "operation": status["operation"],
+            "resources": self.resources(),
+        }
+        sections = [
+            "TechTim Project Zomboid Support Log",
+            "This report removes configured passwords and common secret fields.",
+            "",
+            "===== DIAGNOSTICS =====",
+            json.dumps(diagnostic, ensure_ascii=False, indent=2, default=str),
+        ]
+        for kind, title in (("server", "SERVER LOG"), ("install", "INSTALL LOG"), ("control", "CONTROL LOG")):
+            sections.extend(("", f"===== {title} =====", self.logs(kind, tail=5000).rstrip()))
+        return self._redact_support_text("\n".join(sections).rstrip() + "\n")
+
+    def console_command(self, command):
+        command = str(command or "").strip()
+        if command.startswith("/"):
+            command = command[1:].lstrip()
+        if not command or len(command) > 512 or any(ord(char) < 32 for char in command):
+            raise ValueError("관리 명령어를 확인해주세요.")
+        verb = command.split(None, 1)[0].lower()
+        if verb in {"quit", "exit", "shutdown"}:
+            raise ValueError("서버 종료는 서버 제어 메뉴를 이용해주세요.")
+        try:
+            with self.client() as client:
+                container = client.containers.get(self.settings.server_container)
+                container.reload()
+                if container.status not in {"running", "restarting"}:
+                    raise BusyError("서버가 실행 중일 때만 관리 명령을 보낼 수 있습니다.")
+                result = container.exec_run(
+                    ["/usr/bin/timeout", "5s", "/bin/bash", "-c",
+                     'printf "%s\\n" "$PZ_COMMAND" > /tmp/zomboid-console'],
+                    user="zomboid", environment={"PZ_COMMAND": command},
+                )
+        except NotFound as error:
+            raise BusyError("서버가 실행 중일 때만 관리 명령을 보낼 수 있습니다.") from error
+        if int(result.exit_code) != 0:
+            detail = result.output.decode(errors="replace").strip() if result.output else ""
+            raise RuntimeError(detail or "서버 콘솔에 명령을 전달하지 못했습니다.")
+        self._log("control", f"[관리 터미널] {verb} 명령 전송")
+        return {"status": "ok", "message": "관리 명령을 서버에 전송했습니다.", "command": command}
+
     def config(self):
         return ServerConfig.model_validate(read_json(self.config_path, {}))
 

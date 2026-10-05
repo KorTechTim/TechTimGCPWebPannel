@@ -6,6 +6,8 @@ let statusCache = null;
 let configCache = null;
 let currentLog = 'server';
 let currentPath = '';
+const commandHistory = [];
+let commandHistoryIndex = 0;
 
 async function api(url, options = {}) {
   const response = await fetch(url, {credentials: 'same-origin', ...options});
@@ -22,12 +24,21 @@ async function perform(work, success) { try { message('처리 중입니다.'); c
 function bytes(value) { if (value == null || !Number.isFinite(Number(value))) return '-'; let n = Number(value); const units = ['B','KB','MB','GB','TB']; let i = 0; while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; } return `${n >= 10 || i === 0 ? n.toFixed(0) : n.toFixed(1)} ${units[i]}`; }
 function lines(text) { return text.split(/\r?\n/).map(value => value.trim()).filter(Boolean); }
 function setMeter(selector, value) { const element = $(selector); if (element) element.style.width = `${Math.max(0, Math.min(100, Number(value) || 0))}%`; }
+function syncModalState() { document.body.classList.toggle('modal-open', $$('dialog').some(dialog => dialog.open)); }
+function showDialog(dialog) { dialog.showModal(); syncModalState(); }
+function closeDialog(dialog, returnValue = 'cancel') { if (dialog.open) dialog.close(returnValue); }
 
-const titles = {overview:'서버 개요',console:'실시간 로그',settings:'기본 서버 설정',sandbox:'샌드박스 배율',mods:'모드 · 워크숍',players:'사용자 관리',backups:'백업 · 복원',advanced:'고급 파일 설정',schedule:'예약 작업',files:'서버 폴더 탐색기',monitor:'VM 모니터링','panel-update':'구동기 업데이트'};
+$$('dialog').forEach(dialog => {
+  dialog.addEventListener('close', syncModalState);
+  dialog.addEventListener('click', event => { if (event.target === dialog) closeDialog(dialog); });
+});
+
+const titles = {overview:'서버 개요',console:'관리 터미널',settings:'기본 서버 설정',sandbox:'샌드박스 배율',mods:'모드 · 워크숍',players:'사용자 관리',backups:'백업 · 복원',advanced:'설정파일 직접수정',schedule:'예약 작업',files:'서버 폴더 탐색기','panel-update':'구동기 업데이트'};
 async function showView(name) {
   if (!titles[name]) name = 'overview';
   $$('.view').forEach(view => view.classList.toggle('active', view.dataset.page === name));
   $$('.nav-item').forEach(item => item.classList.toggle('active', item.dataset.view === name));
+  $('#overview-status').hidden = name !== 'overview';
   $('#page-title').textContent = titles[name];
   history.replaceState(null, '', `#${name}`);
   try {
@@ -67,6 +78,10 @@ async function refreshStatus() {
     button.disabled = status.busy || (action === 'start' && status.server === 'running') || (action !== 'start' && status.server !== 'running');
   });
   $('#install-engine').disabled = status.busy || status.server === 'running';
+  const terminalReady = status.server === 'running' && !status.busy;
+  $('#terminal-command').disabled = !terminalReady;
+  $('#terminal-command-submit').disabled = !terminalReady;
+  $('#terminal-command-state').textContent = terminalReady ? '● 명령 전송 가능' : '● 서버 실행 중에만 명령 전송 가능';
   return status;
 }
 
@@ -75,18 +90,18 @@ async function refreshResources() {
   const cpu = data.cpu.percent;
   const mem = data.memory.percent;
   const disk = data.disk.percent;
-  ['#cpu-value','#cpu-value-2'].forEach(id => $(id).textContent = cpu == null ? '수집 중' : `${cpu.toFixed(1)}%`);
-  ['#memory-value','#memory-value-2'].forEach(id => $(id).textContent = mem == null ? '-' : `${mem.toFixed(1)}%`);
-  ['#disk-value','#disk-value-2'].forEach(id => $(id).textContent = `${disk.toFixed(1)}%`);
-  ['#memory-detail','#memory-detail-2'].forEach(id => $(id).textContent = `${bytes(data.memory.used)} / ${bytes(data.memory.total)}`);
-  ['#disk-detail','#disk-detail-2'].forEach(id => $(id).textContent = `${bytes(data.disk.used)} / ${bytes(data.disk.total)}`);
-  ['#cpu-meter','#cpu-meter-2'].forEach(id => setMeter(id, cpu));
-  ['#memory-meter','#memory-meter-2'].forEach(id => setMeter(id, mem));
-  ['#disk-meter','#disk-meter-2'].forEach(id => setMeter(id, disk));
+  $('#cpu-value').textContent = cpu == null ? '수집 중' : `${cpu.toFixed(1)}%`;
+  $('#memory-value').textContent = mem == null ? '-' : `${mem.toFixed(1)}%`;
+  $('#disk-value').textContent = `${disk.toFixed(1)}%`;
+  $('#memory-detail').textContent = `${bytes(data.memory.used)} / ${bytes(data.memory.total)}`;
+  $('#disk-detail').textContent = `${bytes(data.disk.used)} / ${bytes(data.disk.total)}`;
+  setMeter('#cpu-meter', cpu);
+  setMeter('#memory-meter', mem);
+  setMeter('#disk-meter', disk);
   const down = `${bytes(data.network.down)}/s`, up = `${bytes(data.network.up)}/s`;
-  ['#network-down','#network-down-2'].forEach(id => $(id).textContent = down);
-  ['#network-up','#network-up-2'].forEach(id => $(id).textContent = up);
-  ['#network-value','#network-value-2'].forEach(id => $(id).textContent = `${down} ↓`);
+  $('#network-down').textContent = down;
+  $('#network-up').textContent = up;
+  $('#network-value').textContent = `${down} ↓`;
 }
 
 async function loadLogs() {
@@ -104,6 +119,62 @@ $$('.log-tab').forEach(button => button.addEventListener('click', () => {
   loadLogs().catch(error => message(error.message, true));
 }));
 $('#refresh-log').addEventListener('click', () => loadLogs().catch(error => message(error.message, true)));
+
+const commandHelpDialog = $('#command-help-dialog');
+$('#open-command-help').addEventListener('click', () => showDialog(commandHelpDialog));
+$('#close-command-help').addEventListener('click', () => closeDialog(commandHelpDialog));
+
+const textInputDialog = $('#text-input-dialog');
+const textInput = $('#text-input-value');
+function requestTextInput({title, description, label, placeholder = '', value = ''}) {
+  $('#text-input-title').textContent = title;
+  $('#text-input-description').textContent = description;
+  $('#text-input-label').textContent = label;
+  textInput.placeholder = placeholder;
+  textInput.value = value;
+  textInputDialog.returnValue = '';
+  showDialog(textInputDialog);
+  requestAnimationFrame(() => textInput.focus());
+  return new Promise(resolve => textInputDialog.addEventListener('close', () => {
+    resolve(textInputDialog.returnValue === 'submit' ? textInput.value.trim() : '');
+  }, {once: true}));
+}
+$('#text-input-form').addEventListener('submit', event => {
+  event.preventDefault();
+  if (textInput.reportValidity()) closeDialog(textInputDialog, 'submit');
+});
+$('#close-text-input').addEventListener('click', () => closeDialog(textInputDialog));
+$('#cancel-text-input').addEventListener('click', () => closeDialog(textInputDialog));
+
+$('#terminal-command').addEventListener('keydown', event => {
+  if (!['ArrowUp', 'ArrowDown'].includes(event.key) || !commandHistory.length) return;
+  event.preventDefault();
+  if (event.key === 'ArrowUp') commandHistoryIndex = Math.max(0, commandHistoryIndex - 1);
+  else commandHistoryIndex = Math.min(commandHistory.length, commandHistoryIndex + 1);
+  event.currentTarget.value = commandHistory[commandHistoryIndex] || '';
+});
+
+$('#terminal-command-form').addEventListener('submit', async event => {
+  event.preventDefault();
+  const input = $('#terminal-command');
+  const command = input.value.trim();
+  if (!command) return;
+  $('#terminal-command-state').textContent = `● ${command.split(/\s+/, 1)[0]} 전송 중`;
+  try {
+    const result = await api('/api/console/command', json('POST', {command}));
+    if (commandHistory.at(-1) !== command) commandHistory.push(command);
+    commandHistoryIndex = commandHistory.length;
+    input.value = '';
+    currentLog = 'server';
+    $$('.log-tab').forEach(item => item.classList.toggle('active', item.dataset.log === 'server'));
+    await new Promise(resolve => setTimeout(resolve, 350));
+    await loadLogs();
+    $('#terminal-command-state').textContent = `● ${result.message}`;
+    input.focus();
+  } catch (error) {
+    $('#terminal-command-state').textContent = `● ${error.message}`;
+  }
+});
 
 $('#install-engine').addEventListener('click', () => perform(() => api('/api/install', {method:'POST'}), '엔진 설치·업데이트를 시작했습니다.'));
 $$('[data-action]').forEach(button => button.addEventListener('click', () => perform(() => api(`/api/server/${button.dataset.action}`, {method:'POST'}), '서버 작업을 시작했습니다.')));
@@ -203,7 +274,8 @@ async function loadFiles(path = '') {
   const data = await api(`/api/files?path=${encodeURIComponent(path)}`); currentPath = data.path; renderBreadcrumbs(data.path); const list = $('#file-list'); list.replaceChildren();
   for (const entry of data.entries) {
     const row = document.createElement('div'); row.className = 'file-row';
-    const icon = document.createElement('b'); icon.textContent = entry.type === 'dir' ? '▣' : '▤'; const name = document.createElement('strong'); name.textContent = entry.name;
+    const icon = document.createElement('img'); icon.className = 'file-entry-icon'; icon.src = entry.type === 'dir' ? '/static/zomboid-file-folder-v1.png' : '/static/zomboid-file-document-v1.png'; icon.alt = entry.type === 'dir' ? '폴더' : '파일';
+    const name = document.createElement('strong'); name.textContent = entry.name;
     if (entry.type === 'dir') { name.style.cursor = 'pointer'; name.addEventListener('click', () => loadFiles(entry.path)); }
     const size = document.createElement('small'); size.className = 'file-size'; size.textContent = entry.type === 'file' ? bytes(entry.size) : '폴더'; const date = document.createElement('small'); date.className = 'file-date'; date.textContent = entry.modified;
     const actions = document.createElement('div');
@@ -214,7 +286,12 @@ async function loadFiles(path = '') {
 }
 $('#folder-up').addEventListener('click', () => loadFiles(currentPath.split('/').slice(0,-1).join('/')).catch(error => message(error.message, true)));
 $('#refresh-files').addEventListener('click', () => loadFiles(currentPath).catch(error => message(error.message, true)));
-$('#new-folder').addEventListener('click', async () => { const name = window.prompt('새 폴더 이름'); if (!name) return; await perform(() => api('/api/files/directory', json('POST', {path: currentPath, name})), '폴더를 만들었습니다.'); await loadFiles(currentPath); });
+$('#new-folder').addEventListener('click', async () => {
+  const name = await requestTextInput({title: '새 폴더 만들기', description: '현재 경로에 생성할 폴더 이름을 입력하세요.', label: '폴더 이름', placeholder: '예: mods-backup'});
+  if (!name) return;
+  await perform(() => api('/api/files/directory', json('POST', {path: currentPath, name})), '폴더를 만들었습니다.');
+  await loadFiles(currentPath);
+});
 $('#file-upload').addEventListener('change', async event => { const file = event.target.files[0]; if (!file) return; const data = new FormData(); data.append('path', currentPath); data.append('file', file); await perform(() => api('/api/files/upload', {method:'POST', body:data}), '파일을 올렸습니다.'); event.target.value = ''; await loadFiles(currentPath); });
 
 async function checkPanelUpdate(showMessage = false) {

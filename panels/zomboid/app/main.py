@@ -11,7 +11,7 @@ import zipfile
 from fastapi import BackgroundTasks, Body, FastAPI, File, Form, HTTPException, Request, Response, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field, ValidationError, field_validator
 from starlette.background import BackgroundTask
 
 from .auth import Auth, SESSION_COOKIE, SESSION_SECONDS
@@ -52,6 +52,18 @@ class PlayerUpdate(BaseModel):
     username: str = Field(min_length=1, max_length=128)
     field: Literal["access_level", "whitelisted", "banned"]
     value: str | bool
+
+
+class ConsoleCommand(BaseModel):
+    command: str = Field(min_length=1, max_length=512)
+
+    @field_validator("command")
+    @classmethod
+    def valid_command(cls, value):
+        command = value.strip()
+        if not command or any(ord(char) < 32 for char in command):
+            raise ValueError("명령어에는 줄바꿈이나 제어 문자를 사용할 수 없습니다.")
+        return command
 
 
 def create_app(settings=None, docker_factory=None):
@@ -212,6 +224,20 @@ def create_app(settings=None, docker_factory=None):
     @app.get("/api/logs")
     def logs(request: Request, kind: Literal["server", "install", "control"] = "server"):
         auth.require(request); return {"log": service.logs(kind)}
+
+    @app.get("/api/logs/export")
+    def export_support_logs(request: Request):
+        auth.require(request)
+        filename = f"techtim-zomboid-support-{datetime.now().strftime('%Y%m%d-%H%M%S')}.txt"
+        return Response(
+            service.support_log_report(),
+            media_type="text/plain; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+
+    @app.post("/api/console/command")
+    def console_command(payload: ConsoleCommand, request: Request):
+        auth.require(request); return service.console_command(payload.command)
 
     @app.get("/api/resources")
     @app.get("/api/server/resources")
