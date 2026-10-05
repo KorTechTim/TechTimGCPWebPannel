@@ -113,6 +113,10 @@ class StaticUiTests(unittest.TestCase):
         self.assertIn("setInterval(() => refreshResources().catch(() => {}), RESOURCE_REFRESH_MS)", script)
         self.assertIn("RESOURCE_HISTORY_STORAGE_KEY", script)
         self.assertIn(".history-chart", css)
+        self.assertIn(".monitor-grid.compact header strong{font-size:28px", css)
+        self.assertIn(".monitor-grid.compact .history-metric b{font-size:44px}", css)
+        self.assertIn(".monitor-grid.compact article>span{margin-top:18px!important;color:#8bbcaf;font-size:32px", css)
+        self.assertIn("@media(max-width:1600px){.monitor-grid.compact{grid-template-columns:repeat(2", css)
 
     def test_copy_endpoint_copies_ip_and_shows_temporary_tooltip(self):
         root = Path(__file__).parents[1]
