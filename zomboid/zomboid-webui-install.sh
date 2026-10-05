@@ -31,9 +31,9 @@ if [[ ! "$INSTALL_CODE" =~ ^[A-Za-z0-9_-]{4,128}$ ]]; then
   echo 'A valid install-code metadata value is required.'; exit 1
 fi
 VERIFY_RESULT=$(curl -fsSL --connect-timeout 10 --max-time 30 --get \
-  --data-urlencode 'game=zomboid' --data-urlencode "code=$INSTALL_CODE" "$VERIFY_API" || true)
+  --data-urlencode 'game=project_zomboid' --data-urlencode "code=$INSTALL_CODE" "$VERIFY_API" || true)
 if [ "$VERIFY_RESULT" != OK ]; then
-  echo 'Zomboid install code verification failed. Configure game=zomboid in the TechTim verification service.'
+  echo 'Zomboid install code verification failed. Configure INSTALL_CODE_PROJECT_ZOMBOID in Vercel.'
   exit 1
 fi
 

@@ -33,6 +33,12 @@ class ConfigTests(unittest.TestCase):
             settings = Settings(data_dir=Path(root), host_data_dir=Path(root))
             self.assertIn("zomboid-runtime", settings.runtime_image)
 
+    def test_installer_uses_project_zomboid_verification_key(self):
+        repository = Path(__file__).resolve().parents[3]
+        installer = (repository / "zomboid" / "zomboid-webui-install.sh").read_text()
+        self.assertIn("--data-urlencode 'game=project_zomboid'", installer)
+        self.assertNotIn("--data-urlencode 'game=zomboid'", installer)
+
 
 if __name__ == "__main__":
     unittest.main()
