@@ -62,6 +62,7 @@ class ApiTests(ServiceCase):
     def test_authentication_applies_to_all_operational_routes(self):
         for method, url, kwargs in [
             ('get', '/api/worlds', {}), ('get', '/api/server/status', {}), ('get', '/api/logs', {}),
+            ('get', '/api/logs/export', {}),
             ('get', '/api/backups', {}), ('get', '/api/permissions', {}), ('get', '/api/restart-schedule', {}),
             ('get', '/api/server-files', {}),
             ('get', '/api/server-files/text?path=server.cfg', {}),
@@ -406,9 +407,24 @@ class ApiTests(ServiceCase):
         self.authenticated(); self.world()
         response = self.client.get('/api/worlds/Dedicated/download')
         self.assertEqual(response.status_code, 200)
+        self.assertIn('filename="Dedicated.zip"', response.headers['content-disposition'])
+        with zipfile.ZipFile(BytesIO(response.content)) as archive:
+            self.assertEqual(set(archive.namelist()), {'Dedicated.db', 'Dedicated.fwl'})
+            self.assertEqual(archive.read('Dedicated.db'), b'original db')
+            self.assertEqual(archive.read('Dedicated.fwl'), b'world metadata')
         self.assertEqual(list(self.service.exports.iterdir()), [])
         self.docker.containers.add()
         self.assertEqual(self.client.get('/api/worlds/Dedicated/download').status_code, 409)
+
+    def test_support_log_export_is_text_attachment(self):
+        self.authenticated()
+        self.client.app.state.service.support_log_report = lambda: "support report\n"
+        response = self.client.get('/api/logs/export')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.text, "support report\n")
+        self.assertTrue(response.headers['content-type'].startswith('text/plain'))
+        self.assertIn('attachment;', response.headers['content-disposition'])
+        self.assertIn('techtim-valheim-support-', response.headers['content-disposition'])
 
     def test_permission_list_save_does_not_touch_authentication(self):
         self.authenticated()

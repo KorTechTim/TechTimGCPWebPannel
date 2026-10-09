@@ -5,8 +5,8 @@
   <meta name="color-scheme" content="dark"><title>TechTim · Valheim Server</title>
   <link rel="icon" href="/static/valheim-panel-mark-v2.png?v=1" type="image/png">
   <link rel="stylesheet" href="/static/app.css?v=1.1.0">
-  <link rel="stylesheet" href="/static/valheim-palshell.css?v=1.7.1">
-  <script src="/static/app.js?v=1.6.7" defer></script>
+  <link rel="stylesheet" href="/static/valheim-palshell.css?v=1.7.3">
+  <script src="/static/app.js?v=1.6.8" defer></script>
 </head>
 <body>
   <div class="ambient" aria-hidden="true"></div>
@@ -40,7 +40,7 @@
 
       <div class="console-layout">
         <section class="card console-card" id="server-console" aria-labelledby="log-title">
-          <div class="section-head"><div><p class="eyebrow">SERVER CONSOLE</p><h2 id="log-title">실시간 로그</h2></div><label class="compact-toggle"><input id="auto-scroll" type="checkbox" checked>자동 스크롤</label></div>
+          <div class="section-head"><div><p class="eyebrow">SERVER CONSOLE</p><h2 id="log-title">실시간 로그</h2></div><div class="console-head-actions"><a id="export-support-log" class="log-export" href="/api/logs/export" download title="기술지원용 전체 로그 저장"><span aria-hidden="true">↓</span>로그 내보내기</a><label class="compact-toggle"><input id="auto-scroll" type="checkbox" checked>자동 스크롤</label></div></div>
           <div class="log-tabs" role="tablist" aria-label="로그 종류">
             <button role="tab" aria-selected="true" data-log="server">서버 로그</button>
             <button role="tab" aria-selected="false" data-log="install">설치 로그</button>
@@ -194,7 +194,9 @@
 
   <dialog id="worlds-dialog" class="wide-dialog"><div class="dialog-head"><div><p class="eyebrow">WORLD FILES</p><h2>월드 파일</h2></div><button data-close aria-label="닫기">×</button></div>
     <div class="dialog-body"><div id="world-list" class="file-list world-drop-zone" data-running-lock aria-label="월드 파일 드래그 앤 드롭 업로드 영역"></div>
-      <form id="world-upload-form"><fieldset data-writable data-running-lock><legend>기존 월드 가져오기</legend><p class="subtle">이름이 같은 .db와 .fwl 파일을 함께 선택하세요. Steam 클라우드 월드는 게임에서 로컬로 옮긴 뒤 가져와주세요.</p><div class="field-grid"><label>월드 데이터 · .db<input name="db" type="file" accept=".db" required></label><label>월드 정보 · .fwl<input name="fwl" type="file" accept=".fwl" required></label></div><label class="compact-toggle"><input name="overwrite" type="checkbox">같은 이름의 기존 월드 덮어쓰기</label><p class="micro">기존 월드가 있으면 먼저 ZIP 백업을 만듭니다. 업로드 후 서버 설정에서 월드를 선택해주세요.</p><button type="submit" class="primary">월드 업로드</button></fieldset><p id="worlds-message" class="form-message" role="status"></p></form>
+      <form id="world-upload-form"><fieldset data-writable data-running-lock><legend>기존 월드 가져오기</legend><p class="subtle">이름이 같은 .db와 .fwl 파일을 함께 선택하세요. Steam 클라우드 월드는 게임에서 로컬로 옮긴 뒤 가져와주세요.</p><div class="field-grid"><label>월드 데이터 · .db<input name="db" type="file" accept=".db" required></label><label>월드 정보 · .fwl<input name="fwl" type="file" accept=".fwl" required></label></div><label class="compact-toggle"><input name="overwrite" type="checkbox">같은 이름의 기존 월드 덮어쓰기</label><p class="micro">기존 월드가 있으면 먼저 ZIP 백업을 만듭니다. 업로드 후 서버 설정에서 월드를 선택해주세요.</p><button type="submit" class="primary">월드 업로드</button></fieldset></form>
+      <form id="world-export-form"><fieldset data-writable data-running-lock><legend>기존 월드 내보내기</legend><p class="subtle">월드의 .db와 .fwl 파일을 ZIP 하나로 내려받습니다. 새 Google Cloud 서버에서 압축을 풀고 위의 가져오기로 옮길 수 있습니다.</p><div class="world-export-controls"><label>내보낼 월드<select id="world-export-select" aria-label="내보낼 월드 선택"></select></label><button id="world-export-button" type="submit">ZIP 내보내기</button></div><p class="micro">현재 서버에서 완전한 파일 쌍이 확인된 월드만 내보낼 수 있습니다.</p></fieldset></form>
+      <p id="worlds-message" class="form-message" role="status"></p>
     </div><div class="dialog-foot"><button data-close>닫기</button></div>
   </dialog>
 

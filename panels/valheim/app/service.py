@@ -656,20 +656,75 @@ class PanelService:
         self.maintenance = threading.Thread(target=maintenance_loop, name="valheim-storage-maintenance", daemon=True)
         self.maintenance.start()
 
-    def logs(self, kind):
+    def logs(self, kind, *, full=False):
         if kind in {"control", "install"}:
             path = self.root / f"{kind}.log"
-            if not path.exists():
+            paths = [path.with_suffix(".log.1"), path] if full else [path]
+            found = [candidate for candidate in paths if candidate.is_file()]
+            if not found:
                 return "아직 기록된 로그가 없습니다."
-            with path.open("rb") as stream:
-                stream.seek(max(0, path.stat().st_size - 32000))
-                text = stream.read().decode(errors="replace")
+            if full:
+                text = "".join(candidate.read_text(encoding="utf-8", errors="replace") for candidate in found)
+            else:
+                with path.open("rb") as stream:
+                    stream.seek(max(0, path.stat().st_size - 32000))
+                    text = stream.read().decode(errors="replace")
         else:
             with self.client() as client:
                 server = self.container(client, self.settings.server_container)
-                text = server.logs(tail=200).decode(errors="replace") if server else "서버 시작 후 로그가 표시됩니다."
+                if server:
+                    options = {"timestamps": True} if full else {"tail": 200}
+                    text = server.logs(**options).decode(errors="replace")
+                else:
+                    text = "서버 시작 후 로그가 표시됩니다."
         password = self.config().password
         return text.replace(password, "[비밀번호 숨김]") if password else text
+
+    def _redact_support_text(self, value):
+        text = str(value or "")
+        password = self.config().password
+        if password:
+            text = text.replace(password, "[REDACTED]")
+        text = re.sub(
+            r"(?i)((?:password|passwd|token|secret|authorization)\s*[:=]\s*)([^\s,;]+)",
+            r"\1[REDACTED]",
+            text,
+        )
+        return re.sub(
+            r"https://(?:(?:canary|ptb)\.)?discord(?:app)?\.com/api/webhooks/\d+/[A-Za-z0-9._-]+",
+            "[DISCORD WEBHOOK REDACTED]",
+            text,
+            flags=re.I,
+        )
+
+    def support_log_report(self):
+        status = self.status()
+        diagnostic = {
+            "generated_at": datetime.now(KST).isoformat(timespec="seconds"),
+            "panel_version": PANEL_VERSION,
+            "steam_app_id": STEAM_APP_ID,
+            "runtime_image": self.settings.runtime_image,
+            "server_container": self.settings.server_container,
+            "server_status": status.get("server_status"),
+            "docker_available": status.get("docker_available", False),
+            "engine": status.get("engine"),
+            "operation": status.get("operation"),
+            "configuration": self.public_config(),
+        }
+        sections = [
+            "TechTim Valheim Support Log",
+            "Configured passwords, tokens, and Discord Webhook URLs are removed automatically.",
+            "",
+            "===== DIAGNOSTICS =====",
+            json.dumps(diagnostic, ensure_ascii=False, indent=2, default=str),
+        ]
+        for kind, title in (("server", "SERVER LOG"), ("install", "INSTALL LOG"), ("control", "CONTROL LOG")):
+            try:
+                log_text = self.logs(kind, full=True).rstrip()
+            except Exception as error:
+                log_text = f"로그를 불러오지 못했습니다: {error}"
+            sections.extend(("", f"===== {title} =====", log_text))
+        return self._redact_support_text("\n".join(sections).rstrip() + "\n")
 
     @staticmethod
     def _proc_values(path):

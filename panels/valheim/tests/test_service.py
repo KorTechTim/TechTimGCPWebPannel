@@ -391,3 +391,25 @@ class LifecycleTests(ServiceCase):
         self.assertNotIn("viking-secret", self.service.logs("control"))
         self.assertNotIn("password", self.service.public_config())
         self.assertTrue(self.service.public_config()["password_set"])
+
+    def test_support_log_report_combines_full_history_and_redacts_secrets(self):
+        config = self.service.config().model_copy(update={"password": "support-secret"})
+        write_json(self.service.config_file, config.model_dump())
+        (self.service.root / "install.log.1").write_text("old install history\n", encoding="utf-8")
+        self.service.log("password=support-secret install failed", "install")
+        self.service.log("webhook=https://discord.com/api/webhooks/123456/secret-token", "control")
+        server = self.docker.containers.add()
+        server.output = b"complete server history\n"
+
+        report = self.service.support_log_report()
+
+        self.assertIn("===== DIAGNOSTICS =====", report)
+        self.assertIn("===== SERVER LOG =====", report)
+        self.assertIn("===== INSTALL LOG =====", report)
+        self.assertIn("===== CONTROL LOG =====", report)
+        self.assertIn("old install history", report)
+        self.assertIn("complete server history", report)
+        self.assertIn("[REDACTED]", report)
+        self.assertIn("[DISCORD WEBHOOK REDACTED]", report)
+        self.assertNotIn("support-secret", report)
+        self.assertNotIn("secret-token", report)

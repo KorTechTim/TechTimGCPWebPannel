@@ -23,6 +23,7 @@ let steamIdPopup = null;
 let discordBusy = false;
 let discordWebhookConfigured = false;
 let worldNames = new Set();
+let worldExportAvailable = false;
 const selectedServerFolders = new Set();
 const polls = new Set();
 const runningStates = new Set(['running', 'restarting', 'paused', 'removing']);
@@ -199,6 +200,8 @@ function updateControls() {
   $('install').disabled = !available || running;
   $('sidebar-settings').disabled = !state;
   $('panel-update-action').disabled = !available;
+  $('world-export-select').disabled = disabled || !worldExportAvailable;
+  $('world-export-button').disabled = disabled || !worldExportAvailable;
   updateRunningLocks();
   updateServerFileControls();
   updateModControls();
@@ -771,6 +774,22 @@ async function loadWorlds() {
   const data = await api('/api/worlds');
   const list = $('world-list'); list.replaceChildren();
   worldNames = new Set(data.worlds.map(world => world.name));
+  const exportSelect = $('world-export-select');
+  const previousExport = exportSelect.value;
+  const exportableWorlds = data.worlds.filter(world => world.complete);
+  worldExportAvailable = exportableWorlds.length > 0;
+  exportSelect.replaceChildren();
+  if (!worldExportAvailable) {
+    const option = document.createElement('option'); option.value = ''; option.textContent = '내보낼 수 있는 월드가 없습니다'; exportSelect.append(option);
+  } else {
+    for (const world of exportableWorlds) {
+      const option = document.createElement('option'); option.value = world.name; option.textContent = `${world.name} · ${bytes(world.size)}`; exportSelect.append(option);
+    }
+    const preferred = exportableWorlds.find(world => world.name === previousExport)
+      || exportableWorlds.find(world => world.name === data.selected)
+      || exportableWorlds[0];
+    exportSelect.value = preferred.name;
+  }
   const dropPrompt = document.createElement('div');
   dropPrompt.className = `world-drop-prompt${data.worlds.length ? '' : ' is-empty'}`;
   const dropIcon = document.createElement('span'); dropIcon.className = 'world-drop-icon'; dropIcon.setAttribute('aria-hidden', 'true'); dropIcon.textContent = '↑';
@@ -805,6 +824,15 @@ $('world-upload-form').onsubmit = async event => {
   event.preventDefault();
   const form = event.currentTarget;
   if (await uploadWorldPair(form.elements.db.files?.[0], form.elements.fwl.files?.[0], form.elements.overwrite.checked)) form.reset();
+};
+
+$('world-export-form').onsubmit = event => {
+  event.preventDefault();
+  const name = $('world-export-select').value;
+  if (!worldExportAvailable || !name) { message('worlds-message', '내보낼 수 있는 완전한 월드 파일이 없습니다.', true); return; }
+  if (!writable()) { message('worlds-message', '서버를 중지하고 진행 중인 작업이 끝난 뒤 월드를 내보내주세요.', true); return; }
+  message('worlds-message', `${name} 월드를 ZIP 파일로 준비하고 있습니다.`);
+  location.href = `/api/worlds/${encodeURIComponent(name)}/download`;
 };
 
 const worldDropZone = $('world-list');

@@ -390,6 +390,16 @@ def create_app(settings=None, docker_factory=None):
         auth.require(request)
         return {"log": service.logs(kind)}
 
+    @app.get("/api/logs/export")
+    def export_support_logs(request: Request):
+        auth.require(request)
+        filename = f"techtim-valheim-support-{datetime.now().strftime('%Y%m%d-%H%M%S')}.txt"
+        return Response(
+            service.support_log_report(),
+            media_type="text/plain; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+
     @app.get("/api/server/resources")
     def resources(request: Request):
         auth.require(request)

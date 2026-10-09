@@ -165,6 +165,15 @@ class StaticUiTests(unittest.TestCase):
         self.assertIn("setInterval(() => { if (!document.hidden) refreshResources(); }, RESOURCE_REFRESH_MS);", script)
         self.assertIn(".resource-history-chart canvas", css)
 
+    def test_console_exports_complete_support_log_next_to_auto_scroll(self):
+        html = self.read("dashboard.html")
+        css = self.read("valheim-palshell.css")
+        self.assertIn('id="export-support-log"', html)
+        self.assertIn('href="/api/logs/export" download', html)
+        self.assertLess(html.index('id="export-support-log"'), html.index('id="auto-scroll"'))
+        self.assertIn(".console-head-actions", css)
+        self.assertIn(".log-export", css)
+
     def test_world_files_support_drag_and_drop_upload(self):
         html = self.read("dashboard.html")
         script = self.read("app.js")
@@ -176,6 +185,17 @@ class StaticUiTests(unittest.TestCase):
         self.assertIn("files.length !== 2 || dbFiles.length !== 1 || fwlFiles.length !== 1", script)
         self.assertIn("worldNames.has(name)", script)
         self.assertIn(".world-drop-zone.is-dragging", css)
+
+    def test_world_export_section_downloads_complete_world_pair(self):
+        html = self.read("dashboard.html")
+        script = self.read("app.js")
+        css = self.read("valheim-palshell.css")
+        self.assertIn('id="world-export-form"', html)
+        self.assertIn('id="world-export-select"', html)
+        self.assertIn('id="world-export-button"', html)
+        self.assertIn("const exportableWorlds = data.worlds.filter(world => world.complete);", script)
+        self.assertIn("location.href = `/api/worlds/${encodeURIComponent(name)}/download`;", script)
+        self.assertIn(".world-export-controls", css)
 
     def test_restart_schedule_uses_three_independent_time_slots(self):
         html = self.read("dashboard.html")
