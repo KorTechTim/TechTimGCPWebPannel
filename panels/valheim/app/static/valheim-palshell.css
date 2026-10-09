@@ -473,8 +473,8 @@ dialog::backdrop { background: rgba(6, 15, 20, .7); backdrop-filter: blur(7px); 
 .explorer-create-row button { padding: 8px 13px; font-size: 11px; }
 .explorer-table-wrap { width: 100%; overflow-x: auto; border: 1px solid #cbd6d4; border-radius: 7px; background: rgba(255, 255, 255, .72); }
 .explorer-table { width: 100%; min-width: 1050px; border-collapse: collapse; table-layout: fixed; }
-.explorer-table th, .explorer-table td { padding: 16px 14px; border-bottom: 1px solid #dde4e2; color: #536269; font-size: 20px; text-align: left; vertical-align: middle; }
-.explorer-table th { background: #e9efed; color: #53646a; font-size: 18px; font-weight: 800; }
+.explorer-table th, .explorer-table td { padding: 16px 14px; border-bottom: 1px solid #dde4e2; color: #536269; font-size: 14px; text-align: left; vertical-align: middle; }
+.explorer-table th { background: #e9efed; color: #53646a; font-size: 12.6px; font-weight: 800; }
 .explorer-table th:first-child { width: 34%; }
 .explorer-table th:nth-child(2) { width: 10%; }
 .explorer-table th:nth-child(3) { width: 13%; }
@@ -485,13 +485,13 @@ dialog::backdrop { background: rgba(6, 15, 20, .7); backdrop-filter: blur(7px); 
 .explorer-name-wrap { display: flex; min-width: 0; align-items: center; gap: 9px; }
 .explorer-name-wrap input { width: 20px; height: 20px; margin: 0; flex: 0 0 20px; }
 .explorer-entry-icon { display: block; width: 38px; height: 38px; flex: 0 0 38px; object-fit: contain; filter: drop-shadow(0 3px 3px rgba(20, 35, 31, .22)); }
-.explorer-name { min-width: 0; padding: 4px 0; overflow: hidden; border: 0; background: transparent; color: #1d645a; font-size: 22px; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
+.explorer-name { min-width: 0; padding: 4px 0; overflow: hidden; border: 0; background: transparent; color: #1d645a; font-size: 15.4px; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
 .explorer-name:hover:not(:disabled) { border-color: transparent; background: transparent; color: #0d4b43; text-decoration: underline; }
-.explorer-file-name { min-width: 0; overflow: hidden; color: #31474d; font-size: 22px; text-overflow: ellipsis; white-space: nowrap; }
+.explorer-file-name { min-width: 0; overflow: hidden; color: #31474d; font-size: 15.4px; text-overflow: ellipsis; white-space: nowrap; }
 .explorer-editable-file { padding: 4px 0; border: 0; background: transparent; color: #1d645a; text-align: left; }
 .explorer-editable-file:hover:not(:disabled) { border-color: transparent; background: transparent; color: #0d4b43; text-decoration: underline; }
 .explorer-row-actions { text-align: right !important; }
-.explorer-row-actions button { padding: 10px 14px; font-size: 18px; }
+.explorer-row-actions button { padding: 10px 14px; font-size: 12.6px; }
 
 .server-file-editor-dialog { width: min(1000px, calc(100% - 32px)); height: min(780px, calc(100dvh - 32px)); }
 .server-file-editor-heading { display: flex; min-width: 0; align-items: center; gap: 13px; }

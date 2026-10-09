@@ -99,13 +99,13 @@ class StaticUiTests(unittest.TestCase):
         css = self.read("valheim-palshell.css")
         self.assertIn(".control-card > .outlined-gold { margin-top: 10px; }", css)
 
-    def test_server_file_table_text_is_doubled(self):
+    def test_server_file_table_text_is_reduced_thirty_percent(self):
         css = self.read("valheim-palshell.css")
-        self.assertIn("font-size: 20px; text-align: left; vertical-align: middle;", css)
-        self.assertIn(".explorer-table th { background: #e9efed; color: #53646a; font-size: 18px;", css)
+        self.assertIn("font-size: 14px; text-align: left; vertical-align: middle;", css)
+        self.assertIn(".explorer-table th { background: #e9efed; color: #53646a; font-size: 12.6px;", css)
         self.assertIn(".explorer-name { min-width: 0; padding: 4px 0;", css)
-        self.assertIn("font-size: 22px; text-align: left;", css)
-        self.assertIn(".explorer-row-actions button { padding: 10px 14px; font-size: 18px; }", css)
+        self.assertIn("font-size: 15.4px; text-align: left;", css)
+        self.assertIn(".explorer-row-actions button { padding: 10px 14px; font-size: 12.6px; }", css)
 
     def test_server_file_explorer_uses_icons_and_configuration_editor(self):
         html = self.read("dashboard.html")
