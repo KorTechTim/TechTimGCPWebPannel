@@ -14,6 +14,7 @@ import docker
 from docker.types import LogConfig
 
 from .config import PANEL_VERSION, STEAM_APP_ID, Permissions, RestartSchedule, ServerConfig, Settings, server_arguments, world_name
+from .discord_webhook import DiscordIntegration
 from .mods import ModManager
 from .storage import create_archive, extract_archive, inside, read_json, replace_directory, worlds, write_bytes, write_json
 
@@ -68,6 +69,7 @@ class PanelService:
             path.mkdir(parents=True, exist_ok=True)
         if not self.config_file.exists():
             write_json(self.config_file, ServerConfig().model_dump())
+        self.discord = DiscordIntegration(self.root / "discord-config.json", self.log)
 
     @contextmanager
     def client(self):
@@ -116,6 +118,25 @@ class PanelService:
         with path.open("a", encoding="utf-8") as stream:
             stream.write(f"[{datetime.now(KST).isoformat(timespec='seconds')}] {text}\n")
 
+    def discord_fields(self, extra=None):
+        config = self.config()
+        fields = [
+            {"name": "서버", "value": config.server_name, "inline": True},
+            {"name": "월드", "value": config.world, "inline": True},
+            {"name": "발생 시각", "value": datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S KST"), "inline": True},
+        ]
+        fields.extend(extra or [])
+        return fields
+
+    def notify_discord(self, event, title, message, fields=None):
+        try:
+            self.discord.notify(event, title, message, self.discord_fields(fields))
+        except Exception as error:
+            self.log(f"Discord 알림 설정 확인 실패: {error}")
+
+    def test_discord(self):
+        self.discord.test(self.discord_fields([{"name": "알림 상태", "value": "정상", "inline": True}]))
+
     def job(self, status, name, message):
         write_json(self.job_file, {"status": status, "name": name, "message": str(message),
                                    "updated_at": datetime.now(KST).isoformat(timespec="seconds")})
@@ -151,6 +172,7 @@ class PanelService:
             self.job("completed", name, f"{name} 완료")
         except Exception as error:
             self.job("failed", name, str(error))
+            self.notify_discord("error", f"Valheim {name} 실패", str(error)[:1000])
             raise
         finally:
             handle.close()
@@ -166,6 +188,7 @@ class PanelService:
         except Exception as error:
             self.log(f"{name} 실패: {error}")
             self.job("failed", name, str(error))
+            self.notify_discord("error", f"Valheim {name} 실패", str(error)[:1000])
         finally:
             handle.close()
             self.lock.release()
@@ -323,7 +346,7 @@ class PanelService:
                 time.sleep(2)
         self.log("공식 서버 설치 완료. 설정을 저장한 뒤 서버를 시작해주세요.", "install")
 
-    def start(self):
+    def start(self, notify=True):
         self.require_stopped()
         if not self.engine()["installed"]:
             raise BusyError("먼저 엔진 설치를 완료해주세요.")
@@ -354,8 +377,11 @@ class PanelService:
                 log_config=LogConfig(type="json-file", config={"max-size": "10m", "max-file": "3"}),
             )
         self.log(f"월드 '{config.world}' 시작 요청 완료. Game server connected 로그를 기다려주세요.")
+        if notify:
+            self.notify_discord("server_start", "Valheim 서버 시작",
+                                "게임 컨테이너 시작을 요청했습니다.")
 
-    def stop(self):
+    def stop(self, notify=True):
         with self.client() as client:
             server = self.container(client, self.settings.server_container)
             if not server or server.status not in RUNNING:
@@ -371,14 +397,19 @@ class PanelService:
                 server.reload()
                 if server.status in {"exited", "dead"}:
                     self.log("서버 프로세스 종료 확인. 월드 파일을 관리할 수 있습니다.")
+                    if notify:
+                        self.notify_discord("server_stop", "Valheim 서버 중지",
+                                            "관리자 요청에 따라 월드를 저장하고 서버를 종료했습니다.")
                     return
                 if time.monotonic() >= deadline:
                     raise BusyError("종료를 아직 확인하지 못했습니다. 서버 로그를 확인해주세요. 강제 종료하지 않았습니다.")
                 time.sleep(1)
 
     def restart(self):
-        self.stop()
-        self.start()
+        self.stop(notify=False)
+        self.start(notify=False)
+        self.notify_discord("server_restart", "Valheim 서버 재시작",
+                            "관리자 또는 예약 작업에 따라 게임 서버를 재시작했습니다.")
 
     def backup(self, reason="manual"):
         self.require_stopped()
@@ -387,6 +418,8 @@ class PanelService:
         name = f"valheim-{datetime.now(KST):%Y%m%d-%H%M%S}-{reason}-{secrets.token_hex(3)}.zip"
         create_archive(self.saves, self.backups / name)
         self.log(f"월드 백업 완료: {name}")
+        self.notify_discord("backup", "Valheim 월드 백업 완료", "월드 백업 파일을 생성했습니다.",
+                            [{"name": "백업 파일", "value": name, "inline": False}])
         return name
 
     def list_backups(self):
@@ -518,6 +551,8 @@ class PanelService:
                 self.backup("before-restore")
             replace_directory(self.saves, staged)
         self.log(f"월드 백업 복원 완료: {name}")
+        self.notify_discord("backup", "Valheim 월드 복원 완료", "선택한 백업으로 월드를 복원했습니다.",
+                            [{"name": "백업 파일", "value": name, "inline": False}])
 
     def import_world(self, staged: Path, name: str, overwrite: bool):
         world_name(name)

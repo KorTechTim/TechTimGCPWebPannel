@@ -33,6 +33,22 @@ class LifecycleTests(ServiceCase):
         self.assertNotIn("/var/run/docker.sock", options["volumes"])
         self.assertEqual(options["restart_policy"], {"Name": "unless-stopped"})
 
+    def test_server_lifecycle_and_backup_emit_discord_events(self):
+        self.installed()
+        with patch.object(self.service, "notify_discord") as notify:
+            self.service.start()
+            self.assertEqual(notify.call_args.args[0], "server_start")
+            notify.reset_mock()
+            self.service.stop()
+            self.assertEqual(notify.call_args.args[0], "server_stop")
+
+            saves = self.service.saves / "worlds_local"
+            (saves / "Dedicated.db").write_bytes(b"world")
+            (saves / "Dedicated.fwl").write_bytes(b"meta")
+            notify.reset_mock()
+            self.service.backup()
+            self.assertEqual(notify.call_args.args[0], "backup")
+
     def test_modded_start_refreshes_runtime_image_for_bepinex_support(self):
         self.installed()
         for relative in ("BepInEx/core/BepInEx.dll", "BepInEx/core/BepInEx.Preloader.dll",

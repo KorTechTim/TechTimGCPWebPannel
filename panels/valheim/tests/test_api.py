@@ -2,6 +2,8 @@ from io import BytesIO
 import json
 import time
 import zipfile
+from unittest.mock import patch
+from urllib.parse import parse_qs, urlsplit
 from fastapi.testclient import TestClient
 
 from app.auth import SESSION_COOKIE
@@ -66,15 +68,64 @@ class ApiTests(ServiceCase):
             ('put', '/api/server-files/text?path=server.cfg', {'json': {'content': ''}}),
             ('get', '/api/mods', {}), ('get', '/api/mods/configs', {}), ('get', '/api/mods/diagnose', {}),
             ('get', '/api/mods/cleanup', {}),
+            ('get', '/api/steam/openid/start', {}),
+            ('get', '/api/discord', {}),
             ('get', '/api/install/check', {}),
             ('get', '/api/panel/update/check', {}),
             ('post', '/api/install', {}), ('post', '/api/panel/update', {}), ('post', '/api/server/start', {}),
             ('post', '/api/config', {'json': {}}),
             ('post', '/api/server-files/mkdir', {'json': {'name': 'mods'}}),
             ('post', '/api/mods/disable-all', {}),
+            ('post', '/api/mods/recommended/bepinex', {}),
             ('post', '/api/mods/cleanup', {'json': {'token': '0' * 64}}),
+            ('post', '/api/discord', {'json': {}}),
+            ('post', '/api/discord/test', {}),
         ]:
             with self.subTest(url=url): self.assertEqual(getattr(self.client, method)(url, **kwargs).status_code, 401)
+
+    def test_steam_openid_start_and_verified_callback(self):
+        self.authenticated()
+        started = self.client.get('/api/steam/openid/start')
+        self.assertEqual(started.status_code, 200, started.text)
+        auth_url = started.json()["auth_url"]
+        self.assertEqual(urlsplit(auth_url).netloc, "steamcommunity.com")
+        return_to = parse_qs(urlsplit(auth_url).query)["openid.return_to"][0]
+        self.assertIn("/api/steam/openid/callback?state=", return_to)
+
+        with patch.object(self.app.state.steam_openid, "verify",
+                          return_value=("76561198000000000", "http://testserver")):
+            callback = self.client.get('/api/steam/openid/callback?state=test&openid.mode=id_res')
+        self.assertEqual(callback.status_code, 200, callback.text)
+        self.assertIn("Steam_76561198000000000", callback.text)
+        self.assertIn("window.opener.postMessage", callback.text)
+        self.assertIn("default-src 'none'", callback.headers["content-security-policy"])
+
+    def test_discord_webhook_can_be_saved_masked_and_tested(self):
+        self.authenticated()
+        webhook = "https://discord.com/api/webhooks/123456789012345678/abcdefghijklmnopqrstuvwxyz_ABCDEFG-123456"
+        saved = self.client.post('/api/discord', json={
+            "enabled": True, "webhook_url": webhook, "username": "TechTim Valheim",
+            "notify_server_start": True, "notify_server_stop": False,
+            "notify_server_restart": True, "notify_backup": True, "notify_errors": True,
+        })
+        self.assertEqual(saved.status_code, 200, saved.text)
+        self.assertTrue(saved.json()["config"]["webhook_configured"])
+        self.assertNotIn(webhook, saved.text)
+        loaded = self.client.get('/api/discord')
+        self.assertEqual(loaded.json()["config"]["webhook_hint"], "Discord 웹훅 · 1234...5678")
+        self.assertFalse(loaded.json()["config"]["notify_server_stop"])
+
+        with patch.object(self.service.discord, "test") as test_webhook:
+            tested = self.client.post('/api/discord/test')
+        self.assertEqual(tested.status_code, 200, tested.text)
+        test_webhook.assert_called_once()
+
+    def test_discord_rejects_non_discord_url_and_enabled_without_webhook(self):
+        self.authenticated()
+        invalid = self.client.post('/api/discord', json={"enabled": True, "webhook_url": "https://example.com/hook"})
+        self.assertEqual(invalid.status_code, 400)
+        missing = self.client.post('/api/discord', json={"enabled": True})
+        self.assertEqual(missing.status_code, 400)
 
     def test_panel_update_check_reports_latest_registry_image(self):
         self.authenticated()
@@ -308,10 +359,37 @@ class ApiTests(ServiceCase):
         self.assertTrue(cleaned.json()["archive"].startswith("/server/.techtim-mod-cleanup/"))
         self.assertEqual(self.client.get('/api/mods').json()["packages"], [])
 
+    def test_recommended_bepinex_installs_latest_package_once(self):
+        self.authenticated(); self.installed()
+        loader = mod_archive({
+            "manifest.json": json.dumps({"name": "BepInExPack_Valheim", "version_number": "5.4.2351", "dependencies": []}),
+            "Pack/BepInEx/core/BepInEx.dll": b"loader",
+            "Pack/BepInEx/core/BepInEx.Preloader.dll": b"preloader",
+            "Pack/doorstop_libs/libdoorstop_x64.so": b"doorstop",
+            "Pack/.doorstop_version": b"4.5.0",
+            "Pack/doorstop_config.ini": b"[General]\nenabled=true\n",
+        })
+
+        def download(destination):
+            destination.write_bytes(loader)
+            return {"name": "BepInExPack_Valheim", "version": "5.4.2351",
+                    "filename": "denikson-BepInExPack_Valheim-5.4.2351.zip"}
+
+        with patch("app.main.download_recommended_bepinex", side_effect=download) as mocked:
+            response = self.client.post('/api/mods/recommended/bepinex')
+            self.assertEqual(response.status_code, 200, response.text)
+            self.assertTrue(response.json()["loader_ready"])
+            self.assertIn("5.4.2351", response.json()["message"])
+            second = self.client.post('/api/mods/recommended/bepinex')
+            self.assertEqual(second.status_code, 200, second.text)
+            self.assertIn("이미 설치", second.json()["message"])
+            self.assertEqual(mocked.call_count, 1)
+
     def test_mod_mutations_are_blocked_while_server_runs(self):
         self.authenticated(); self.installed(); self.docker.containers.add()
         response = self.client.post('/api/mods/install', files={"files": ("mod.dll", b"plugin")})
         self.assertEqual(response.status_code, 409)
+        self.assertEqual(self.client.post('/api/mods/recommended/bepinex').status_code, 409)
 
     def test_backup_download_is_attachment_and_backup_restoration_is_queued(self):
         self.authenticated(); self.world()

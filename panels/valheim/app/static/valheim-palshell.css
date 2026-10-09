@@ -519,6 +519,13 @@ dialog::backdrop { background: rgba(6, 15, 20, .7); backdrop-filter: blur(7px); 
 .mod-overview strong, .mod-overview small { display: block; }
 .mod-overview strong { margin-top: 5px; color: var(--ink); font-size: 16px; }
 .mod-overview small { margin-top: 4px; color: #758489; font-size: 9px; }
+.mod-essential { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; align-items: center; gap: 15px; padding: 14px 16px; border: 1px solid #b5c9c4; border-left: 3px solid #a46a34; border-radius: 7px; background: linear-gradient(110deg, rgba(225, 239, 234, .92), rgba(250, 247, 238, .95)); }
+.mod-essential > img { width: 64px; height: 64px; object-fit: contain; filter: drop-shadow(0 5px 7px rgba(24, 48, 43, .22)); }
+.mod-essential-copy { min-width: 0; }
+.mod-essential-copy strong, .mod-essential-copy small { display: block; }
+.mod-essential-copy strong { margin-top: 3px; color: var(--ink); font-size: 15px; }
+.mod-essential-copy small { margin-top: 4px; color: #617570; font-size: 10px; }
+.mod-essential > button { min-width: 128px; }
 .mod-install-bar { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 15px 17px; border: 1px solid #cbd6d4; border-radius: 7px; background: #edf2f0; }
 .mod-install-bar strong, .mod-install-bar small { display: block; }
 .mod-install-bar strong { color: var(--ink); font-size: 13px; }
@@ -558,6 +565,53 @@ dialog::backdrop { background: rgba(6, 15, 20, .7); backdrop-filter: blur(7px); 
 #notice-dialog { width: min(460px, calc(100% - 32px)); }
 #notice-dialog .dialog-body { color: #42555b; font-size: 13px; line-height: 1.85; }
 #notice-dialog .dialog-foot button { min-width: 96px; }
+.steam-id-tool { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 21px; padding: 13px 15px; border: 1px solid #bfd0cc; border-left: 3px solid #a66a34; border-radius: 7px; background: rgba(239, 246, 243, .9); }
+.steam-id-tool strong, .steam-id-tool small { display: block; }
+.steam-id-tool strong { color: var(--ink); font-size: 13px; }
+.steam-id-tool small { margin-top: 3px; color: #71817d; font-size: 9px; }
+.steam-id-tool button { flex: 0 0 auto; padding: 8px 12px; color: #1e675d; font-size: 10px; }
+#permissions-form fieldset label + label { margin-top: 19px; }
+#steam-id-dialog { width: min(500px, calc(100% - 32px)); }
+.steam-id-result { text-align: center; }
+.steam-id-result strong { display: block; margin: 11px 0 8px; padding: 15px; border: 1px solid #afc5bf; border-radius: 6px; background: #e8f1ee; color: #174f48; font: 750 18px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
+.steam-id-result p { color: #71817d; font-size: 11px; }
+.steam-id-result code { color: #8a6232; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+#discord-dialog { width: min(900px, calc(100% - 32px)); }
+.discord-body { display: grid; gap: 16px; }
+.discord-summary {
+  display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; align-items: center; gap: 14px;
+  padding: 16px; border: 1px solid #cbd8d5; border-radius: 6px; background: #f0f5f3;
+}
+.discord-mark {
+  display: grid; place-items: center; width: 52px; height: 52px; border-radius: 6px;
+  background: #5865f2; color: #fff; font-size: 24px; font-weight: 900;
+}
+.discord-summary > div { min-width: 0; display: grid; gap: 4px; }
+.discord-summary strong { width: max-content; color: #9a483d; font-size: 16px; }
+.discord-summary strong.online { color: #23735d; }
+.discord-summary p { margin: 0; overflow: hidden; color: #718184; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.discord-master { min-width: 148px; margin: 0; padding: 10px 12px; border: 1px solid #d2dcda; border-radius: 5px; background: #fff; }
+.discord-config-section, .discord-events-section { padding: 16px; border: 1px solid #d2dcda; border-radius: 6px; background: #fbfcfc; }
+.discord-field-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(220px, .8fr); gap: 14px; }
+.discord-field-grid label { margin: 0; }
+.discord-field-grid small { color: #819092; }
+.discord-clear { width: max-content; margin-top: 12px; color: #596c70; }
+.discord-events-section > div:first-child { display: grid; gap: 3px; margin-bottom: 12px; }
+.discord-events-section > div:first-child strong { color: var(--ink); font-size: 14px; }
+.discord-events-section > div:first-child small { color: #819092; font-size: 11px; }
+.discord-event-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }
+.discord-event-grid label {
+  display: flex; align-items: center; gap: 9px; min-width: 0; min-height: 58px; margin: 0; padding: 10px;
+  border: 1px solid #d7e0de; border-radius: 5px; background: #f1f6f4; cursor: pointer;
+}
+.discord-event-grid input { flex: 0 0 auto; width: 16px; height: 16px; margin: 0; accent-color: #267765; }
+.discord-event-grid span { min-width: 0; display: grid; gap: 3px; }
+.discord-event-grid b { color: #304448; font-size: 12px; }
+.discord-event-grid small { overflow: hidden; color: #7b8b8d; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.discord-note { margin: 0; padding: 11px 13px; border-left: 3px solid #5865f2; background: #eef0ff; color: #4e5876; font-size: 11px; line-height: 1.55; }
+#discord-message { min-height: 20px; margin: 0; }
+#discord-dialog .dialog-foot button { min-width: 104px; }
+#discord-form input:disabled, #discord-form button:disabled { opacity: .55; cursor: not-allowed; }
 .mod-diagnosis { max-height: 300px; margin: 0 16px 16px; padding: 14px; overflow: auto; border: 1px solid #cbd6d4; border-radius: 5px; background: #14272a; color: #dfe9e4; font: 10px/1.65 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; }
 #mods-message { min-height: 20px; margin: 0; overflow-wrap: anywhere; }
 
@@ -639,6 +693,12 @@ dialog::backdrop { background: rgba(6, 15, 20, .7); backdrop-filter: blur(7px); 
   .server-file-editor-foot { align-items: stretch; flex-direction: column; }
   .server-file-editor-foot > div { display: grid; grid-template-columns: 1fr 1fr; }
   .server-file-editor-foot button { width: 100%; }
+  .steam-id-tool { align-items: stretch; flex-direction: column; }
+  .steam-id-tool button { width: 100%; }
+  .discord-summary { grid-template-columns: 44px minmax(0, 1fr); }
+  .discord-mark { width: 44px; height: 44px; font-size: 20px; }
+  .discord-master { grid-column: 1 / -1; }
+  .discord-field-grid, .discord-event-grid { grid-template-columns: 1fr; }
   footer { display: block; }
   footer span { display: block; }
 }
@@ -666,6 +726,9 @@ dialog::backdrop { background: rgba(6, 15, 20, .7); backdrop-filter: blur(7px); 
   .mod-overview { grid-template-columns: 1fr; }
   .mod-overview > div { border-right: 0; border-bottom: 1px solid #d7dfdd; }
   .mod-overview > div:last-child { border-bottom: 0; }
+  .mod-essential { grid-template-columns: 52px minmax(0, 1fr); }
+  .mod-essential > img { width: 52px; height: 52px; }
+  .mod-essential > button { grid-column: 1 / -1; width: 100%; }
   .mod-library-toolbar, .mod-config-toolbar, .mod-pack-tools { grid-template-columns: 1fr; }
   .mod-library-toolbar button { grid-column: auto; }
   .mod-tool-actions { align-items: stretch; flex-direction: column; }

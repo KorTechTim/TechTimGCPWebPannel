@@ -5,8 +5,8 @@
   <meta name="color-scheme" content="dark"><title>TechTim · Valheim Server</title>
   <link rel="icon" href="/static/valheim-panel-mark-v2.png?v=1" type="image/png">
   <link rel="stylesheet" href="/static/app.css?v=1.1.0">
-  <link rel="stylesheet" href="/static/valheim-palshell.css?v=1.6.5">
-  <script src="/static/app.js?v=1.6.2" defer></script>
+  <link rel="stylesheet" href="/static/valheim-palshell.css?v=1.6.8">
+  <script src="/static/app.js?v=1.6.5" defer></script>
 </head>
 <body>
   <div class="ambient" aria-hidden="true"></div>
@@ -237,20 +237,24 @@
   </dialog>
 
   <dialog id="permissions-dialog"><div class="dialog-head"><div><p class="eyebrow">PLAYER ACCESS</p><h2>플레이어 권한</h2></div><button data-close aria-label="닫기">×</button></div>
-    <form id="permissions-form"><div class="dialog-body"><fieldset data-writable data-running-lock><label>관리할 목록<select id="permission-kind"><option value="admin">관리자 목록</option><option value="banned">차단 목록</option><option value="permitted">접속 허용 목록</option></select></label><label>플랫폼 사용자 ID<textarea id="permission-ids" rows="8" spellcheck="false" placeholder="Steam_76561198000000000"></textarea><small>게임 F2 화면 또는 서버 로그의 Platform_UserID를 한 줄에 하나씩 입력하세요.</small></label></fieldset><p id="permission-warning" class="callout" hidden>허용 목록에 한 명이라도 등록하면 이 목록에 없는 플레이어는 접속할 수 없습니다.</p><p id="permissions-message" class="form-message" role="status"></p></div><div class="dialog-foot"><button type="button" data-close>닫기</button><button type="submit" class="primary" data-writable>목록 저장</button></div></form>
+    <form id="permissions-form"><div class="dialog-body"><div class="steam-id-tool"><div><strong>내 SteamID 확인</strong><small>Steam 공식 로그인으로 플랫폼 사용자 ID를 확인합니다.</small></div><button id="steam-id-check" type="button">SteamID 확인</button></div><fieldset data-writable data-running-lock><label>관리할 목록<select id="permission-kind"><option value="admin">관리자 목록</option><option value="banned">차단 목록</option><option value="permitted">접속 허용 목록</option></select></label><label>플랫폼 사용자 ID<textarea id="permission-ids" rows="8" spellcheck="false" placeholder="Steam_76561198000000000"></textarea><small>게임 F2 화면 또는 서버 로그의 Platform_UserID를 한 줄에 하나씩 입력하세요.</small></label></fieldset><p id="permission-warning" class="callout" hidden>허용 목록에 한 명이라도 등록하면 이 목록에 없는 플레이어는 접속할 수 없습니다.</p><p id="permissions-message" class="form-message" role="status"></p></div><div class="dialog-foot"><button type="button" data-close>닫기</button><button type="submit" class="primary" data-writable>목록 저장</button></div></form>
   </dialog>
 
   <dialog id="schedule-dialog"><div class="dialog-head"><div><p class="eyebrow">SCHEDULED RESTART</p><h2>예약 재시작</h2></div><button data-close aria-label="닫기">×</button></div>
-    <form id="schedule-form"><div class="dialog-body"><p class="callout">실행 중인 서버만 정상 종료한 뒤 다시 시작합니다. 꺼진 서버는 자동으로 켜지지 않습니다.</p><fieldset data-writable data-running-lock><label class="switch-row"><span>매일 예약 재시작<small>Asia/Seoul · 한국 시간</small></span><input name="enabled" type="checkbox" role="switch"></label><label>재시작 시각 · 최대 3개<input name="times" placeholder="04:00, 12:00" required><small>여러 시각은 쉼표로 구분하세요.</small></label></fieldset><p id="schedule-result" class="subtle"></p><p id="schedule-message" class="form-message" role="status"></p></div><div class="dialog-foot"><button type="button" data-close>닫기</button><button type="submit" class="primary" data-writable>예약 저장</button></div></form>
+    <form id="schedule-form"><div class="dialog-body"><fieldset data-writable data-running-lock><label class="switch-row"><span>매일 예약 재시작<small>Asia/Seoul · 한국 시간</small></span><input name="enabled" type="checkbox" role="switch"></label><label>재시작 시각 · 최대 3개<input name="times" placeholder="04:00, 12:00" required><small>여러 시각은 쉼표로 구분하세요.</small></label></fieldset><p id="schedule-result" class="subtle"></p><p id="schedule-message" class="form-message" role="status"></p></div><div class="dialog-foot"><button type="button" data-close>닫기</button><button type="submit" class="primary" data-writable>예약 저장</button></div></form>
   </dialog>
 
   <dialog id="mods-dialog" class="wide-dialog"><div class="dialog-head"><div><p class="eyebrow">BEPINEX MOD MANAGEMENT</p><h2>모드 관리</h2></div><button data-close aria-label="닫기">×</button></div>
     <div class="dialog-body mod-manager-shell">
-      <p class="callout warning">모드는 서버 실행 코드입니다. 신뢰할 수 있는 발헤임 서버용 Linux 패키지만 설치하고, 클라이언트 설치 필요 여부와 크로스플레이 지원은 제작자 안내를 확인하세요.</p>
       <section class="mod-overview" aria-label="모드 상태">
         <div><span class="tiny-label">BEPINEX LOADER</span><strong id="mods-loader-status">확인 중</strong><small id="mods-loader-hint">Linux 서버 로더</small></div>
         <div><span class="tiny-label">ENABLED MODS</span><strong id="mods-enabled-count">0개</strong><small>다음 서버 시작에 적용</small></div>
         <div><span class="tiny-label">REGISTERED</span><strong id="mods-registered-count">0개</strong><small>보관 중인 서버 모드</small></div>
+      </section>
+      <section class="mod-essential" data-running-lock aria-labelledby="mod-essential-title">
+        <img src="/static/valheim-essential-mod-v1.png" alt="" aria-hidden="true">
+        <div class="mod-essential-copy"><span class="tiny-label">ESSENTIAL MOD</span><strong id="mod-essential-title">BepInExPack for Valheim</strong><small>다른 서버 모드를 불러오는 기본 필수 로더</small></div>
+        <button id="mods-install-essential" class="primary" type="button">필수 모드 설치</button>
       </section>
       <div class="mod-install-bar" data-running-lock>
         <div><strong>서버 모드 추가</strong><small>ZIP 또는 DLL · 여러 파일 동시 선택</small></div>
@@ -294,7 +298,22 @@
   </dialog>
 
   <dialog id="discord-dialog"><div class="dialog-head"><div><p class="eyebrow">DISCORD INTEGRATION</p><h2>디스코드 연동</h2></div><button data-close aria-label="닫기">×</button></div>
-    <div class="dialog-body"><div class="feature-status"><span class="feature-icon" aria-hidden="true">◌</span><div><span class="tiny-label">WEBHOOK STATUS</span><strong>연동 안 됨</strong><p>서버 시작·종료, 백업과 오류 알림을 위한 메뉴입니다.</p></div></div><p class="callout">Webhook 암호화 저장과 전송 범위 검증을 마친 뒤 활성화됩니다. 현재 서버 동작에는 영향을 주지 않습니다.</p></div><div class="dialog-foot"><button data-close>닫기</button></div>
+    <form id="discord-form"><div class="dialog-body discord-body">
+      <div class="discord-summary"><span class="discord-mark" aria-hidden="true">D</span><div><span class="tiny-label">WEBHOOK STATUS</span><strong id="discord-state">상태 확인 중</strong><p id="discord-webhook-hint">등록된 Webhook을 확인하고 있습니다.</p></div><label class="switch-row discord-master"><span>연동 사용</span><input id="discord-enabled" type="checkbox" role="switch"></label></div>
+      <section class="discord-config-section"><div class="discord-field-grid">
+        <label>Webhook URL<input id="discord-webhook-url" type="password" maxlength="500" autocomplete="new-password" placeholder="https://discord.com/api/webhooks/..."><small>비워두면 기존 URL을 유지합니다.</small></label>
+        <label>표시 이름<input id="discord-username" maxlength="80" value="TechTim Valheim Server"><small>Discord 메시지 작성자 이름</small></label>
+      </div><label class="compact-toggle discord-clear"><input id="discord-clear-webhook" type="checkbox">저장된 Webhook URL 삭제</label></section>
+      <section class="discord-events-section"><div><strong>알림 항목</strong><small>Discord로 받을 서버 운영 이벤트를 선택합니다.</small></div><div class="discord-event-grid">
+        <label><input id="discord-notify-start" type="checkbox"><span><b>서버 시작</b><small>게임 컨테이너 시작 요청</small></span></label>
+        <label><input id="discord-notify-stop" type="checkbox"><span><b>서버 중지</b><small>월드 저장 후 정상 종료</small></span></label>
+        <label><input id="discord-notify-restart" type="checkbox"><span><b>서버 재시작</b><small>수동 및 예약 재시작</small></span></label>
+        <label><input id="discord-notify-backup" type="checkbox"><span><b>백업 및 복원</b><small>작업 완료 결과</small></span></label>
+        <label><input id="discord-notify-errors" type="checkbox"><span><b>작업 오류</b><small>패널 작업 실패 알림</small></span></label>
+      </div></section>
+      <p class="discord-note">Webhook URL은 Discord 공식 HTTPS 주소만 허용하며 화면에는 원문을 다시 표시하지 않습니다.</p>
+      <p id="discord-message" class="form-message" role="status" aria-live="polite">Discord 연동 설정을 불러오고 있습니다.</p>
+    </div><div class="dialog-foot"><button type="button" data-close>닫기</button><button id="discord-test" type="button">테스트 전송</button><button id="discord-save" class="primary" type="submit">설정 저장</button></div></form>
   </dialog>
 
   <dialog id="panel-update-dialog"><div class="dialog-head"><div><p class="eyebrow">LAUNCHER UPDATE</p><h2>구동기 업데이트</h2></div><button data-close aria-label="닫기">×</button></div>
@@ -303,5 +322,6 @@
 
   <dialog id="confirm-dialog" class="confirm-dialog"><div class="dialog-head"><h2 id="confirm-title">작업 확인</h2><button data-close aria-label="닫기">×</button></div><p id="confirm-text" class="dialog-body"></p><div class="dialog-foot"><button id="confirm-cancel">취소</button><button id="confirm-ok" class="primary">진행</button></div></dialog>
   <dialog id="notice-dialog" class="confirm-dialog"><div class="dialog-head"><h2 id="notice-title">안내</h2><button data-close aria-label="닫기">×</button></div><p id="notice-text" class="dialog-body"></p><div class="dialog-foot"><button id="notice-ok" class="primary" type="button">확인</button></div></dialog>
+  <dialog id="steam-id-dialog" class="confirm-dialog"><div class="dialog-head"><div><p class="eyebrow">STEAM IDENTITY</p><h2>내 SteamID</h2></div><button data-close aria-label="닫기">×</button></div><div class="dialog-body steam-id-result"><span class="tiny-label">VALHEIM PLATFORM ID</span><strong id="steam-platform-id">Steam_</strong><p>SteamID64 <code id="steam-id-64"></code></p></div><div class="dialog-foot"><button type="button" data-close>닫기</button><button id="steam-id-copy" class="primary" type="button">ID 복사</button></div></dialog>
   <div id="toast" class="toast" role="status" hidden></div>
 </body></html>

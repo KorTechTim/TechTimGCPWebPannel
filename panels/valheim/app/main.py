@@ -3,20 +3,25 @@ from datetime import datetime
 from pathlib import Path
 from typing import Literal
 from urllib.parse import urlsplit
+import html
+import json
 import logging
 import os
+import secrets
 import tempfile
 import zipfile
 
 from fastapi import BackgroundTasks, Body, FastAPI, File, Form, HTTPException, Request, Response, UploadFile
-from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, ValidationError
 from starlette.background import BackgroundTask
 
 from .auth import Auth, SESSION_COOKIE, SESSION_SECONDS
 from .config import PANEL_VERSION, Permissions, RestartSchedule, Settings, server_arguments, world_name
+from .recommended_mods import RecommendedModError, download_recommended_bepinex
 from .service import BusyError, PanelService
+from .steam_openid import SteamOpenID, SteamOpenIDError
 from .storage import inside, read_json, worlds
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -63,10 +68,23 @@ class ModCleanupRequest(BaseModel):
     token: str = Field(pattern=r"^[0-9a-f]{64}$")
 
 
+class DiscordConfigUpdate(BaseModel):
+    enabled: bool = False
+    webhook_url: str = Field(default="", max_length=500)
+    clear_webhook: bool = False
+    username: str = Field(default="TechTim Valheim Server", min_length=1, max_length=80)
+    notify_server_start: bool = True
+    notify_server_stop: bool = True
+    notify_server_restart: bool = True
+    notify_backup: bool = True
+    notify_errors: bool = True
+
+
 def create_app(settings=None, docker_factory=None):
     settings = settings or Settings.from_env()
     service = PanelService(settings, docker_factory)
     auth = Auth(settings.data_dir)
+    steam_openid = SteamOpenID()
 
     @asynccontextmanager
     async def lifespan(app):
@@ -82,6 +100,7 @@ def create_app(settings=None, docker_factory=None):
                   lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
     app.state.service = service
     app.state.auth = auth
+    app.state.steam_openid = steam_openid
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
     @app.middleware("http")
@@ -131,6 +150,21 @@ def create_app(settings=None, docker_factory=None):
         handle = service.reserve(name)
         tasks.add_task(service.run_reserved, handle, name, action)
         return JSONResponse({"status": "queued", "message": f"{name} 요청을 접수했습니다."}, status_code=202)
+
+    def steam_popup(title, message, *, steam_id="", origin=""):
+        nonce = secrets.token_urlsafe(18)
+        payload = json.dumps({"type": "techtim-steam-id", "steamId": steam_id,
+                              "platformId": f"Steam_{steam_id}"}, ensure_ascii=False).replace("<", "\\u003c")
+        target = json.dumps(origin).replace("<", "\\u003c")
+        safe_title = html.escape(title)
+        safe_message = html.escape(message)
+        safe_id = html.escape(f"Steam_{steam_id}") if steam_id else ""
+        notify = f"if(window.opener)window.opener.postMessage({payload}, {target});" if steam_id and origin else ""
+        body = f"""<!doctype html><html lang=\"ko\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>{safe_title}</title><style nonce=\"{nonce}\">body{{margin:0;min-height:100vh;display:grid;place-items:center;background:#0b191b;color:#edf4f0;font-family:Inter,'Noto Sans KR',sans-serif}}main{{width:min(420px,calc(100% - 32px));padding:28px;border:1px solid #8b693c;border-radius:8px;background:#142a2a;text-align:center;box-shadow:0 18px 60px #0008}}h1{{margin:0 0 12px;font-size:22px}}p{{margin:0;color:#b9c9c4;line-height:1.7}}strong{{display:block;margin:18px 0;padding:13px;border:1px solid #57766e;border-radius:6px;background:#0c2021;color:#f2c77d;font:700 16px ui-monospace,monospace;overflow-wrap:anywhere}}button{{margin-top:20px;padding:10px 24px;border:1px solid #b58a4e;border-radius:6px;background:#a66a34;color:#fff;font-weight:700;cursor:pointer}}</style></head><body><main><h1>{safe_title}</h1><p>{safe_message}</p>{f'<strong>{safe_id}</strong>' if safe_id else ''}<button id=\"close\" type=\"button\">창 닫기</button></main><script nonce=\"{nonce}\">{notify}document.getElementById('close').addEventListener('click',()=>window.close());</script></body></html>"""
+        return HTMLResponse(body, headers={
+            "Cache-Control": "no-store",
+            "Content-Security-Policy": f"default-src 'none'; style-src 'nonce-{nonce}'; script-src 'nonce-{nonce}'",
+        })
 
     def server_file_path(relative_path=""):
         if not relative_path:
@@ -265,6 +299,25 @@ def create_app(settings=None, docker_factory=None):
         response.delete_cookie(SESSION_COOKIE)
         return {"redirect": "/login"}
 
+    @app.get("/api/steam/openid/start")
+    def steam_openid_start(request: Request):
+        auth.require(request)
+        callback_url = str(request.url_for("steam_openid_callback"))
+        callback = urlsplit(callback_url)
+        origin = f"{callback.scheme}://{callback.netloc}"
+        return {"status": "ok", "auth_url": steam_openid.begin(origin, callback_url)}
+
+    @app.get("/api/steam/openid/callback", name="steam_openid_callback")
+    def steam_openid_callback(request: Request):
+        state = request.query_params.get("state", "")
+        parameters = {key: value for key, value in request.query_params.items() if key.startswith("openid.")}
+        try:
+            steam_id, origin = steam_openid.verify(state, parameters)
+        except SteamOpenIDError as error:
+            return steam_popup("SteamID 확인 실패", str(error))
+        return steam_popup("SteamID 확인 완료", "인증된 Steam 플랫폼 사용자 ID입니다.",
+                           steam_id=steam_id, origin=origin)
+
     @app.get("/api/auth/me")
     def me(request: Request):
         return auth.require(request, allow_initial=True)
@@ -278,6 +331,28 @@ def create_app(settings=None, docker_factory=None):
     def save_config(request: Request, payload: dict = Body(...)):
         auth.require(request)
         return service.save_config(payload)
+
+    @app.get("/api/discord")
+    def get_discord_config(request: Request):
+        auth.require(request)
+        return {"status": "ok", "config": service.discord.public()}
+
+    @app.post("/api/discord")
+    def save_discord_config(payload: DiscordConfigUpdate, request: Request):
+        auth.require(request)
+        config = service.discord.save(payload.model_dump())
+        return {"status": "ok", "message": "Discord 연동 설정을 저장했습니다.", "config": config}
+
+    @app.post("/api/discord/test")
+    def test_discord_config(request: Request):
+        auth.require(request)
+        try:
+            service.test_discord()
+        except ValueError:
+            raise
+        except Exception as error:
+            raise HTTPException(502, str(error)) from error
+        return {"status": "sent", "message": "Discord 테스트 메시지를 전송했습니다."}
 
     @app.get("/api/server/status")
     @app.get("/api/install/status")
@@ -527,6 +602,34 @@ def create_app(settings=None, docker_factory=None):
                 results = service.mods.install_files(uploads)
         return {"status": "ok", "message": "모드 파일 확인을 완료했습니다.", "results": results,
                 **service.mods.public_packages()}
+
+    @app.post("/api/mods/recommended/bepinex")
+    def install_recommended_bepinex(request: Request):
+        auth.require(request)
+        with service.operation("필수 모드 설치"):
+            service.require_stopped()
+            if not service.engine()["installed"]:
+                raise BusyError("서버 엔진을 먼저 설치해주세요.")
+            if service.mods.loader_ready():
+                return {"status": "ok", "message": "BepInEx 필수 모드가 이미 설치되어 있습니다.",
+                        **service.mods.public_packages()}
+            loader = next((item for item in service.mods.packages() if item["is_loader"]), None)
+            if loader:
+                service.mods.set_enabled(loader["id"], True)
+                return {"status": "ok", "message": "보관 중인 BepInEx 필수 모드를 다시 켰습니다.",
+                        **service.mods.public_packages()}
+            with tempfile.TemporaryDirectory(prefix=".recommended-mod-", dir=service.root) as directory:
+                archive = Path(directory) / "bepinex.zip"
+                try:
+                    package = download_recommended_bepinex(archive)
+                except RecommendedModError as error:
+                    raise HTTPException(502, str(error)) from error
+                results = service.mods.install_files([(archive, package["filename"])])
+            if not service.mods.loader_ready():
+                detail = " / ".join(item["message"] for item in results) or "설치 결과를 확인하지 못했습니다."
+                raise ValueError(f"BepInEx 필수 모드를 설치하지 못했습니다. {detail}")
+        return {"status": "ok", "message": f"BepInEx 필수 모드 {package['version']} 설치를 완료했습니다.",
+                "results": results, **service.mods.public_packages()}
 
     @app.post("/api/mods/{package_id}/toggle")
     def toggle_mod(package_id: str, payload: ModToggle, request: Request):

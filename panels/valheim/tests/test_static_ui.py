@@ -148,6 +148,7 @@ class StaticUiTests(unittest.TestCase):
             with self.subTest(target=target):
                 self.assertIn(f'data-open="{target}"', html)
         self.assertNotIn('id="open-settings"', html)
+        self.assertNotIn("실행 중인 서버만 정상 종료한 뒤 다시 시작합니다.", html)
         self.assertLess(html.index('id="install"'), html.index('id="start"'))
 
     def test_resources_refresh_each_second_with_24_hour_history(self):
@@ -189,6 +190,32 @@ class StaticUiTests(unittest.TestCase):
         self.assertIn("게임 접속 비밀번호를 먼저 저장해주세요.", script)
         self.assertIn("backdrop-filter: blur(7px)", css)
 
+    def test_permissions_page_can_verify_and_copy_steam_id(self):
+        html = self.read("dashboard.html")
+        script = self.read("app.js")
+        css = self.read("valheim-palshell.css")
+        for control in ("steam-id-check", "steam-id-dialog", "steam-platform-id", "steam-id-copy"):
+            self.assertIn(f'id="{control}"', html)
+        self.assertIn("/api/steam/openid/start", script)
+        self.assertIn("techtim-steam-id", script)
+        self.assertIn("/^Steam_\\d{17}$/", script)
+        self.assertIn(".steam-id-result", css)
+
+    def test_discord_page_has_webhook_settings_and_event_controls(self):
+        html = self.read("dashboard.html")
+        script = self.read("app.js")
+        css = self.read("valheim-palshell.css")
+        for control in ("discord-form", "discord-webhook-url", "discord-enabled", "discord-test", "discord-save"):
+            self.assertIn(f'id="{control}"', html)
+        for event in ("start", "stop", "restart", "backup", "errors"):
+            self.assertIn(f'id="discord-notify-{event}"', html)
+        self.assertNotIn("Webhook 암호화 저장과 전송 범위 검증을 마친 뒤 활성화됩니다.", html)
+        self.assertIn("async function loadDiscord()", script)
+        self.assertIn("jsonPost('/api/discord'", script)
+        self.assertIn("api('/api/discord/test'", script)
+        self.assertIn("'discord-dialog': loadDiscord", script)
+        self.assertIn(".discord-event-grid", css)
+
     def test_settings_callout_has_section_spacing(self):
         html = self.read("dashboard.html")
         css = self.read("valheim-palshell.css")
@@ -202,6 +229,7 @@ class StaticUiTests(unittest.TestCase):
 
     def test_detail_navigation_and_quick_settings_are_wired(self):
         script = self.read("app.js")
+        css = self.read("valheim-palshell.css")
         self.assertIn("function openDetail", script)
         self.assertIn("function closeDetail", script)
         self.assertIn("async function loadQuickSettings", script)
@@ -219,9 +247,13 @@ class StaticUiTests(unittest.TestCase):
         self.assertIn("/api/mods/cleanup", script)
         html = self.read("dashboard.html")
         self.assertIn('aria-label="현재 서버 폴더 경로"', html)
-        for control in ("mods-install", "mods-search", "mods-filter", "mods-list", "mods-config-editor",
+        for control in ("mods-install-essential", "mods-install", "mods-search", "mods-filter", "mods-list", "mods-config-editor",
                         "mods-export", "mods-import", "mods-disable-all", "mods-diagnose", "mods-cleanup"):
             self.assertIn(f'id="{control}"', html)
+        self.assertNotIn("모드는 서버 실행 코드입니다.", html)
+        self.assertIn("valheim-essential-mod-v1.png", html)
+        self.assertIn("/api/mods/recommended/bepinex", script)
+        self.assertIn(".mod-essential", css)
 
     def test_responsive_shell_has_mobile_breakpoints(self):
         css = self.read("valheim-palshell.css")

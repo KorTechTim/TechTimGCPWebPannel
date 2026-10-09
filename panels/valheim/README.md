@@ -15,6 +15,7 @@
 - 서버 중지 상태에서 `/server` 폴더를 탐색하고 파일·폴더 업로드, 파일 다운로드, 선택 폴더 ZIP 다운로드, 새 폴더 생성을 지원하는 GUI 탐색기.
 - Doorstop 4 및 이전 Linux BepInEx와 서버 모드 ZIP/DLL 설치, 의존성 검사, 켜기·끄기·업데이트·삭제, 설정 편집, 모드팩 내보내기·가져오기, 진단과 복구 가능한 기존 모드 전체 정리.
 - 관리자·차단·접속 허용 목록, KST 기준 하루 최대 3회 예약 재시작.
+- Discord Incoming Webhook URL 등록·마스킹, 테스트 전송, 서버 시작·중지·재시작·백업·복원·작업 오류 알림.
 - 웹패널 새 이미지 자동 감지와 상단 안내 풍선, 자체 업데이트, 실패 시 이전 이미지 복구, 교체 후 HTTP 응답 확인.
 - 디스크 사용률 80% 도달 시 오래된 임시 파일·미사용 Docker 이미지·안전 백업을 정리하고 최신 백업 3개 보존.
 - 모바일 화면과 대화상자, 실행 중 쓰기 잠금, 설치·백업·복원·시작 간 작업 잠금.
@@ -37,6 +38,7 @@
 | `app/service.py` | Docker 제어, 작업 잠금, 백업, 예약, 리소스 |
 | `app/storage.py` | 원자적 파일 저장, 경로·ZIP 검증, 월드 파일 교체 |
 | `app/auth.py` | 인증과 세션 |
+| `app/discord_webhook.py` | Discord Webhook 검증, 저장, 테스트와 운영 알림 |
 | `app/self_update.py` | 별도 컨테이너에서 패널 교체·복구 |
 | `app/static/` | HTML, CSS, JavaScript, TechTim용 룬 아이콘 |
 | `runtime/` | Ubuntu 24.04, SteamCMD 및 비-root 게임 실행 환경 |
@@ -53,6 +55,7 @@
 | `valheim-config.json` | 패널의 게임 실행 설정 |
 | `auth.json`, `sessions.json` | 패널 인증 상태 |
 | `restart-schedule.json` | KST 재시작 시각과 마지막 실행 결과 |
+| `discord-config.json` | Discord 알림 설정과 비공개 Webhook URL (`0600`) |
 | `operation.json`, `*.log` | 작업 결과와 설치·제어 로그 |
 
 패널의 `DATA_DIR`는 컨테이너 내부 `/data`입니다. `HOST_DATA_DIR`는 Docker에 전달하는 VM상의 절대 경로이며 두 값을 같은 경로로 오해하면 게임 데이터 마운트가 어긋납니다. 패널은 단일 Uvicorn worker로 실행합니다. 작업 잠금은 스레드 잠금과 파일 잠금을 함께 사용하며, 이전 패널에서 시작한 설치 helper가 실행 중이면 새 작업을 거부합니다.

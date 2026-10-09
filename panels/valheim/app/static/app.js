@@ -18,6 +18,10 @@ let serverFileEditorPath = '';
 let serverFileEditorOriginal = '';
 let modPackages = [];
 let modUpdateTarget = '';
+let modLoaderReady = false;
+let steamIdPopup = null;
+let discordBusy = false;
+let discordWebhookConfigured = false;
 const selectedServerFolders = new Set();
 const polls = new Set();
 const runningStates = new Set(['running', 'restarting', 'paused', 'removing']);
@@ -810,6 +814,38 @@ function fillPermissions() {
 }
 $('permission-kind').onchange = fillPermissions;
 async function loadPermissions() { permissionLists = await api('/api/permissions'); fillPermissions(); }
+$('steam-id-check').onclick = async () => {
+  const popup = window.open('', 'techtim-steam-id', 'popup,width=520,height=680');
+  if (!popup) { showNotice('SteamID 확인', '브라우저에서 팝업을 허용한 뒤 다시 시도해주세요.'); return; }
+  steamIdPopup = popup;
+  popup.document.title = 'Steam 연결 중';
+  popup.document.body.textContent = 'Steam 로그인 페이지를 여는 중입니다.';
+  try {
+    const data = await api('/api/steam/openid/start');
+    if (!popup.closed) popup.location.replace(data.auth_url);
+  } catch (error) {
+    if (!popup.closed) popup.close();
+    steamIdPopup = null;
+    showNotice('SteamID 확인', error.message);
+  }
+};
+window.addEventListener('message', event => {
+  if (event.origin !== location.origin || event.source !== steamIdPopup
+      || event.data?.type !== 'techtim-steam-id' || !/^Steam_\d{17}$/.test(event.data.platformId || '')) return;
+  $('steam-platform-id').textContent = event.data.platformId;
+  $('steam-id-64').textContent = event.data.steamId;
+  if (!steamIdPopup.closed) steamIdPopup.close();
+  steamIdPopup = null;
+  $('steam-id-dialog').showModal();
+});
+$('steam-id-copy').onclick = async () => {
+  const value = $('steam-platform-id').textContent;
+  try {
+    if (navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(value);
+    else { const area = document.createElement('textarea'); area.value = value; document.body.append(area); area.select(); const copied = document.execCommand('copy'); area.remove(); if (!copied) throw new Error(); }
+    toast('Steam 플랫폼 사용자 ID를 복사했습니다.');
+  } catch { toast(`Steam 플랫폼 사용자 ID: ${value}`); }
+};
 $('permissions-form').onsubmit = async event => {
   event.preventDefault();
   const kind = $('permission-kind').value;
@@ -841,9 +877,10 @@ function setModsMessage(text, error = false) { message('mods-message', text, err
 
 function updateModControls() {
   const enabled = writable();
-  ['mods-install', 'mods-import', 'mods-export', 'mods-disable-all', 'mods-cleanup', 'mods-config-save'].forEach(id => {
+  ['mods-install-essential', 'mods-install', 'mods-import', 'mods-export', 'mods-disable-all', 'mods-cleanup', 'mods-config-save'].forEach(id => {
     const control = $(id); if (control) control.disabled = !enabled || (id === 'mods-config-save' && !$('mods-config-select')?.value);
   });
+  if ($('mods-install-essential')) $('mods-install-essential').disabled = !enabled || modLoaderReady;
   document.querySelectorAll('.mod-write-action').forEach(control => { control.disabled = !enabled; });
 }
 
@@ -909,8 +946,10 @@ async function loadModConfigurations() {
 async function loadMods() {
   setModsMessage('모드 구성을 불러오고 있습니다.');
   const data = await api('/api/mods'); modPackages = data.packages;
+  modLoaderReady = data.loader_ready;
   $('mods-loader-status').textContent = data.loader_ready ? '준비됨' : '설치 필요';
   $('mods-loader-hint').textContent = data.loader_ready ? 'Linux BepInEx 활성화' : 'Linux BepInEx ZIP 필요';
+  $('mods-install-essential').textContent = data.loader_ready ? '설치 완료' : '필수 모드 설치';
   $('mods-enabled-count').textContent = `${data.enabled_count}개`;
   $('mods-registered-count').textContent = `${data.registered_count}개`;
   renderModPackages(); await loadModConfigurations(); setModsMessage('모드 구성을 확인했습니다.'); updateControls();
@@ -931,6 +970,12 @@ async function uploadMods(files) {
 $('mods-search').oninput = renderModPackages;
 $('mods-filter').onchange = renderModPackages;
 $('mods-refresh').onclick = loadMods;
+$('mods-install-essential').onclick = async () => {
+  uiBusy = true; updateControls(); setModsMessage('최신 BepInEx 필수 모드를 확인하고 설치하고 있습니다.');
+  try { const data = await api('/api/mods/recommended/bepinex', {method: 'POST'}); await loadMods(); setModsMessage(data.message); }
+  catch (error) { setModsMessage(error.message, true); }
+  finally { uiBusy = false; updateControls(); }
+};
 $('mods-install').onclick = () => $('mods-install-input').click();
 $('mods-install-input').onchange = async event => {
   const files = [...(event.currentTarget.files || [])]; event.currentTarget.value = '';
@@ -987,10 +1032,89 @@ $('mods-diagnose').onclick = async () => {
   catch (error) { setModsMessage(error.message, true); }
 };
 
+function setDiscordControlsDisabled(disabled) {
+  $('discord-form').querySelectorAll('input,button').forEach(control => {
+    if (!control.hasAttribute('data-close')) control.disabled = disabled;
+  });
+  $('discord-webhook-url').disabled = disabled || $('discord-clear-webhook').checked;
+  if (!disabled) $('discord-test').disabled = !discordWebhookConfigured;
+}
+
+function renderDiscord(data) {
+  const config = data.config || {};
+  discordWebhookConfigured = Boolean(config.webhook_configured);
+  $('discord-enabled').checked = Boolean(config.enabled);
+  $('discord-username').value = config.username || 'TechTim Valheim Server';
+  $('discord-webhook-url').value = '';
+  $('discord-webhook-url').placeholder = discordWebhookConfigured
+    ? '새 URL을 입력하면 기존 Webhook이 교체됩니다.'
+    : 'https://discord.com/api/webhooks/...';
+  $('discord-clear-webhook').checked = false;
+  $('discord-notify-start').checked = Boolean(config.notify_server_start);
+  $('discord-notify-stop').checked = Boolean(config.notify_server_stop);
+  $('discord-notify-restart').checked = Boolean(config.notify_server_restart);
+  $('discord-notify-backup').checked = Boolean(config.notify_backup);
+  $('discord-notify-errors').checked = Boolean(config.notify_errors);
+  $('discord-state').textContent = config.enabled ? '연동 사용 중' : discordWebhookConfigured ? 'Webhook 등록됨' : '연동 안 됨';
+  $('discord-webhook-hint').textContent = discordWebhookConfigured
+    ? config.webhook_hint
+    : 'Discord 채널 Webhook URL이 등록되지 않았습니다.';
+  $('discord-state').classList.toggle('online', Boolean(config.enabled && discordWebhookConfigured));
+  setDiscordControlsDisabled(discordBusy);
+}
+
+async function loadDiscord() {
+  try {
+    const data = await api('/api/discord');
+    renderDiscord(data);
+    message('discord-message', discordWebhookConfigured
+      ? '저장된 Webhook으로 Discord 알림을 전송할 수 있습니다.'
+      : 'Discord 채널에서 생성한 Webhook URL을 등록해주세요.');
+  } catch (error) { message('discord-message', error.message, true); }
+}
+
+$('discord-clear-webhook').onchange = event => {
+  $('discord-webhook-url').disabled = event.target.checked || discordBusy;
+};
+
+$('discord-form').onsubmit = async event => {
+  event.preventDefault();
+  if (discordBusy) return;
+  discordBusy = true; setDiscordControlsDisabled(true);
+  message('discord-message', 'Discord 연동 설정을 저장하고 있습니다.');
+  try {
+    const data = await jsonPost('/api/discord', {
+      enabled: $('discord-enabled').checked,
+      webhook_url: $('discord-webhook-url').value.trim(),
+      clear_webhook: $('discord-clear-webhook').checked,
+      username: $('discord-username').value.trim() || 'TechTim Valheim Server',
+      notify_server_start: $('discord-notify-start').checked,
+      notify_server_stop: $('discord-notify-stop').checked,
+      notify_server_restart: $('discord-notify-restart').checked,
+      notify_backup: $('discord-notify-backup').checked,
+      notify_errors: $('discord-notify-errors').checked
+    });
+    renderDiscord(data);
+    message('discord-message', data.message || 'Discord 연동 설정을 저장했습니다.');
+  } catch (error) { message('discord-message', error.message, true); }
+  finally { discordBusy = false; setDiscordControlsDisabled(false); }
+};
+
+$('discord-test').onclick = async () => {
+  if (discordBusy || !discordWebhookConfigured) return;
+  discordBusy = true; setDiscordControlsDisabled(true);
+  message('discord-message', 'Discord 테스트 메시지를 전송하고 있습니다.');
+  try {
+    const data = await api('/api/discord/test', {method: 'POST'});
+    message('discord-message', data.message || 'Discord 테스트 메시지를 전송했습니다.');
+  } catch (error) { message('discord-message', error.message, true); }
+  finally { discordBusy = false; setDiscordControlsDisabled(false); }
+};
+
 const loaders = {'settings-dialog': loadSettings, 'worlds-dialog': loadWorlds, 'backups-dialog': loadBackups, 'permissions-dialog': loadPermissions,
   'schedule-dialog': loadSchedule, 'modifiers-dialog': loadModifiers,
   'server-files-dialog': () => serverConfigurationLocked() ? Promise.resolve() : loadServerFiles(serverFilesPath), 'mods-dialog': loadMods,
-  'discord-dialog': async () => {}, 'panel-update-dialog': loadPanelUpdate};
+  'discord-dialog': loadDiscord, 'panel-update-dialog': loadPanelUpdate};
 document.querySelectorAll('[data-open]').forEach(button => button.onclick = async () => {
   await openDetail(button.dataset.open, loaders[button.dataset.open]);
 });
