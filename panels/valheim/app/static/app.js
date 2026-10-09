@@ -22,6 +22,7 @@ let modLoaderReady = false;
 let steamIdPopup = null;
 let discordBusy = false;
 let discordWebhookConfigured = false;
+let worldNames = new Set();
 const selectedServerFolders = new Set();
 const polls = new Set();
 const runningStates = new Set(['running', 'restarting', 'paused', 'removing']);
@@ -769,7 +770,14 @@ $('server-files-new-folder').onsubmit = async event => {
 async function loadWorlds() {
   const data = await api('/api/worlds');
   const list = $('world-list'); list.replaceChildren();
-  if (!data.worlds.length) emptyList(list, '아직 월드가 없습니다. 서버를 처음 시작하거나 기존 월드를 가져오세요.');
+  worldNames = new Set(data.worlds.map(world => world.name));
+  const dropPrompt = document.createElement('div');
+  dropPrompt.className = `world-drop-prompt${data.worlds.length ? '' : ' is-empty'}`;
+  const dropIcon = document.createElement('span'); dropIcon.className = 'world-drop-icon'; dropIcon.setAttribute('aria-hidden', 'true'); dropIcon.textContent = '↑';
+  const dropCopy = document.createElement('div'); const dropTitle = document.createElement('strong'); const dropText = document.createElement('small');
+  dropTitle.textContent = data.worlds.length ? '다른 월드 파일 추가' : '월드 파일을 여기에 놓으세요';
+  dropText.textContent = '이름이 같은 .db와 .fwl 파일을 함께 드래그 앤 드롭하세요.';
+  dropCopy.append(dropTitle, dropText); dropPrompt.append(dropIcon, dropCopy); list.append(dropPrompt);
   for (const world of data.worlds) {
     const {row, actions} = fileRow(world.name + (world.name === data.selected ? ' · 선택됨' : ''), `${world.complete ? '월드 파일 한 쌍' : '파일 쌍이 불완전합니다'} · ${bytes(world.size)}`);
     if (world.complete) actions.append(actionButton('다운로드', () => { location.href = `/api/worlds/${encodeURIComponent(world.name)}/download`; }, true));
@@ -777,17 +785,52 @@ async function loadWorlds() {
   }
   updateControls();
 }
+
+async function uploadWorldPair(db, fwl, overwrite) {
+  if (!db || !fwl) throw new Error('이름이 같은 .db와 .fwl 파일을 함께 선택해주세요.');
+  const dbName = db.name.toLowerCase().endsWith('.db') ? db.name.slice(0, -3) : '';
+  const fwlName = fwl.name.toLowerCase().endsWith('.fwl') ? fwl.name.slice(0, -4) : '';
+  if (!dbName || !fwlName || dbName !== fwlName) throw new Error('이름이 같은 .db와 .fwl 파일을 함께 선택해주세요.');
+  if (overwrite && !await confirmAction('기존 월드 덮어쓰기', '같은 이름의 월드를 업로드한 파일로 교체합니다. 교체 전 현재 월드를 백업합니다.', '업로드')) return false;
+  const data = new FormData(); data.append('db', db); data.append('fwl', fwl); data.append('overwrite', String(overwrite));
+  uiBusy = true; updateControls(); message('worlds-message', `${dbName} 월드를 업로드하고 있습니다. 창을 닫지 말아주세요.`);
+  try {
+    const result = await api('/api/worlds/upload', {method: 'POST', body: data});
+    message('worlds-message', result.message); await loadWorlds(); return true;
+  } catch (error) { message('worlds-message', error.message, true); return false; }
+  finally { uiBusy = false; updateControls(); }
+}
+
 $('world-upload-form').onsubmit = async event => {
   event.preventDefault();
   const form = event.currentTarget;
-  const data = new FormData(form);
-  data.set('overwrite', String(form.elements.overwrite.checked));
-  if (form.elements.overwrite.checked && !await confirmAction('기존 월드 덮어쓰기', '같은 이름의 월드를 업로드한 파일로 교체합니다. 교체 전 현재 월드를 백업합니다.', '업로드')) return;
-  uiBusy = true; updateControls(); message('worlds-message', '월드를 업로드하고 있습니다. 창을 닫지 말아주세요.');
-  try { const result = await api('/api/worlds/upload', {method: 'POST', body: data}); message('worlds-message', result.message); form.reset(); await loadWorlds(); }
-  catch (error) { message('worlds-message', error.message, true); }
-  finally { uiBusy = false; updateControls(); }
+  if (await uploadWorldPair(form.elements.db.files?.[0], form.elements.fwl.files?.[0], form.elements.overwrite.checked)) form.reset();
 };
+
+const worldDropZone = $('world-list');
+worldDropZone.addEventListener('dragenter', event => {
+  event.preventDefault();
+  if (writable()) worldDropZone.classList.add('is-dragging');
+});
+worldDropZone.addEventListener('dragover', event => {
+  event.preventDefault();
+  event.dataTransfer.dropEffect = writable() ? 'copy' : 'none';
+});
+worldDropZone.addEventListener('dragleave', event => {
+  if (!worldDropZone.contains(event.relatedTarget)) worldDropZone.classList.remove('is-dragging');
+});
+worldDropZone.addEventListener('drop', async event => {
+  event.preventDefault(); worldDropZone.classList.remove('is-dragging');
+  if (!writable()) { message('worlds-message', '서버 실행 중이거나 다른 작업이 진행 중일 때는 월드 파일을 업로드할 수 없습니다.', true); return; }
+  const files = [...(event.dataTransfer.files || [])];
+  const dbFiles = files.filter(file => file.name.toLowerCase().endsWith('.db'));
+  const fwlFiles = files.filter(file => file.name.toLowerCase().endsWith('.fwl'));
+  if (files.length !== 2 || dbFiles.length !== 1 || fwlFiles.length !== 1) {
+    message('worlds-message', '.db 파일 1개와 .fwl 파일 1개를 함께 놓아주세요.', true); return;
+  }
+  const name = dbFiles[0].name.slice(0, -3);
+  await uploadWorldPair(dbFiles[0], fwlFiles[0], worldNames.has(name));
+});
 
 async function loadBackups() {
   const data = await api('/api/backups');
@@ -859,14 +902,39 @@ $('permissions-form').onsubmit = async event => {
 
 async function loadSchedule() {
   const data = await api('/api/restart-schedule');
-  $('schedule-form').elements.enabled.checked = data.enabled;
-  $('schedule-form').elements.times.value = data.times.join(', ');
+  const defaults = ['04:00', '12:00', '20:00'];
+  document.querySelectorAll('[data-schedule-slot]').forEach((slot, index) => {
+    const time = data.times[index] || defaults[index];
+    const [hour, minute] = time.split(':');
+    slot.querySelector('[data-schedule-enabled]').checked = Boolean(data.enabled && data.times[index]);
+    slot.querySelector('[data-schedule-hour]').value = String(Number(hour));
+    slot.querySelector('[data-schedule-minute]').value = String(Number(minute));
+  });
+  syncScheduleSlots();
   $('schedule-summary').textContent = data.enabled ? `${data.times.join(' · ')} KST` : '한국 시간 기준 운영';
   $('schedule-result').textContent = data.last_message || '아직 실행된 예약이 없습니다.';
 }
+function syncScheduleSlots() {
+  document.querySelectorAll('[data-schedule-slot]').forEach(slot => {
+    const enabled = slot.querySelector('[data-schedule-enabled]').checked;
+    slot.classList.toggle('is-enabled', enabled);
+    slot.querySelectorAll('[data-schedule-hour], [data-schedule-minute]').forEach(input => { input.disabled = !enabled; });
+  });
+}
+document.querySelectorAll('[data-schedule-enabled]').forEach(toggle => toggle.addEventListener('change', syncScheduleSlots));
 $('schedule-form').onsubmit = async event => {
-  event.preventDefault(); const form = event.currentTarget;
-  const payload = {enabled: form.elements.enabled.checked, times: form.elements.times.value.split(',').map(t => t.trim()).filter(Boolean)};
+  event.preventDefault();
+  const times = [];
+  for (const slot of document.querySelectorAll('[data-schedule-slot]')) {
+    if (!slot.querySelector('[data-schedule-enabled]').checked) continue;
+    const hour = Number(slot.querySelector('[data-schedule-hour]').value);
+    const minute = Number(slot.querySelector('[data-schedule-minute]').value);
+    if (!Number.isInteger(hour) || hour < 0 || hour > 23 || !Number.isInteger(minute) || minute < 0 || minute > 59) {
+      message('schedule-message', '시는 0~23, 분은 0~59 사이로 입력해주세요.', true); return;
+    }
+    times.push(`${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`);
+  }
+  const payload = {enabled: times.length > 0, times};
   uiBusy = true; updateControls();
   try { await jsonPost('/api/restart-schedule', payload); message('schedule-message', '예약을 저장했습니다.'); await loadSchedule(); }
   catch (error) { message('schedule-message', error.message, true); }

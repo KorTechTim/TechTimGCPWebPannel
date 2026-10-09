@@ -148,7 +148,7 @@ def server_arguments(config: ServerConfig) -> list[str]:
 class RestartSchedule(BaseModel):
     model_config = ConfigDict(extra="forbid")
     enabled: bool = False
-    times: list[str] = Field(default_factory=lambda: ["04:00"], min_length=1, max_length=3)
+    times: list[str] = Field(default_factory=list, max_length=3)
 
     @field_validator("times")
     @classmethod
@@ -156,6 +156,14 @@ class RestartSchedule(BaseModel):
         if any(not re.fullmatch(r"(?:[01]\d|2[0-3]):[0-5]\d", v) for v in values):
             raise ValueError("재시작 시각은 HH:MM 형식으로 입력해주세요.")
         return sorted(set(values))
+
+    @model_validator(mode="after")
+    def enabled_slots(self):
+        if self.enabled and not self.times:
+            raise ValueError("사용할 예약 시간 슬롯을 하나 이상 선택해주세요.")
+        if not self.enabled:
+            self.times = []
+        return self
 
 
 class Permissions(BaseModel):

@@ -65,9 +65,13 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(ServerConfig(world="우리 월드").world, "우리 월드")
 
     def test_schedule_times_are_validated_sorted_and_deduplicated(self):
-        self.assertEqual(RestartSchedule(times=["12:00", "04:00", "04:00"]).times, ["04:00", "12:00"])
-        for times in (["24:00"], [], ["1:00"], ["01:00", "02:00", "03:00", "04:00"]):
-            with self.assertRaises(ValidationError): RestartSchedule(times=times)
+        self.assertEqual(RestartSchedule(enabled=True, times=["12:00", "04:00", "04:00"]).times, ["04:00", "12:00"])
+        self.assertEqual(RestartSchedule(enabled=False, times=["04:00"]).times, [])
+        self.assertEqual(RestartSchedule(enabled=False, times=[]).times, [])
+        for data in ({"enabled": True, "times": ["24:00"]}, {"enabled": True, "times": []},
+                     {"enabled": True, "times": ["1:00"]},
+                     {"enabled": True, "times": ["01:00", "02:00", "03:00", "04:00"]}):
+            with self.assertRaises(ValidationError): RestartSchedule(**data)
 
     def test_permission_ids_are_not_arbitrary_file_content(self):
         self.assertEqual(Permissions(kind="admin", ids=["Steam_76561198000000000", "Steam_76561198000000000"]).ids, ["Steam_76561198000000000"])

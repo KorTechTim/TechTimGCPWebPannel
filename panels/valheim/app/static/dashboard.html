@@ -5,8 +5,8 @@
   <meta name="color-scheme" content="dark"><title>TechTim · Valheim Server</title>
   <link rel="icon" href="/static/valheim-panel-mark-v2.png?v=1" type="image/png">
   <link rel="stylesheet" href="/static/app.css?v=1.1.0">
-  <link rel="stylesheet" href="/static/valheim-palshell.css?v=1.6.8">
-  <script src="/static/app.js?v=1.6.5" defer></script>
+  <link rel="stylesheet" href="/static/valheim-palshell.css?v=1.7.1">
+  <script src="/static/app.js?v=1.6.7" defer></script>
 </head>
 <body>
   <div class="ambient" aria-hidden="true"></div>
@@ -193,7 +193,7 @@
   </dialog>
 
   <dialog id="worlds-dialog" class="wide-dialog"><div class="dialog-head"><div><p class="eyebrow">WORLD FILES</p><h2>월드 파일</h2></div><button data-close aria-label="닫기">×</button></div>
-    <div class="dialog-body"><div id="world-list" class="file-list" data-running-lock></div>
+    <div class="dialog-body"><div id="world-list" class="file-list world-drop-zone" data-running-lock aria-label="월드 파일 드래그 앤 드롭 업로드 영역"></div>
       <form id="world-upload-form"><fieldset data-writable data-running-lock><legend>기존 월드 가져오기</legend><p class="subtle">이름이 같은 .db와 .fwl 파일을 함께 선택하세요. Steam 클라우드 월드는 게임에서 로컬로 옮긴 뒤 가져와주세요.</p><div class="field-grid"><label>월드 데이터 · .db<input name="db" type="file" accept=".db" required></label><label>월드 정보 · .fwl<input name="fwl" type="file" accept=".fwl" required></label></div><label class="compact-toggle"><input name="overwrite" type="checkbox">같은 이름의 기존 월드 덮어쓰기</label><p class="micro">기존 월드가 있으면 먼저 ZIP 백업을 만듭니다. 업로드 후 서버 설정에서 월드를 선택해주세요.</p><button type="submit" class="primary">월드 업로드</button></fieldset><p id="worlds-message" class="form-message" role="status"></p></form>
     </div><div class="dialog-foot"><button data-close>닫기</button></div>
   </dialog>
@@ -241,7 +241,11 @@
   </dialog>
 
   <dialog id="schedule-dialog"><div class="dialog-head"><div><p class="eyebrow">SCHEDULED RESTART</p><h2>예약 재시작</h2></div><button data-close aria-label="닫기">×</button></div>
-    <form id="schedule-form"><div class="dialog-body"><fieldset data-writable data-running-lock><label class="switch-row"><span>매일 예약 재시작<small>Asia/Seoul · 한국 시간</small></span><input name="enabled" type="checkbox" role="switch"></label><label>재시작 시각 · 최대 3개<input name="times" placeholder="04:00, 12:00" required><small>여러 시각은 쉼표로 구분하세요.</small></label></fieldset><p id="schedule-result" class="subtle"></p><p id="schedule-message" class="form-message" role="status"></p></div><div class="dialog-foot"><button type="button" data-close>닫기</button><button type="submit" class="primary" data-writable>예약 저장</button></div></form>
+    <form id="schedule-form"><div class="dialog-body"><fieldset data-writable data-running-lock><div class="schedule-heading"><strong>매일 예약 재시작</strong><small>Asia/Seoul · 한국 시간 · 체크한 슬롯만 실행</small></div><div class="schedule-slots">
+      <section class="schedule-slot" data-schedule-slot><label class="schedule-slot-toggle"><input type="checkbox" data-schedule-enabled><span><b>예약 1</b><small>첫 번째 재시작</small></span></label><div class="schedule-time"><label>시<input type="number" value="4" min="0" max="23" inputmode="numeric" data-schedule-hour aria-label="예약 1 시"></label><span>:</span><label>분<input type="number" value="0" min="0" max="59" inputmode="numeric" data-schedule-minute aria-label="예약 1 분"></label></div></section>
+      <section class="schedule-slot" data-schedule-slot><label class="schedule-slot-toggle"><input type="checkbox" data-schedule-enabled><span><b>예약 2</b><small>두 번째 재시작</small></span></label><div class="schedule-time"><label>시<input type="number" value="12" min="0" max="23" inputmode="numeric" data-schedule-hour aria-label="예약 2 시"></label><span>:</span><label>분<input type="number" value="0" min="0" max="59" inputmode="numeric" data-schedule-minute aria-label="예약 2 분"></label></div></section>
+      <section class="schedule-slot" data-schedule-slot><label class="schedule-slot-toggle"><input type="checkbox" data-schedule-enabled><span><b>예약 3</b><small>세 번째 재시작</small></span></label><div class="schedule-time"><label>시<input type="number" value="20" min="0" max="23" inputmode="numeric" data-schedule-hour aria-label="예약 3 시"></label><span>:</span><label>분<input type="number" value="0" min="0" max="59" inputmode="numeric" data-schedule-minute aria-label="예약 3 분"></label></div></section>
+    </div></fieldset><p id="schedule-result" class="subtle"></p><p id="schedule-message" class="form-message" role="status"></p></div><div class="dialog-foot"><button type="button" data-close>닫기</button><button type="submit" class="primary" data-writable>예약 저장</button></div></form>
   </dialog>
 
   <dialog id="mods-dialog" class="wide-dialog"><div class="dialog-head"><div><p class="eyebrow">BEPINEX MOD MANAGEMENT</p><h2>모드 관리</h2></div><button data-close aria-label="닫기">×</button></div>

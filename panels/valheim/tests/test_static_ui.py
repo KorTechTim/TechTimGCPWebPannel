@@ -165,6 +165,31 @@ class StaticUiTests(unittest.TestCase):
         self.assertIn("setInterval(() => { if (!document.hidden) refreshResources(); }, RESOURCE_REFRESH_MS);", script)
         self.assertIn(".resource-history-chart canvas", css)
 
+    def test_world_files_support_drag_and_drop_upload(self):
+        html = self.read("dashboard.html")
+        script = self.read("app.js")
+        css = self.read("valheim-palshell.css")
+        self.assertIn('id="world-list" class="file-list world-drop-zone"', html)
+        self.assertIn("async function uploadWorldPair(db, fwl, overwrite)", script)
+        self.assertIn("worldDropZone.addEventListener('dragover'", script)
+        self.assertIn("worldDropZone.addEventListener('drop'", script)
+        self.assertIn("files.length !== 2 || dbFiles.length !== 1 || fwlFiles.length !== 1", script)
+        self.assertIn("worldNames.has(name)", script)
+        self.assertIn(".world-drop-zone.is-dragging", css)
+
+    def test_restart_schedule_uses_three_independent_time_slots(self):
+        html = self.read("dashboard.html")
+        script = self.read("app.js")
+        css = self.read("valheim-palshell.css")
+        self.assertEqual(html.count('data-schedule-slot'), 3)
+        self.assertEqual(html.count('data-schedule-enabled'), 3)
+        self.assertEqual(html.count('data-schedule-hour'), 3)
+        self.assertEqual(html.count('data-schedule-minute'), 3)
+        self.assertNotIn('name="times"', html)
+        self.assertIn("function syncScheduleSlots()", script)
+        self.assertIn("const payload = {enabled: times.length > 0, times};", script)
+        self.assertIn(".schedule-slots { display: grid; grid-template-columns: repeat(3", css)
+
     def test_running_server_blurs_configuration_sections(self):
         html = self.read("dashboard.html")
         script = self.read("app.js")
@@ -215,6 +240,8 @@ class StaticUiTests(unittest.TestCase):
         self.assertIn("api('/api/discord/test'", script)
         self.assertIn("'discord-dialog': loadDiscord", script)
         self.assertIn(".discord-event-grid", css)
+        self.assertIn("#discord-dialog:not(.detail-page) { width:", css)
+        self.assertIn("grid-template-columns: repeat(5, minmax(0, 1fr));", css)
 
     def test_settings_callout_has_section_spacing(self):
         html = self.read("dashboard.html")

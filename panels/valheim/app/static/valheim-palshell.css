@@ -458,6 +458,15 @@ dialog::backdrop { background: rgba(6, 15, 20, .7); backdrop-filter: blur(7px); 
 .feature-list { border-color: #d6dfdd; }
 .feature-list span, .feature-list strong { border-color: #d6dfdd; }
 .empty-state { border-color: #c7d2d1; color: #718085; }
+.world-drop-zone { min-height: 92px; padding: 10px; border: 1px dashed #aebfbb; border-radius: 7px; background: rgba(246, 250, 248, .7); transition: border-color .18s, background .18s, box-shadow .18s; }
+.world-drop-zone.is-dragging { border-color: #267765; background: #e4f1ed; box-shadow: inset 0 0 0 2px rgba(38, 119, 101, .18); }
+.world-drop-prompt { display: flex; align-items: center; gap: 12px; min-height: 58px; padding: 10px 12px; color: #5d716e; }
+.world-drop-prompt.is-empty { min-height: 74px; justify-content: center; text-align: left; }
+.world-drop-icon { display: grid; place-items: center; width: 38px; height: 38px; flex: 0 0 38px; border: 1px solid #9fb8b1; border-radius: 5px; background: #e5efec; color: #236d60; font-size: 20px; font-weight: 800; }
+.world-drop-prompt strong, .world-drop-prompt small { display: block; }
+.world-drop-prompt strong { color: var(--ink); font-size: 13px; }
+.world-drop-prompt small { margin-top: 3px; color: #758783; font-size: 10px; }
+.world-drop-zone.is-running-locked { border-style: solid; }
 .form-message { color: #27715d; }
 .form-message.error-text { color: #a13f32; }
 .toast { border-color: #8dbbac; background: #173f39; color: #fff; }
@@ -576,7 +585,7 @@ dialog::backdrop { background: rgba(6, 15, 20, .7); backdrop-filter: blur(7px); 
 .steam-id-result strong { display: block; margin: 11px 0 8px; padding: 15px; border: 1px solid #afc5bf; border-radius: 6px; background: #e8f1ee; color: #174f48; font: 750 18px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
 .steam-id-result p { color: #71817d; font-size: 11px; }
 .steam-id-result code { color: #8a6232; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-#discord-dialog { width: min(900px, calc(100% - 32px)); }
+#discord-dialog:not(.detail-page) { width: min(900px, calc(100% - 32px)); }
 .discord-body { display: grid; gap: 16px; }
 .discord-summary {
   display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; align-items: center; gap: 14px;
@@ -599,7 +608,7 @@ dialog::backdrop { background: rgba(6, 15, 20, .7); backdrop-filter: blur(7px); 
 .discord-events-section > div:first-child { display: grid; gap: 3px; margin-bottom: 12px; }
 .discord-events-section > div:first-child strong { color: var(--ink); font-size: 14px; }
 .discord-events-section > div:first-child small { color: #819092; font-size: 11px; }
-.discord-event-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }
+.discord-event-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 9px; }
 .discord-event-grid label {
   display: flex; align-items: center; gap: 9px; min-width: 0; min-height: 58px; margin: 0; padding: 10px;
   border: 1px solid #d7e0de; border-radius: 5px; background: #f1f6f4; cursor: pointer;
@@ -612,6 +621,23 @@ dialog::backdrop { background: rgba(6, 15, 20, .7); backdrop-filter: blur(7px); 
 #discord-message { min-height: 20px; margin: 0; }
 #discord-dialog .dialog-foot button { min-width: 104px; }
 #discord-form input:disabled, #discord-form button:disabled { opacity: .55; cursor: not-allowed; }
+.schedule-heading { display: grid; gap: 4px; margin-bottom: 14px; }
+.schedule-heading strong { color: var(--ink); font-size: 14px; }
+.schedule-heading small { color: #718184; font-size: 11px; }
+.schedule-slots { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.schedule-slot { padding: 14px; border: 1px solid #d3ddda; border-radius: 6px; background: #f2f5f4; transition: border-color .18s, background .18s; }
+.schedule-slot.is-enabled { border-color: #5d9c8e; background: #e9f3f0; box-shadow: inset 0 0 0 1px rgba(34, 118, 101, .08); }
+.schedule-slot-toggle { display: flex; align-items: center; gap: 9px; margin-bottom: 12px; cursor: pointer; }
+.schedule-slot-toggle input { width: 18px; height: 18px; margin: 0; }
+.schedule-slot-toggle b, .schedule-slot-toggle small { display: block; }
+.schedule-slot-toggle b { color: var(--ink); font-size: 12px; }
+.schedule-slot-toggle small { margin-top: 2px; color: #7b8b8d; font-size: 9px; }
+.schedule-time { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: end; gap: 8px; }
+.schedule-time > span { padding-bottom: 9px; color: #52666a; font-size: 20px; font-weight: 800; }
+.schedule-time label { gap: 5px; color: #708185; font-size: 10px; }
+.schedule-time input { min-height: 43px; padding: 8px; text-align: center; font: 750 17px ui-monospace, SFMono-Regular, Menlo, monospace; }
+.schedule-slot:not(.is-enabled) .schedule-time { opacity: .48; }
+#schedule-result { margin-top: 18px; }
 .mod-diagnosis { max-height: 300px; margin: 0 16px 16px; padding: 14px; overflow: auto; border: 1px solid #cbd6d4; border-radius: 5px; background: #14272a; color: #dfe9e4; font: 10px/1.65 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; }
 #mods-message { min-height: 20px; margin: 0; overflow-wrap: anywhere; }
 
@@ -638,6 +664,7 @@ dialog::backdrop { background: rgba(6, 15, 20, .7); backdrop-filter: blur(7px); 
   .connection-card { min-height: 220px; }
   .advanced-card { grid-template-columns: 1fr; }
   .resource-monitor { border-top: 1px solid rgba(255, 255, 255, .25); border-left: 0; }
+  .discord-event-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
 @media (max-width: 760px) {
@@ -699,6 +726,7 @@ dialog::backdrop { background: rgba(6, 15, 20, .7); backdrop-filter: blur(7px); 
   .discord-mark { width: 44px; height: 44px; font-size: 20px; }
   .discord-master { grid-column: 1 / -1; }
   .discord-field-grid, .discord-event-grid { grid-template-columns: 1fr; }
+  .schedule-slots { grid-template-columns: 1fr; }
   footer { display: block; }
   footer span { display: block; }
 }
