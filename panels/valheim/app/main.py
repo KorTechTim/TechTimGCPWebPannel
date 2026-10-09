@@ -231,8 +231,19 @@ def create_app(settings=None, docker_factory=None):
         auth.require(request)
         return service.status()
 
+    @app.get("/api/install/check")
+    def install_check(request: Request):
+        auth.require(request)
+        service.require_stopped()
+        return service.engine_update_check(force=True)
+
     @app.post("/api/install")
     def install(request: Request, tasks: BackgroundTasks):
+        auth.require(request)
+        service.require_stopped()
+        update = service.engine_update_check()
+        if update["installed"] and not update["update_available"]:
+            return {**update, "status": "current", "message": "이미 엔진이 최신 버전입니다"}
         return queued(request, tasks, "엔진 설치·업데이트", service.install)
 
     @app.post("/api/server/{action}")

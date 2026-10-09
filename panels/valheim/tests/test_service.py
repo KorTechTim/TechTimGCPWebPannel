@@ -81,6 +81,22 @@ class LifecycleTests(ServiceCase):
         with self.assertRaises(RuntimeError): self.service.install()
         self.assertFalse(self.service.engine()["installed"])
 
+    def test_engine_update_check_compares_installed_and_latest_steam_builds(self):
+        self.installed()
+        manifest = self.service.server / "steamapps" / "appmanifest_896660.acf"
+        manifest.parent.mkdir(parents=True, exist_ok=True)
+        manifest.write_text('"AppState" { "buildid" "123456" }', encoding="utf-8")
+
+        current = self.service.engine_update_check()
+        self.assertFalse(current["update_available"])
+        self.assertEqual(current["current_build_id"], "123456")
+        self.assertEqual(current["latest_build_id"], "123456")
+
+        self.docker.latest_build_id = "123457"
+        available = self.service.engine_update_check(force=True)
+        self.assertTrue(available["update_available"])
+        self.assertEqual(available["latest_build_id"], "123457")
+
     def test_legacy_runtime_marker_requires_engine_update(self):
         (self.service.server / "valheim_server.x86_64").write_bytes(b"fake executable")
         write_json(self.service.server / ".techtim-installed.json", {"app_id": "896660"})

@@ -64,6 +64,8 @@ class FakeContainers:
         return value
 
     def run(self, image, **kwargs):
+        if kwargs.get("command") == ["latest-build"]:
+            return f"LATEST_BUILD_ID={self.parent.latest_build_id}\n".encode()
         self.runs.append((image, kwargs))
         value = self.add(kwargs["name"], labels=kwargs.get("labels"))
         if kwargs.get("command") == ["install"]:
@@ -109,6 +111,7 @@ class FakeDocker:
         self.engine_dir = engine_dir
         self.runtime_image = runtime_image
         self.install_success = True
+        self.latest_build_id = "123456"
         self.containers = FakeContainers(self)
         self.images = FakeImages()
         self.api = SimpleNamespace(pull=lambda *args, **kwargs: iter([{"status": "Pull complete"}]))

@@ -64,6 +64,7 @@ class ApiTests(ServiceCase):
             ('get', '/api/server-files', {}),
             ('get', '/api/mods', {}), ('get', '/api/mods/configs', {}), ('get', '/api/mods/diagnose', {}),
             ('get', '/api/mods/cleanup', {}),
+            ('get', '/api/install/check', {}),
             ('get', '/api/panel/update/check', {}),
             ('post', '/api/install', {}), ('post', '/api/panel/update', {}), ('post', '/api/server/start', {}),
             ('post', '/api/config', {'json': {}}),
@@ -85,6 +86,37 @@ class ApiTests(ServiceCase):
         available = self.client.get('/api/panel/update/check?force=true').json()
         self.assertEqual(available["status"], "ok")
         self.assertTrue(available["update_available"])
+
+    def test_server_update_skips_install_when_steam_build_is_current(self):
+        self.authenticated()
+        self.installed()
+        manifest = self.service.server / "steamapps" / "appmanifest_896660.acf"
+        manifest.parent.mkdir(parents=True, exist_ok=True)
+        manifest.write_text('"AppState" { "buildid" "123456" }', encoding="utf-8")
+
+        response = self.client.post('/api/install')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["message"], "이미 엔진이 최신 버전입니다")
+        self.assertFalse(response.json()["update_available"])
+        self.assertEqual(self.docker.containers.runs, [])
+
+        check = self.client.get('/api/install/check')
+        self.assertEqual(check.status_code, 200)
+        self.assertFalse(check.json()["update_available"])
+
+    def test_server_update_is_queued_when_steam_has_a_newer_build(self):
+        self.authenticated()
+        self.installed()
+        manifest = self.service.server / "steamapps" / "appmanifest_896660.acf"
+        manifest.parent.mkdir(parents=True, exist_ok=True)
+        manifest.write_text('"AppState" { "buildid" "123455" }', encoding="utf-8")
+
+        response = self.client.post('/api/install')
+
+        self.assertEqual(response.status_code, 202)
+        self.assertTrue(any(options.get("command") == ["install"]
+                            for _image, options in self.docker.containers.runs))
 
     def test_start_rejects_missing_engine_before_queuing(self):
         self.authenticated()

@@ -300,7 +300,21 @@ $('start').onclick = async () => {
 };
 $('stop').onclick = () => perform('/api/server/stop', '서버 중지', '접속 중인 플레이어의 연결이 종료됩니다. 월드 저장이 끝날 때까지 기다린 뒤 서버를 중지합니다.');
 $('restart').onclick = () => perform('/api/server/restart', '서버 재시작', '현재 월드를 저장하고 서버를 다시 시작합니다. 접속 중인 플레이어는 다시 접속해야 합니다.');
-$('install').onclick = () => perform('/api/install', state?.engine.installed ? '서버 업데이트' : '엔진 설치', 'Steam 정식 서버를 다운로드합니다. 기존 월드가 있으면 업데이트 전에 백업을 만듭니다.');
+$('install').onclick = async () => {
+  const title = state?.engine.installed ? '서버 업데이트' : '엔진 설치';
+  const text = 'Steam 정식 서버를 다운로드합니다. 기존 월드가 있으면 업데이트 전에 백업을 만듭니다.';
+  uiBusy = true; updateControls();
+  let update;
+  try {
+    update = await api('/api/install/check');
+  } catch (error) { toast(error.message); return; }
+  finally { uiBusy = false; updateControls(); }
+  if (update.installed && update.update_available === false) {
+    showNotice('서버 업데이트', '이미 엔진이 최신 버전입니다');
+    return;
+  }
+  await perform('/api/install', title, text);
+};
 $('logout').onclick = async () => { try { await api('/api/auth/logout', {method: 'POST'}); location.assign('/login'); } catch (error) { toast(error.message); } };
 $('connection-invite').onclick = () => { connectionMode = 'invite'; renderConnection(); };
 $('connection-ip').onclick = () => { connectionMode = 'ip'; renderConnection(); };

@@ -24,6 +24,24 @@ drop_root_privileges() {
 drop_root_privileges "$@"
 
 case "${1:-serve}" in
+  latest-build)
+    echo "Checking the latest Valheim dedicated server build."
+    output="$(/opt/steamcmd/steamcmd.sh +@sSteamCmdForcePlatformType linux \
+      +login anonymous +app_info_update 1 +app_info_print "$APP_ID" +quit)"
+    build_id="$(printf '%s\n' "$output" | awk '
+      /^[[:space:]]*"public"[[:space:]]*$/ { public_branch = 1; next }
+      public_branch && /"buildid"/ {
+        gsub(/[^0-9]/, "", $0)
+        print $0
+        exit
+      }
+    ')"
+    if [ -z "$build_id" ]; then
+      echo 'Could not determine the latest public build ID.' >&2
+      exit 1
+    fi
+    printf 'LATEST_BUILD_ID=%s\n' "$build_id"
+    ;;
   install)
     mkdir -p /server
     rm -f "$INSTALL_MARKER"
@@ -71,5 +89,5 @@ case "${1:-serve}" in
     fi
     echo "Valheim runtime user check passed: $(id -un) (uid=$(id -u))."
     ;;
-  *) echo 'Expected install, serve, or check-user.' >&2; exit 2 ;;
+  *) echo 'Expected latest-build, install, serve, or check-user.' >&2; exit 2 ;;
 esac

@@ -14,6 +14,8 @@ class RuntimeTests(unittest.TestCase):
         self.assertIn('chown -R "$VALHEIM_USER:$VALHEIM_USER" /server /saves', entrypoint)
         self.assertIn('"runtime_user":"%s"', entrypoint)
         self.assertIn("check-user)", entrypoint)
+        self.assertIn("latest-build)", entrypoint)
+        self.assertIn("LATEST_BUILD_ID=%s", entrypoint)
         self.assertIn('echo "Starting Valheim as $(id -un) (uid=$(id -u))."', entrypoint)
         self.assertIn("-logFile -", entrypoint)
         self.assertNotIn("-logFile /dev/stdout", entrypoint)

@@ -62,8 +62,22 @@ class StaticUiTests(unittest.TestCase):
 
     def test_management_shortcut_text_is_enlarged(self):
         css = self.read("valheim-palshell.css")
-        self.assertIn(".management-shortcut b { font-size: 18px;", css)
-        self.assertIn("font-size: 13.5px; line-height: 1.25;", css)
+        self.assertIn(".management-shortcut b { font-size: 15.6px;", css)
+        self.assertIn("font-size: 11.7px; line-height: 1.25;", css)
+
+    def test_panel_update_text_is_doubled(self):
+        css = self.read("valheim-palshell.css")
+        self.assertIn("#panel-update-dialog .dialog-head h2 { font-size: 38px; }", css)
+        self.assertIn("#panel-update-dialog .feature-status strong { font-size: 34px; }", css)
+        self.assertIn("#panel-update-dialog .feature-status p { font-size: 22px;", css)
+        self.assertIn("#panel-update-message { font-size: 24px;", css)
+        self.assertIn("#panel-update-dialog .dialog-foot button { font-size: 24px; }", css)
+
+    def test_engine_update_checks_steam_build_before_installing(self):
+        script = self.read("app.js")
+        self.assertIn("update = await api('/api/install/check');", script)
+        self.assertIn("if (update.installed && update.update_available === false)", script)
+        self.assertIn("showNotice('서버 업데이트', '이미 엔진이 최신 버전입니다');", script)
 
     def test_dashboard_keeps_palworld_style_operational_hub(self):
         html = self.read("dashboard.html")
@@ -162,7 +176,7 @@ class StaticUiTests(unittest.TestCase):
         self.assertIn("grid-template-columns: 1fr", css)
         self.assertIn(".explorer-shell", css)
         self.assertIn(".mod-manager-shell", css)
-        self.assertIn("#panel-update-dialog .callout { width: 100%; max-width: none; }", css)
+        self.assertIn("#panel-update-dialog .callout { width: 100%; max-width: none;", css)
 
 
 if __name__ == "__main__":

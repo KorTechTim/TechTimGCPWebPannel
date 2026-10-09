@@ -13,7 +13,7 @@ import time
 import docker
 from docker.types import LogConfig
 
-from .config import PANEL_VERSION, Permissions, RestartSchedule, ServerConfig, Settings, server_arguments, world_name
+from .config import PANEL_VERSION, STEAM_APP_ID, Permissions, RestartSchedule, ServerConfig, Settings, server_arguments, world_name
 from .mods import ModManager
 from .storage import create_archive, extract_archive, inside, read_json, replace_directory, worlds, write_bytes, write_json
 
@@ -52,6 +52,8 @@ class PanelService:
         self.resource_lock = threading.Lock()
         self.panel_update_check_lock = threading.Lock()
         self.panel_update_check_cache = {"expires_at": 0.0, "payload": None}
+        self.engine_update_check_lock = threading.Lock()
+        self.engine_update_check_cache = {"expires_at": 0.0, "current_build_id": "", "payload": None}
         self.network_sample = None
         self.host_cpu_sample = None
         self.host_network_sample = None
@@ -181,15 +183,56 @@ class PanelService:
         installed = (
             binary.is_file()
             and binary.stat().st_size > 0
-            and str(marker_data.get("app_id") or "") == "896660"
+            and str(marker_data.get("app_id") or "") == STEAM_APP_ID
             and str(marker_data.get("runtime_user") or "") == "valheim"
         )
         build_id = ""
-        manifest = self.server / "steamapps" / "appmanifest_896660.acf"
+        manifest = self.server / "steamapps" / f"appmanifest_{STEAM_APP_ID}.acf"
         if manifest.is_file():
             match = re.search(r'"buildid"\s+"(\d+)"', manifest.read_text(errors="replace"))
             build_id = match.group(1) if match else ""
         return {"installed": installed, "build_id": build_id, "branch": "Steam 정식 배포"}
+
+    def latest_engine_build_id(self):
+        with self.client() as client:
+            if self.settings.pull_runtime:
+                repository, tag = docker.utils.parse_repository_tag(self.settings.runtime_image)
+                image = client.images.pull(repository, tag=tag or "latest")
+            else:
+                image = client.images.get(self.settings.runtime_image)
+            output = client.containers.run(
+                image.id, command=["latest-build"], remove=True,
+                cap_drop=["ALL"], cap_add=RUNTIME_BOOTSTRAP_CAPABILITIES,
+                security_opt=["no-new-privileges:true"],
+            )
+        match = re.search(rb"(?:^|\n)LATEST_BUILD_ID=(\d+)(?:\r?$|\n)", output)
+        if not match:
+            raise RuntimeError("Steam 최신 엔진 버전을 확인하지 못했습니다. 잠시 후 다시 시도해주세요.")
+        return match.group(1).decode()
+
+    def engine_update_check(self, force=False):
+        engine = self.engine()
+        current = engine["build_id"]
+        if not engine["installed"] or not current:
+            return {
+                "installed": engine["installed"], "current_build_id": current,
+                "latest_build_id": "", "update_available": True,
+            }
+        with self.engine_update_check_lock:
+            now = time.monotonic()
+            cached = self.engine_update_check_cache
+            if (not force and cached["payload"] and cached["current_build_id"] == current
+                    and cached["expires_at"] > now):
+                return dict(cached["payload"])
+            latest = self.latest_engine_build_id()
+            payload = {
+                "installed": True, "current_build_id": current,
+                "latest_build_id": latest, "update_available": current != latest,
+            }
+            self.engine_update_check_cache = {
+                "expires_at": now + 60, "current_build_id": current, "payload": payload,
+            }
+            return dict(payload)
 
     def status(self):
         config = self.config()

@@ -362,8 +362,8 @@ input[type="checkbox"] { accent-color: #197869; }
 .management-shortcut:hover:not(:disabled) { border-color: #9fd5c5; background: rgba(26, 100, 85, .86); transform: translateY(-1px); }
 .shortcut-rune { display: grid; width: 40px; height: 40px; place-items: center; border-radius: 7px; background: linear-gradient(145deg, #9a5c34, #6f3d25); color: #ffe1a3; font: 22px/1 Georgia, serif; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .13); }
 .management-shortcut b, .management-shortcut small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.management-shortcut b { font-size: 18px; line-height: 1.2; }
-.management-shortcut small { margin-top: 3px; color: rgba(255, 255, 255, .66); font-size: 13.5px; line-height: 1.25; }
+.management-shortcut b { font-size: 15.6px; line-height: 1.2; }
+.management-shortcut small { margin-top: 3px; color: rgba(255, 255, 255, .66); font-size: 11.7px; line-height: 1.25; }
 
 .resource-monitor {
   position: relative;
@@ -543,7 +543,14 @@ dialog::backdrop { background: rgba(6, 15, 20, .7); backdrop-filter: blur(7px); 
 .detail-page .dialog-head { padding-top: 24px; }
 .detail-page .dialog-body { padding-top: 22px; }
 .detail-page .dialog-foot { border-color: #d9e0df; }
-#panel-update-dialog .callout { width: 100%; max-width: none; }
+#panel-update-dialog .dialog-head .eyebrow { font-size: 18px; }
+#panel-update-dialog .dialog-head h2 { font-size: 38px; }
+#panel-update-dialog .tiny-label { font-size: 16px; }
+#panel-update-dialog .feature-status strong { font-size: 34px; }
+#panel-update-dialog .feature-status p { font-size: 22px; line-height: 1.65; }
+#panel-update-dialog .callout { width: 100%; max-width: none; padding: 20px 24px; font-size: 22px; line-height: 1.8; }
+#panel-update-message { font-size: 24px; line-height: 1.6; }
+#panel-update-dialog .dialog-foot button { font-size: 24px; }
 
 @media (max-width: 1050px) {
   .status-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
