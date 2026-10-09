@@ -62,6 +62,8 @@ class ApiTests(ServiceCase):
             ('get', '/api/worlds', {}), ('get', '/api/server/status', {}), ('get', '/api/logs', {}),
             ('get', '/api/backups', {}), ('get', '/api/permissions', {}), ('get', '/api/restart-schedule', {}),
             ('get', '/api/server-files', {}),
+            ('get', '/api/server-files/text?path=server.cfg', {}),
+            ('put', '/api/server-files/text?path=server.cfg', {'json': {'content': ''}}),
             ('get', '/api/mods', {}), ('get', '/api/mods/configs', {}), ('get', '/api/mods/diagnose', {}),
             ('get', '/api/mods/cleanup', {}),
             ('get', '/api/install/check', {}),
@@ -210,8 +212,41 @@ class ApiTests(ServiceCase):
         self.assertEqual((self.service.server / "BepInEx" / "config" / "one.cfg").read_bytes(), b"one")
         self.assertEqual((self.service.server / "BepInEx" / "plugins" / "two.cfg").read_bytes(), b"two")
 
+    def test_server_file_editor_reads_writes_config_text_and_rejects_binary_files(self):
+        self.authenticated()
+        config = self.service.server / "server.cfg"
+        config.write_text("enabled=false\n", encoding="utf-8")
+        binary = self.service.server / "notes.txt"
+        binary.write_bytes(b"notes\x00data")
+        unsupported = self.service.server / "plugin.dll"
+        unsupported.write_bytes(b"plugin-data")
+        script = self.service.server / "start_server.sh"
+        script.write_text("#!/bin/sh\necho old\n", encoding="utf-8")
+        script.chmod(0o755)
+
+        listing = self.client.get('/api/server-files').json()["entries"]
+        self.assertTrue(next(item for item in listing if item["name"] == "server.cfg")["editable"])
+        self.assertFalse(next(item for item in listing if item["name"] == "plugin.dll")["editable"])
+        opened = self.client.get('/api/server-files/text?path=server.cfg')
+        self.assertEqual(opened.status_code, 200)
+        self.assertEqual(opened.json()["content"], "enabled=false\n")
+
+        saved = self.client.put('/api/server-files/text?path=server.cfg', json={"content": "enabled=true\n"})
+        self.assertEqual(saved.status_code, 200)
+        self.assertEqual(config.read_text(encoding="utf-8"), "enabled=true\n")
+        binary_response = self.client.get('/api/server-files/text?path=notes.txt')
+        self.assertEqual(binary_response.status_code, 400)
+        self.assertIn("바이너리", binary_response.json()["detail"])
+        self.assertEqual(self.client.get('/api/server-files/text?path=plugin.dll').status_code, 400)
+
+        script_saved = self.client.put('/api/server-files/text?path=start_server.sh',
+                                       json={"content": "#!/bin/sh\necho new\n"})
+        self.assertEqual(script_saved.status_code, 200)
+        self.assertEqual(script.stat().st_mode & 0o777, 0o755)
+
     def test_server_file_explorer_rejects_traversal_and_running_server(self):
         self.authenticated()
+        (self.service.server / "server.cfg").write_text("enabled=true\n", encoding="utf-8")
         self.assertEqual(self.client.get('/api/server-files?path=../outside').status_code, 400)
         self.assertEqual(
             self.client.post('/api/server-files/mkdir', json={"path": "", "name": "../outside"}).status_code,
@@ -221,6 +256,11 @@ class ApiTests(ServiceCase):
         self.assertEqual(self.client.get('/api/server-files').status_code, 409)
         self.assertEqual(
             self.client.post('/api/server-files/upload', files={"file": ("blocked.txt", b"blocked")}).status_code,
+            409,
+        )
+        self.assertEqual(self.client.get('/api/server-files/text?path=server.cfg').status_code, 409)
+        self.assertEqual(
+            self.client.put('/api/server-files/text?path=server.cfg', json={"content": "enabled=false\n"}).status_code,
             409,
         )
 

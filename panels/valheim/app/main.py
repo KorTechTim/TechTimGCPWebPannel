@@ -20,6 +20,12 @@ from .service import BusyError, PanelService
 from .storage import inside, read_json, worlds
 
 STATIC_DIR = Path(__file__).parent / "static"
+SERVER_TEXT_EDITOR_MAX_BYTES = 2 * 1024 * 1024
+SERVER_TEXT_EXTENSIONS = {
+    ".cfg", ".conf", ".config", ".env", ".ini", ".json", ".lua", ".properties",
+    ".sh", ".toml", ".txt", ".xml", ".yaml", ".yml",
+}
+SERVER_TEXT_NAMES = {".env", "dockerfile"}
 
 
 class Login(BaseModel):
@@ -38,6 +44,10 @@ class FileExplorerCreateDirectory(BaseModel):
 
 class FileExplorerFolderDownload(BaseModel):
     paths: list[str] = Field(min_length=1, max_length=100)
+
+
+class FileExplorerTextUpdate(BaseModel):
+    content: str = Field(max_length=SERVER_TEXT_EDITOR_MAX_BYTES)
 
 
 class ModToggle(BaseModel):
@@ -139,6 +149,49 @@ def create_app(settings=None, docker_factory=None):
             raise ValueError("파일 또는 폴더 이름을 확인해주세요.")
         return name
 
+    def server_file_is_editable(path):
+        return path.is_file() and (path.suffix.casefold() in SERVER_TEXT_EXTENSIONS
+                                   or path.name.casefold() in SERVER_TEXT_NAMES)
+
+    def editable_server_text_file(relative_path):
+        target = server_file_path(relative_path)
+        if not target.is_file():
+            raise FileNotFoundError("편집할 파일을 찾을 수 없습니다.")
+        if not server_file_is_editable(target):
+            raise ValueError("환경설정과 관련된 텍스트 파일만 편집할 수 있습니다.")
+        if target.stat().st_size > SERVER_TEXT_EDITOR_MAX_BYTES:
+            raise HTTPException(413, "2MB 이하의 텍스트 파일만 편집할 수 있습니다.")
+        raw = target.read_bytes()
+        if b"\x00" in raw:
+            raise ValueError("바이너리 파일은 텍스트 편집기로 열 수 없습니다.")
+        try:
+            return target, raw.decode("utf-8")
+        except UnicodeDecodeError as error:
+            raise ValueError("UTF-8 텍스트 파일만 편집할 수 있습니다.") from error
+
+    def write_server_text_file(target, content):
+        encoded = content.encode("utf-8")
+        if len(encoded) > SERVER_TEXT_EDITOR_MAX_BYTES:
+            raise HTTPException(413, "2MB 이하의 텍스트 파일만 편집할 수 있습니다.")
+        original = target.stat()
+        temporary = tempfile.NamedTemporaryFile(prefix=f".{target.name}.", suffix=".tmp",
+                                                dir=target.parent, delete=False)
+        temporary_path = Path(temporary.name)
+        try:
+            with temporary:
+                temporary.write(encoded)
+                temporary.flush()
+                os.fsync(temporary.fileno())
+                os.fchmod(temporary.fileno(), original.st_mode)
+                try:
+                    os.fchown(temporary.fileno(), original.st_uid, original.st_gid)
+                except PermissionError:
+                    pass
+            temporary_path.replace(target)
+        finally:
+            temporary_path.unlink(missing_ok=True)
+        return len(encoded)
+
     def server_file_entry(path):
         stat = path.stat()
         return {
@@ -147,6 +200,7 @@ def create_app(settings=None, docker_factory=None):
             "type": "dir" if path.is_dir() else "file",
             "size": stat.st_size if path.is_file() else 0,
             "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(timespec="seconds"),
+            "editable": server_file_is_editable(path),
         }
 
     def server_folder_archive(targets):
@@ -301,6 +355,24 @@ def create_app(settings=None, docker_factory=None):
         if not target.is_file():
             raise FileNotFoundError("다운로드할 파일을 찾을 수 없습니다.")
         return FileResponse(target, filename=target.name, media_type="application/octet-stream")
+
+    @app.get("/api/server-files/text")
+    def read_server_text_file(request: Request, path: str):
+        auth.require(request)
+        service.require_stopped()
+        target, content = editable_server_text_file(path)
+        return {"status": "ok", "path": server_file_relative(target), "name": target.name,
+                "content": content, "size": target.stat().st_size}
+
+    @app.put("/api/server-files/text")
+    def update_server_text_file(payload: FileExplorerTextUpdate, request: Request, path: str):
+        auth.require(request)
+        with service.operation("서버 설정 파일 저장"):
+            service.require_stopped()
+            target, _content = editable_server_text_file(path)
+            size = write_server_text_file(target, payload.content)
+        return {"status": "ok", "path": server_file_relative(target), "name": target.name,
+                "size": size, "message": "파일을 저장했습니다."}
 
     @app.post("/api/server-files/download-folders")
     def download_server_folders(payload: FileExplorerFolderDownload, request: Request):

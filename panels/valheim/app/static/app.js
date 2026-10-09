@@ -14,6 +14,8 @@ let toastTimer;
 let panelUpdateCheckTimer;
 let serverFilesPath = '';
 let serverFilesParent = '';
+let serverFileEditorPath = '';
+let serverFileEditorOriginal = '';
 let modPackages = [];
 let modUpdateTarget = '';
 const selectedServerFolders = new Set();
@@ -499,7 +501,11 @@ function updateServerFileControls() {
   const folderDownload = $('server-files-download-folders');
   if (folderDownload) folderDownload.disabled = !enabled || selectedServerFolders.size === 0;
   document.querySelectorAll('#server-files-path button').forEach(control => { control.disabled = !enabled; });
-  document.querySelectorAll('.server-folder-select, .server-file-download').forEach(control => { control.disabled = !enabled; });
+  document.querySelectorAll('.server-folder-select, .server-file-download, .explorer-editable-file').forEach(control => { control.disabled = !enabled; });
+  const editor = $('server-file-editor-content');
+  const save = $('server-file-editor-save');
+  if (editor) editor.disabled = !enabled || !serverFileEditorPath;
+  if (save) save.disabled = !enabled || !serverFileEditorPath || editor.value === serverFileEditorOriginal;
 }
 
 function setServerFilesMessage(text, error = false) {
@@ -536,6 +542,10 @@ function serverFileRow(entry) {
   const nameCell = document.createElement('td');
   const nameWrap = document.createElement('div');
   nameWrap.className = 'explorer-name-wrap';
+  const icon = document.createElement('img');
+  icon.className = 'explorer-entry-icon';
+  icon.src = entry.type === 'dir' ? '/static/valheim-file-folder-v1.svg' : '/static/valheim-file-document-v1.svg';
+  icon.alt = entry.type === 'dir' ? '폴더' : '파일';
   if (entry.type === 'dir') {
     const checkbox = document.createElement('input');
     checkbox.type = 'checkbox';
@@ -547,13 +557,20 @@ function serverFileRow(entry) {
       updateServerFileControls();
     };
     const open = document.createElement('button');
-    open.type = 'button'; open.className = 'explorer-name'; open.textContent = `▸ ${entry.name}`;
+    open.type = 'button'; open.className = 'explorer-name'; open.textContent = entry.name;
     open.onclick = () => loadServerFiles(entry.path);
-    nameWrap.append(checkbox, open);
+    nameWrap.append(checkbox, icon, open);
   } else {
-    const icon = document.createElement('span');
-    icon.className = 'explorer-file-name'; icon.textContent = `◇ ${entry.name}`;
-    nameWrap.append(icon);
+    if (entry.editable) {
+      const edit = document.createElement('button');
+      edit.type = 'button'; edit.className = 'explorer-file-name explorer-editable-file'; edit.textContent = entry.name;
+      edit.title = '텍스트 편집기로 열기'; edit.onclick = () => openServerFileEditor(entry.path);
+      nameWrap.append(icon, edit);
+    } else {
+      const name = document.createElement('span');
+      name.className = 'explorer-file-name'; name.textContent = entry.name;
+      nameWrap.append(icon, name);
+    }
   }
   nameCell.append(nameWrap);
   const typeCell = document.createElement('td'); typeCell.textContent = entry.type === 'dir' ? '폴더' : '파일';
@@ -569,6 +586,72 @@ function serverFileRow(entry) {
   row.append(nameCell, typeCell, sizeCell, modifiedCell, actionCell);
   return row;
 }
+
+async function openServerFileEditor(path) {
+  const dialog = $('server-file-editor-dialog');
+  serverFileEditorPath = '';
+  serverFileEditorOriginal = '';
+  $('server-file-editor-title').textContent = path.split('/').at(-1) || '파일 편집';
+  $('server-file-editor-path').textContent = `/server/${path}`;
+  $('server-file-editor-status').classList.remove('error-text');
+  $('server-file-editor-status').textContent = '파일을 불러오는 중입니다.';
+  $('server-file-editor-content').value = '';
+  $('server-file-editor-content').disabled = true;
+  $('server-file-editor-save').disabled = true;
+  if (!dialog.open) dialog.showModal();
+  try {
+    const data = await api(`/api/server-files/text?path=${encodeURIComponent(path)}`);
+    if (!dialog.open) return;
+    serverFileEditorPath = data.path;
+    serverFileEditorOriginal = data.content;
+    $('server-file-editor-title').textContent = data.name;
+    $('server-file-editor-path').textContent = `/server/${data.path} · ${bytes(data.size)}`;
+    $('server-file-editor-content').value = data.content;
+    $('server-file-editor-content').disabled = false;
+    $('server-file-editor-status').textContent = '텍스트 파일을 편집할 수 있습니다. Ctrl/Cmd+S로 저장할 수 있습니다.';
+    $('server-file-editor-content').focus();
+  } catch (error) {
+    $('server-file-editor-status').classList.add('error-text');
+    $('server-file-editor-status').textContent = error.message;
+  }
+}
+
+$('server-file-editor-dialog').addEventListener('close', () => {
+  serverFileEditorPath = '';
+  serverFileEditorOriginal = '';
+});
+$('server-file-editor-save').onclick = async () => {
+  if (!serverFileEditorPath) return;
+  const button = $('server-file-editor-save');
+  const status = $('server-file-editor-status');
+  button.disabled = true;
+  status.classList.remove('error-text');
+  status.textContent = '파일을 저장하고 있습니다.';
+  try {
+    const content = $('server-file-editor-content').value;
+    const data = await jsonPost(`/api/server-files/text?path=${encodeURIComponent(serverFileEditorPath)}`, {content}, 'PUT');
+    serverFileEditorOriginal = content;
+    status.textContent = `${data.message} · ${bytes(data.size)}`;
+    await loadServerFiles(serverFilesPath);
+  } catch (error) {
+    status.classList.add('error-text');
+    status.textContent = error.message;
+  } finally {
+    button.disabled = !serverFileEditorPath || $('server-file-editor-content').value === serverFileEditorOriginal;
+  }
+};
+$('server-file-editor-content').oninput = event => {
+  const unchanged = event.currentTarget.value === serverFileEditorOriginal;
+  $('server-file-editor-status').classList.remove('error-text');
+  $('server-file-editor-save').disabled = !serverFileEditorPath || unchanged;
+  if (serverFileEditorPath) $('server-file-editor-status').textContent = unchanged ? '저장된 내용과 같습니다.' : '저장하지 않은 변경사항이 있습니다.';
+};
+$('server-file-editor-content').onkeydown = event => {
+  if ((event.ctrlKey || event.metaKey) && event.key.toLocaleLowerCase() === 's') {
+    event.preventDefault();
+    if (!$('server-file-editor-save').disabled) $('server-file-editor-save').click();
+  }
+};
 
 async function loadServerFiles(path = serverFilesPath) {
   const body = $('server-files-body');

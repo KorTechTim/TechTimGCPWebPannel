@@ -221,6 +221,7 @@ h2 { color: var(--ink); font-size: 22px; font-weight: 750; }
 .control-card { position: relative; display: flex; min-height: 398px; padding: 22px; flex-direction: column; isolation: isolate; }
 .control-card > :not(.control-art) { position: relative; z-index: 2; }
 .control-card .section-head h2 { color: var(--ink); }
+.control-card > .outlined-gold { margin-top: 10px; }
 .control-art { z-index: 1; display: flex; min-height: 140px; margin: 12px -12px -22px; flex: 1; align-items: flex-end; justify-content: center; overflow: hidden; pointer-events: none; }
 .control-art img { width: 100%; max-width: 270px; height: 158px; object-fit: contain; object-position: center bottom; opacity: .38; filter: saturate(.72) contrast(.92); transform: translateY(5px); }
 .primary { border-color: #176f61; background: #197869; color: #fff; }
@@ -228,6 +229,10 @@ h2 { color: var(--ink); font-size: 22px; font-weight: 750; }
 .outlined-gold { border-color: #c08b4c; background: #fffaf0; color: #8a5724; }
 .outlined-gold:hover:not(:disabled) { border-color: #9b642d; background: #fff3dd; }
 .control-pair button { border-color: #d5dddd; background: #edf1f0; color: #45555b; }
+#stop { border-color: #9d3d36; background: #b94b43; color: #fff; }
+#stop span { color: currentColor; }
+#stop:hover:not(:disabled) { border-color: #85312c; background: #9f3c35; }
+#stop:disabled { border-color: #d5a49f; background: #ead5d2; color: #94463f; opacity: 1; }
 .settings-link { border-color: #dce2e1; color: #35484e; }
 .settings-link:hover:not(:disabled) { color: var(--forest); }
 .divider { background: #dce3e1; }
@@ -467,9 +472,9 @@ dialog::backdrop { background: rgba(6, 15, 20, .7); backdrop-filter: blur(7px); 
 .explorer-create-row input, .explorer-create-row button { min-height: 39px; }
 .explorer-create-row button { padding: 8px 13px; font-size: 11px; }
 .explorer-table-wrap { width: 100%; overflow-x: auto; border: 1px solid #cbd6d4; border-radius: 7px; background: rgba(255, 255, 255, .72); }
-.explorer-table { width: 100%; min-width: 700px; border-collapse: collapse; table-layout: fixed; }
-.explorer-table th, .explorer-table td { padding: 11px 12px; border-bottom: 1px solid #dde4e2; color: #536269; font-size: 10px; text-align: left; vertical-align: middle; }
-.explorer-table th { background: #e9efed; color: #53646a; font-size: 9px; font-weight: 800; }
+.explorer-table { width: 100%; min-width: 1050px; border-collapse: collapse; table-layout: fixed; }
+.explorer-table th, .explorer-table td { padding: 16px 14px; border-bottom: 1px solid #dde4e2; color: #536269; font-size: 20px; text-align: left; vertical-align: middle; }
+.explorer-table th { background: #e9efed; color: #53646a; font-size: 18px; font-weight: 800; }
 .explorer-table th:first-child { width: 34%; }
 .explorer-table th:nth-child(2) { width: 10%; }
 .explorer-table th:nth-child(3) { width: 13%; }
@@ -478,12 +483,29 @@ dialog::backdrop { background: rgba(6, 15, 20, .7); backdrop-filter: blur(7px); 
 .explorer-table tbody tr:last-child td { border-bottom: 0; }
 .explorer-table tbody tr:hover { background: rgba(218, 234, 229, .38); }
 .explorer-name-wrap { display: flex; min-width: 0; align-items: center; gap: 9px; }
-.explorer-name-wrap input { width: 16px; height: 16px; margin: 0; flex: 0 0 16px; }
-.explorer-name { min-width: 0; padding: 4px 0; overflow: hidden; border: 0; background: transparent; color: #1d645a; font-size: 11px; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
+.explorer-name-wrap input { width: 20px; height: 20px; margin: 0; flex: 0 0 20px; }
+.explorer-entry-icon { display: block; width: 38px; height: 38px; flex: 0 0 38px; object-fit: contain; filter: drop-shadow(0 3px 3px rgba(20, 35, 31, .22)); }
+.explorer-name { min-width: 0; padding: 4px 0; overflow: hidden; border: 0; background: transparent; color: #1d645a; font-size: 22px; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
 .explorer-name:hover:not(:disabled) { border-color: transparent; background: transparent; color: #0d4b43; text-decoration: underline; }
-.explorer-file-name { min-width: 0; overflow: hidden; color: #31474d; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.explorer-file-name { min-width: 0; overflow: hidden; color: #31474d; font-size: 22px; text-overflow: ellipsis; white-space: nowrap; }
+.explorer-editable-file { padding: 4px 0; border: 0; background: transparent; color: #1d645a; text-align: left; }
+.explorer-editable-file:hover:not(:disabled) { border-color: transparent; background: transparent; color: #0d4b43; text-decoration: underline; }
 .explorer-row-actions { text-align: right !important; }
-.explorer-row-actions button { padding: 6px 9px; font-size: 9px; }
+.explorer-row-actions button { padding: 10px 14px; font-size: 18px; }
+
+.server-file-editor-dialog { width: min(1000px, calc(100% - 32px)); height: min(780px, calc(100dvh - 32px)); }
+.server-file-editor-heading { display: flex; min-width: 0; align-items: center; gap: 13px; }
+.server-file-editor-heading img { width: 48px; height: 48px; object-fit: contain; }
+.server-file-editor-heading > div { min-width: 0; }
+.server-file-editor-heading h2, .server-file-editor-heading small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.server-file-editor-heading small { display: block; margin-top: 5px; color: #718079; font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; }
+.server-file-editor-dialog > textarea { width: 100%; min-height: 0; flex: 1; padding: 20px 22px; border: 0; border-radius: 0; outline: 0; resize: none; background: #0d1a18; color: #d7e2dd; font: 15px/1.65 ui-monospace, SFMono-Regular, Menlo, monospace; tab-size: 2; }
+.server-file-editor-dialog > textarea:focus { box-shadow: inset 0 0 0 2px rgba(180, 122, 59, .75); }
+.server-file-editor-dialog > textarea:disabled { opacity: .7; }
+.server-file-editor-foot { min-height: 72px; align-items: center; justify-content: space-between; }
+.server-file-editor-foot > span { color: #5d6d66; font-size: 13px; line-height: 1.45; }
+.server-file-editor-foot > div { display: flex; gap: 8px; }
+.server-file-editor-foot button { min-width: 92px; }
 #server-files-message { min-height: 20px; margin: 0; }
 
 .mod-manager-shell { display: grid; gap: 16px; }
@@ -608,6 +630,11 @@ dialog::backdrop { background: rgba(6, 15, 20, .7); backdrop-filter: blur(7px); 
   .mod-package-row { grid-template-columns: 1fr; }
   .mod-package-actions { justify-content: flex-start; }
   .mod-pack-tools { grid-template-columns: 1fr 1fr; }
+  .server-file-editor-dialog { width: calc(100% - 20px); height: calc(100dvh - 20px); }
+  .server-file-editor-dialog > textarea { padding: 16px; font-size: 13px; }
+  .server-file-editor-foot { align-items: stretch; flex-direction: column; }
+  .server-file-editor-foot > div { display: grid; grid-template-columns: 1fr 1fr; }
+  .server-file-editor-foot button { width: 100%; }
   footer { display: block; }
   footer span { display: block; }
 }

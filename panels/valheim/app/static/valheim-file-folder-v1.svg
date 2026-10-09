@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title id="title">Valheim folder</title>
+  <defs>
+    <linearGradient id="folder" x1="10" y1="8" x2="53" y2="57" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#c98642"/>
+      <stop offset="1" stop-color="#704124"/>
+    </linearGradient>
+    <linearGradient id="front" x1="12" y1="28" x2="49" y2="58" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#d99b53"/>
+      <stop offset="1" stop-color="#8b532c"/>
+    </linearGradient>
+  </defs>
+  <path fill="#172a29" stroke="#b89a62" stroke-width="2" d="M7 14.5h19l5 6H57v33H7z"/>
+  <path fill="url(#folder)" stroke="#5d3924" stroke-width="2" d="M8 16h17.2l5.3 6.4H56v29.2H8z"/>
+  <path fill="url(#front)" stroke="#5d3924" stroke-width="2" d="m7 29 6-5h45l-5.5 29H10z"/>
+  <path fill="none" stroke="#f2d696" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.4" d="M27 32v13m0-7 7-6m-7 6 7 7"/>
+  <path fill="none" stroke="#f4dfac" stroke-linecap="round" stroke-width="1.4" d="M15 48h11m10 0h10" opacity=".65"/>
+</svg>

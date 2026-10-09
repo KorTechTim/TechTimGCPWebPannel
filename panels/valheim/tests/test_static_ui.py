@@ -31,6 +31,13 @@ class StaticUiTests(unittest.TestCase):
                 self.assertGreater(asset.stat().st_size, 1_000)
                 self.assertEqual(asset.read_bytes()[:8], b"\x89PNG\r\n\x1a\n")
 
+        for name in ("valheim-file-folder-v1.svg", "valheim-file-document-v1.svg"):
+            asset = STATIC_DIR / name
+            with self.subTest(asset=name):
+                self.assertTrue(asset.is_file())
+                self.assertGreater(asset.stat().st_size, 700)
+                self.assertTrue(asset.read_text(encoding="utf-8").startswith("<svg"))
+
         html = self.read("dashboard.html")
         self.assertIn('id="panel-version">확인 중', html)
         self.assertNotIn('id="panel-version">1.0.0', html)
@@ -78,6 +85,39 @@ class StaticUiTests(unittest.TestCase):
         self.assertIn("update = await api('/api/install/check');", script)
         self.assertIn("if (update.installed && update.update_available === false)", script)
         self.assertIn("showNotice('서버 업데이트', '이미 엔진이 최신 버전입니다');", script)
+
+    def test_stop_button_uses_danger_styling(self):
+        css = self.read("valheim-palshell.css")
+        self.assertIn("#stop { border-color: #9d3d36; background: #b94b43; color: #fff; }", css)
+        self.assertIn("#stop:disabled { border-color: #d5a49f; background: #ead5d2;", css)
+
+    def test_server_update_button_has_heading_spacing(self):
+        css = self.read("valheim-palshell.css")
+        self.assertIn(".control-card > .outlined-gold { margin-top: 10px; }", css)
+
+    def test_server_file_table_text_is_doubled(self):
+        css = self.read("valheim-palshell.css")
+        self.assertIn("font-size: 20px; text-align: left; vertical-align: middle;", css)
+        self.assertIn(".explorer-table th { background: #e9efed; color: #53646a; font-size: 18px;", css)
+        self.assertIn(".explorer-name { min-width: 0; padding: 4px 0;", css)
+        self.assertIn("font-size: 22px; text-align: left;", css)
+        self.assertIn(".explorer-row-actions button { padding: 10px 14px; font-size: 18px; }", css)
+
+    def test_server_file_explorer_uses_icons_and_configuration_editor(self):
+        html = self.read("dashboard.html")
+        script = self.read("app.js")
+        css = self.read("valheim-palshell.css")
+        self.assertIn('id="server-file-editor-dialog"', html)
+        self.assertIn('id="server-file-editor-content"', html)
+        self.assertIn('id="server-file-editor-save"', html)
+        self.assertIn("valheim-file-folder-v1.svg", script)
+        self.assertIn("valheim-file-document-v1.svg", script)
+        self.assertIn("if (entry.editable)", script)
+        self.assertIn("async function openServerFileEditor(path)", script)
+        self.assertIn("/api/server-files/text?path=", script)
+        self.assertIn(".explorer-editable-file').forEach", script)
+        self.assertIn("event.ctrlKey || event.metaKey", script)
+        self.assertIn(".server-file-editor-dialog {", css)
 
     def test_dashboard_keeps_palworld_style_operational_hub(self):
         html = self.read("dashboard.html")
