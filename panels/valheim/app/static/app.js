@@ -6,6 +6,8 @@ let logKind = 'server';
 let connectionMode = 'invite';
 let permissionLists = {};
 let panelUpdating = false;
+let serverStartRequested = false;
+let gamePasswordSet = null;
 let activeDetail = null;
 let lastJob = '';
 let toastTimer;
@@ -17,6 +19,21 @@ let modUpdateTarget = '';
 const selectedServerFolders = new Set();
 const polls = new Set();
 const runningStates = new Set(['running', 'restarting', 'paused', 'removing']);
+const RESOURCE_REFRESH_MS = 1000;
+const RESOURCE_HISTORY_WINDOW_MS = 24 * 60 * 60 * 1000;
+const RESOURCE_HISTORY_STORAGE_KEY = 'techtim-valheim-resource-history-v1';
+let resourceHistorySavedAt = 0;
+
+function loadResourceHistory() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(RESOURCE_HISTORY_STORAGE_KEY) || '[]');
+    const cutoff = Date.now() - RESOURCE_HISTORY_WINDOW_MS;
+    return Array.isArray(parsed)
+      ? parsed.filter(point => Array.isArray(point) && point.length === 3 && Number(point[0]) >= cutoff)
+      : [];
+  } catch (_error) { return []; }
+}
+const resourceHistory = loadResourceHistory();
 
 async function api(url, options = {}) {
   const response = await fetch(url, {cache: 'no-store', ...options});
@@ -37,6 +54,15 @@ function toast(text) {
   $('toast').hidden = false;
   toastTimer = setTimeout(() => { $('toast').hidden = true; }, 4500);
 }
+
+function showNotice(title, text) {
+  const dialog = $('notice-dialog');
+  $('notice-title').textContent = title;
+  $('notice-text').textContent = text;
+  if (!dialog.open) dialog.showModal();
+  $('notice-ok').focus();
+}
+$('notice-ok').onclick = () => $('notice-dialog').close();
 
 function message(id, text, error = false) {
   $(id).textContent = text;
@@ -141,7 +167,17 @@ async function openDetail(id, loader) {
 $('detail-back').onclick = () => closeDetail();
 document.querySelectorAll('.brand').forEach(link => link.addEventListener('click', () => closeDetail(false)));
 
-function writable() { return state?.docker_available && !state.busy && !uiBusy && !runningStates.has(state.server_status); }
+function serverConfigurationLocked() { return serverStartRequested || runningStates.has(state?.server_status); }
+function writable() { return state?.docker_available && !state.busy && !uiBusy && !serverConfigurationLocked(); }
+function updateRunningLocks() {
+  const locked = serverConfigurationLocked();
+  document.querySelectorAll('[data-running-lock]').forEach(element => {
+    element.classList.toggle('is-running-locked', locked);
+    element.setAttribute('aria-disabled', String(locked));
+    if (locked) element.title = '서버 실행 중에는 조작할 수 없습니다. 서버를 중지해주세요.';
+    else element.removeAttribute('title');
+  });
+}
 function updateControls() {
   const disabled = !writable();
   document.querySelectorAll('[data-writable]').forEach(element => {
@@ -156,14 +192,10 @@ function updateControls() {
   $('install').disabled = !available || running;
   $('sidebar-settings').disabled = !state;
   $('panel-update-action').disabled = !available || running;
+  updateRunningLocks();
   updateServerFileControls();
   updateModControls();
   $('install-label').textContent = state?.engine.installed ? '서버 업데이트' : '엔진 설치';
-  $('control-hint').textContent = !state?.docker_available ? '서버 제어를 위해 Docker 연결이 필요합니다.'
-    : state.busy || uiBusy ? '현재 작업이 끝나면 다음 작업을 진행할 수 있습니다.'
-    : running ? '서버가 실행 중입니다. 중지하면 월드 저장을 기다립니다.'
-    : !state.engine.installed ? '엔진을 설치하고 서버 설정을 저장한 뒤 시작하세요.'
-    : '시작 전에 월드 이름과 게임 접속 비밀번호를 확인하세요.';
 }
 
 async function refreshStatus() {
@@ -187,6 +219,9 @@ async function refreshStatus() {
     $('connection-error').hidden = state.docker_available;
     $('connection-error').textContent = 'Docker에 연결할 수 없습니다. VM의 Docker 서비스와 패널 연결 설정을 확인해주세요.';
     const job = state.operation;
+    if (serverStartRequested && (runningStates.has(state.server_status) || ['completed', 'failed'].includes(job.status))) {
+      serverStartRequested = false;
+    }
     const banner = $('operation-banner');
     banner.hidden = !job.message;
     banner.dataset.status = job.status;
@@ -245,10 +280,24 @@ async function perform(url, title, text, options = {method: 'POST'}) {
     if (url.startsWith('/api/server/')) selectLog('server');
     if (url === '/api/panel/update') panelUpdating = true;
     await refreshStatus();
-  } catch (error) { toast(error.message); }
+  } catch (error) {
+    if (url === '/api/server/start' && error.message.includes('게임 접속 비밀번호')) {
+      showNotice('게임 접속 비밀번호 설정', error.message);
+    } else toast(error.message);
+  }
   finally { uiBusy = false; updateControls(); }
 }
-$('start').onclick = () => perform('/api/server/start', '서버 시작');
+$('start').onclick = async () => {
+  if (gamePasswordSet === false) {
+    showNotice('게임 접속 비밀번호 설정', '서버 설정에서 게임 접속 비밀번호를 먼저 저장해주세요.');
+    return;
+  }
+  serverStartRequested = true;
+  updateControls();
+  await perform('/api/server/start', '서버 시작');
+  if (!state?.busy && !runningStates.has(state?.server_status)) serverStartRequested = false;
+  updateControls();
+};
 $('stop').onclick = () => perform('/api/server/stop', '서버 중지', '접속 중인 플레이어의 연결이 종료됩니다. 월드 저장이 끝날 때까지 기다린 뒤 서버를 중지합니다.');
 $('restart').onclick = () => perform('/api/server/restart', '서버 재시작', '현재 월드를 저장하고 서버를 다시 시작합니다. 접속 중인 플레이어는 다시 접속해야 합니다.');
 $('install').onclick = () => perform('/api/install', state?.engine.installed ? '서버 업데이트' : '엔진 설치', 'Steam 정식 서버를 다운로드합니다. 기존 월드가 있으면 업데이트 전에 백업을 만듭니다.');
@@ -279,6 +328,7 @@ async function loadQuickSettings() {
   const form = $('quick-settings-form');
   ['server_name', 'world', 'port'].forEach(key => { form.elements.namedItem(key).value = config[key] ?? ''; });
   ['crossplay', 'public'].forEach(key => { form.elements.namedItem(key).checked = Boolean(config[key]); });
+  gamePasswordSet = Boolean(config.password_set);
   form.elements.password.value = '';
   fillWorldNames(data.worlds);
   message('quick-settings-message', config.password_set ? '접속 비밀번호가 설정되어 있습니다.' : '최초 시작 전 비밀번호를 입력해주세요.');
@@ -288,12 +338,14 @@ $('quick-settings-form').onsubmit = async event => {
   event.preventDefault();
   const form = event.currentTarget;
   const config = Object.fromEntries(new FormData(form));
+  const passwordProvided = Boolean(config.password);
   config.port = Number(config.port);
   ['crossplay', 'public'].forEach(key => { config[key] = form.elements.namedItem(key).checked; });
   if (!config.password) delete config.password;
   uiBusy = true; updateControls();
   try {
     await jsonPost('/api/config', config);
+    if (passwordProvided) gamePasswordSet = true;
     form.elements.password.value = '';
     message('quick-settings-message', '기본 설정을 저장했습니다. 다음 서버 시작에 적용됩니다.');
     await refreshStatus();
@@ -726,7 +778,7 @@ function renderModPackages() {
       dependencies.textContent = `필요 모드: ${item.dependencies.join(', ')}`; info.append(dependencies);
     }
     if (item.issue) { const issue = document.createElement('p'); issue.className = 'mod-issue'; issue.textContent = item.issue; info.append(issue); }
-    const actions = document.createElement('div'); actions.className = 'mod-package-actions';
+    const actions = document.createElement('div'); actions.className = 'mod-package-actions'; actions.setAttribute('data-running-lock', '');
     if (!item.enabled && item.issue) {
       actions.append(modButton('해결 방법', '', () => setModsMessage(item.issue, true)));
     } else {
@@ -839,7 +891,8 @@ $('mods-diagnose').onclick = async () => {
 };
 
 const loaders = {'settings-dialog': loadSettings, 'worlds-dialog': loadWorlds, 'backups-dialog': loadBackups, 'permissions-dialog': loadPermissions,
-  'schedule-dialog': loadSchedule, 'modifiers-dialog': loadModifiers, 'server-files-dialog': () => loadServerFiles(serverFilesPath), 'mods-dialog': loadMods,
+  'schedule-dialog': loadSchedule, 'modifiers-dialog': loadModifiers,
+  'server-files-dialog': () => serverConfigurationLocked() ? Promise.resolve() : loadServerFiles(serverFilesPath), 'mods-dialog': loadMods,
   'discord-dialog': async () => {}, 'panel-update-dialog': loadPanelUpdate};
 document.querySelectorAll('[data-open]').forEach(button => button.onclick = async () => {
   await openDetail(button.dataset.open, loaders[button.dataset.open]);
@@ -858,6 +911,78 @@ function meter(id, used, total) {
   const panel = bar.closest('.resource');
   panel.dataset.level = percent >= 90 ? 'critical' : percent >= 75 ? 'warning' : 'normal';
 }
+
+function saveResourceHistory(force = false) {
+  const now = Date.now();
+  if (!force && now - resourceHistorySavedAt < 15000) return;
+  try {
+    localStorage.setItem(RESOURCE_HISTORY_STORAGE_KEY, JSON.stringify(resourceHistory));
+    resourceHistorySavedAt = now;
+  } catch (_error) { /* Live graphs continue when browser storage is unavailable. */ }
+}
+
+function appendResourceHistory(cpu, memory) {
+  const now = Date.now();
+  const normalize = value => Number.isFinite(Number(value)) ? Math.max(0, Math.min(100, Number(value))) : null;
+  const cpuValue = normalize(cpu);
+  const memoryValue = normalize(memory);
+  if (cpuValue == null && memoryValue == null) return;
+  resourceHistory.push([now, cpuValue, memoryValue]);
+  const cutoff = now - RESOURCE_HISTORY_WINDOW_MS;
+  while (resourceHistory.length && resourceHistory[0][0] < cutoff) resourceHistory.shift();
+  saveResourceHistory();
+}
+
+function drawResourceHistory(canvasId, valueIndex, color) {
+  const canvas = $(canvasId);
+  if (!canvas) return;
+  const rect = canvas.getBoundingClientRect();
+  if (!rect.width) return;
+  const width = Math.max(1, Math.floor(rect.width));
+  const height = 56;
+  const ratio = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = Math.floor(width * ratio);
+  canvas.height = Math.floor(height * ratio);
+  const context = canvas.getContext('2d');
+  context.scale(ratio, ratio);
+  const top = 4, bottom = height - 5, chartHeight = bottom - top;
+  context.lineWidth = 1;
+  context.strokeStyle = 'rgba(119,160,150,.18)';
+  for (const percent of [0, 25, 50, 75, 100]) {
+    const y = bottom - chartHeight * percent / 100;
+    context.beginPath(); context.moveTo(0, y); context.lineTo(width, y); context.stroke();
+  }
+  const now = Date.now(), start = now - RESOURCE_HISTORY_WINDOW_MS;
+  const samples = resourceHistory.filter(point => point[0] >= start && point[valueIndex] != null);
+  if (!samples.length) return;
+  const step = Math.max(1, Math.ceil(samples.length / width));
+  const points = [];
+  for (let index = 0; index < samples.length; index += step) {
+    const bucket = samples.slice(index, index + step);
+    const sample = bucket[bucket.length - 1];
+    points.push([
+      Math.min(width - 1, Math.max(0, (sample[0] - start) / RESOURCE_HISTORY_WINDOW_MS * width)),
+      bottom - sample[valueIndex] / 100 * chartHeight,
+    ]);
+  }
+  context.beginPath(); context.moveTo(points[0][0], bottom);
+  for (const point of points) context.lineTo(point[0], point[1]);
+  context.lineTo(points[points.length - 1][0], bottom); context.closePath();
+  const fill = context.createLinearGradient(0, top, 0, bottom);
+  fill.addColorStop(0, `${color}55`); fill.addColorStop(1, `${color}05`);
+  context.fillStyle = fill; context.fill();
+  context.beginPath(); context.moveTo(points[0][0], points[0][1]);
+  for (const point of points.slice(1)) context.lineTo(point[0], point[1]);
+  context.strokeStyle = color; context.lineWidth = 1.7; context.stroke();
+  const latest = points[points.length - 1];
+  context.beginPath(); context.arc(latest[0], latest[1], 2.3, 0, Math.PI * 2); context.fillStyle = color; context.fill();
+}
+
+function renderResourceHistory() {
+  drawResourceHistory('cpu-history-chart', 1, '#55d5b1');
+  drawResourceHistory('memory-history-chart', 2, '#d8a84d');
+}
+
 async function refreshResources() {
   if (polls.has('resources')) return;
   polls.add('resources');
@@ -868,10 +993,13 @@ async function refreshResources() {
     $('disk').textContent = `${bytes(data.disk_used)} / ${bytes(data.disk_total)}`;
     $('network-rx').textContent = data.available ? `${bytes(data.network_rx)}/s` : '—';
     $('network-tx').textContent = data.available ? `${bytes(data.network_tx)}/s` : '—';
-    meter('cpu-meter', data.cpu_percent || 0, 100); meter('memory-meter', data.memory_used || 0, data.memory_total || 0); meter('disk-meter', data.disk_used, data.disk_total);
+    meter('disk-meter', data.disk_used, data.disk_total);
+    const memoryPercent = data.available && data.memory_total > 0 ? data.memory_used / data.memory_total * 100 : null;
+    appendResourceHistory(data.available ? data.cpu_percent : null, memoryPercent);
+    renderResourceHistory();
   } catch {
     ['cpu', 'memory', 'disk', 'network-rx', 'network-tx'].forEach(id => { $(id).textContent = '—'; });
-    ['cpu-meter', 'memory-meter', 'disk-meter'].forEach(id => meter(id, 0, 1));
+    meter('disk-meter', 0, 1);
   } finally { polls.delete('resources'); }
 }
 
@@ -881,6 +1009,8 @@ async function initialize() {
   checkPanelUpdate();
   setInterval(() => { if (!document.hidden) refreshStatus(); }, 3000);
   setInterval(() => { if (!document.hidden) refreshLogs(); }, 2000);
-  setInterval(() => { if (!document.hidden) refreshResources(); }, 5000);
+  setInterval(() => { if (!document.hidden) refreshResources(); }, RESOURCE_REFRESH_MS);
 }
 initialize();
+window.addEventListener('resize', renderResourceHistory);
+window.addEventListener('pagehide', () => saveResourceHistory(true));

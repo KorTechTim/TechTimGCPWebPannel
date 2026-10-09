@@ -5,8 +5,8 @@
   <meta name="color-scheme" content="dark"><title>TechTim · Valheim Server</title>
   <link rel="icon" href="/static/valheim-panel-mark-v2.png?v=1" type="image/png">
   <link rel="stylesheet" href="/static/app.css?v=1.1.0">
-  <link rel="stylesheet" href="/static/valheim-palshell.css?v=1.5.0">
-  <script src="/static/app.js?v=1.5.0" defer></script>
+  <link rel="stylesheet" href="/static/valheim-palshell.css?v=1.5.5">
+  <script src="/static/app.js?v=1.5.4" defer></script>
 </head>
 <body>
   <div class="ambient" aria-hidden="true"></div>
@@ -52,19 +52,18 @@
         </section>
         <section class="card control-card" id="server-control" aria-labelledby="control-title">
           <div class="section-head"><div><p class="eyebrow">SERVER CONTROL</p><h2 id="control-title">서버 제어</h2></div><span class="ornament" aria-hidden="true">ᛟ</span></div>
-          <p class="subtle" id="control-hint">엔진을 설치하고 서버 설정을 저장한 뒤 시작하세요.</p>
           <button id="install" class="outlined-gold" disabled><span aria-hidden="true">↓</span><span id="install-label">엔진 설치</span></button>
-          <p class="micro">Steam 정식 배포 서버를 설치합니다.<br>업데이트는 서버를 중지한 뒤 진행하세요.</p>
           <div class="divider"></div>
           <button class="primary action-start" id="start" disabled><span aria-hidden="true">▶</span>서버 시작</button>
           <div class="control-pair"><button id="stop" disabled><span aria-hidden="true">■</span>중지</button><button id="restart" disabled><span aria-hidden="true">↻</span>재시작</button></div>
+          <div class="control-art" aria-hidden="true"><img src="/static/valheim-control-viking-server-v1.png" alt=""></div>
         </section>
       </div>
 
       <section class="quick-config" aria-labelledby="quick-config-title">
         <div class="section-head"><div><p class="eyebrow">SERVER CONFIGURATION</p><h2 id="quick-config-title">서버 기본 설정</h2></div><span class="subtle">저장한 설정은 다음 서버 시작에 적용됩니다.</span></div>
         <div class="quick-config-layout">
-          <form id="quick-settings-form" class="quick-settings-grid" data-writable>
+          <form id="quick-settings-form" class="quick-settings-grid" data-writable data-running-lock>
             <label>서버 이름<input name="server_name" maxlength="64" required></label>
             <label>월드 이름<input name="world" list="world-names" maxlength="64" required></label>
             <label>게임 접속 비밀번호<input name="password" type="password" minlength="5" maxlength="128" autocomplete="new-password" placeholder="변경할 때만 입력"></label>
@@ -105,18 +104,18 @@
           </nav>
         </div>
         <aside class="resource-monitor" id="resources" aria-label="서버 리소스">
-          <div class="resource-intro"><div><p class="eyebrow">SYSTEM MONITOR</p><h2>서버 리소스</h2></div><span class="resource-live"><i aria-hidden="true"></i>실시간 · 5초</span></div>
+          <div class="resource-intro"><div><p class="eyebrow">SYSTEM MONITOR</p><h2>서버 리소스</h2></div><span class="resource-live"><i aria-hidden="true"></i>실시간 · 1초</span></div>
           <div class="resource-grid">
-            <section class="resource resource-cpu" data-level="normal" aria-label="CPU 사용률">
-              <div class="resource-head"><span>CPU</span><small>VM TOTAL</small></div>
+            <section class="resource resource-cpu has-history" data-level="normal" aria-label="CPU 사용률">
+              <div class="resource-head"><span>CPU</span><small>VM TOTAL · 24H</small></div>
               <strong id="cpu">—</strong>
-              <div class="meter"><i id="cpu-meter"></i></div>
+              <div class="resource-history-chart"><canvas id="cpu-history-chart" role="img" aria-label="최근 24시간 CPU 사용률"></canvas><div class="resource-history-axis"><span>24시간 전</span><span>현재</span></div></div>
               <p>컨테이너 사용률</p>
             </section>
-            <section class="resource resource-memory" data-level="normal" aria-label="메모리 사용량">
-              <div class="resource-head"><span>메모리</span><small>VM TOTAL</small></div>
+            <section class="resource resource-memory has-history" data-level="normal" aria-label="메모리 사용량">
+              <div class="resource-head"><span>메모리</span><small>VM TOTAL · 24H</small></div>
               <strong id="memory">—</strong>
-              <div class="meter"><i id="memory-meter"></i></div>
+              <div class="resource-history-chart"><canvas id="memory-history-chart" role="img" aria-label="최근 24시간 메모리 사용률"></canvas><div class="resource-history-axis"><span>24시간 전</span><span>현재</span></div></div>
               <p>사용량 / 할당량</p>
             </section>
             <section class="resource resource-disk" data-level="normal" aria-label="호스트 디스크 사용량">
@@ -149,7 +148,7 @@
     <div class="dialog-head"><div><p class="eyebrow">SERVER CONFIGURATION</p><h2>서버 설정</h2></div><button data-close aria-label="닫기">×</button></div>
     <form id="settings-form"><div class="dialog-body">
       <p class="callout">설정은 다음 서버 시작에 적용됩니다. 기존 월드는 같은 이름을 선택하면 이어서 사용할 수 있습니다.</p>
-      <fieldset class="field-grid" data-writable><legend>기본 설정</legend>
+      <fieldset class="field-grid" data-writable data-running-lock><legend>기본 설정</legend>
         <label class="span-two">서버 이름<input name="server_name" maxlength="64" required></label>
         <label>월드 이름<input name="world" list="world-names" maxlength="64" required><datalist id="world-names"></datalist><small>목록에 없는 이름은 새 월드로 생성됩니다.</small></label>
         <label>게임 접속 비밀번호<input name="password" type="password" minlength="5" maxlength="128" autocomplete="new-password"><small id="password-hint">최초 시작 전 5자 이상으로 설정해주세요.</small></label>
@@ -159,7 +158,7 @@
         <label class="switch-row"><span>서버 목록에 공개<small>비공개 서버는 주소로 직접 접속</small></span><input name="public" type="checkbox" role="switch"></label>
       </fieldset>
       <p class="micro">크로스플레이는 공개 IP·참가 코드·서버 목록으로 접속합니다. 로컬 IP나 127.0.0.1로는 접속할 수 없습니다. 포트를 변경했다면 GCP 방화벽도 맞춰주세요.</p>
-      <fieldset class="field-grid" data-writable><legend>월드 자동 저장·백업</legend>
+      <fieldset class="field-grid" data-writable data-running-lock><legend>월드 자동 저장·백업</legend>
         <label>저장 간격 · 초<input name="save_interval" type="number" min="60" max="86400" required></label>
         <label>자동 백업 보관 수<input name="backups" type="number" min="1" max="50" required></label>
         <label>첫 백업 간격 · 초<input name="backup_short" type="number" min="60" max="604800" required></label>
@@ -173,17 +172,17 @@
     <div class="dialog-head"><div><p class="eyebrow">WORLD MODIFIERS</p><h2>월드 · 배율 설정</h2></div><button data-close aria-label="닫기">×</button></div>
     <form id="modifiers-form"><div class="dialog-body">
       <p class="callout">Valheim 공식 프리셋과 월드 옵션입니다. 저장한 값은 다음 서버 시작부터 적용됩니다.</p>
-      <fieldset class="field-grid" data-writable><legend>플레이 프리셋</legend>
+      <fieldset class="field-grid" data-writable data-running-lock><legend>플레이 프리셋</legend>
         <label class="span-two">월드 프리셋<select name="preset"><option value="">현재 월드 설정 유지</option><option value="normal">Normal · 보통</option><option value="casual">Casual · 캐주얼</option><option value="easy">Easy · 쉬움</option><option value="hard">Hard · 어려움</option><option value="hardcore">Hardcore · 하드코어</option><option value="immersive">Immersive · 몰입</option><option value="hammer">Hammer · 건축</option></select><small>프리셋 적용 후 아래 상세 옵션을 이어서 적용합니다.</small></label>
       </fieldset>
-      <fieldset class="field-grid" data-writable><legend>상세 난이도 · 배율</legend>
+      <fieldset class="field-grid" data-writable data-running-lock><legend>상세 난이도 · 배율</legend>
         <label>전투 난이도<select name="combat"><option value="">기본값</option><option value="veryeasy">매우 쉬움</option><option value="easy">쉬움</option><option value="hard">어려움</option><option value="veryhard">매우 어려움</option></select></label>
         <label>사망 불이익<select name="death_penalty"><option value="">기본값</option><option value="casual">캐주얼</option><option value="veryeasy">매우 낮음</option><option value="easy">낮음</option><option value="hard">높음</option><option value="hardcore">하드코어</option></select></label>
         <label>자원 획득량<select name="resources"><option value="">기본값</option><option value="muchless">매우 적음</option><option value="less">적음</option><option value="more">많음</option><option value="muchmore">매우 많음</option><option value="most">최대</option></select></label>
         <label>습격 빈도<select name="raids"><option value="">기본값</option><option value="none">없음</option><option value="muchless">매우 적음</option><option value="less">적음</option><option value="more">많음</option><option value="muchmore">매우 많음</option></select></label>
         <label>포탈 제한<select name="portals"><option value="">기본값</option><option value="casual">캐주얼</option><option value="hard">어려움</option><option value="veryhard">매우 어려움</option></select></label>
       </fieldset>
-      <fieldset class="field-grid rule-grid" data-writable><legend>플레이 규칙</legend>
+      <fieldset class="field-grid rule-grid" data-writable data-running-lock><legend>플레이 규칙</legend>
         <label class="switch-row"><span>건설 비용 없음<small>재료 없이 건설</small></span><input name="no_build_cost" type="checkbox" role="switch"></label>
         <label class="switch-row"><span>플레이어 기반 이벤트<small>접속자 진행도 기준</small></span><input name="player_events" type="checkbox" role="switch"></label>
         <label class="switch-row"><span>적 비공격적<small>먼저 공격하기 전까지 평화</small></span><input name="passive_mobs" type="checkbox" role="switch"></label>
@@ -194,13 +193,13 @@
   </dialog>
 
   <dialog id="worlds-dialog" class="wide-dialog"><div class="dialog-head"><div><p class="eyebrow">WORLD FILES</p><h2>월드 파일</h2></div><button data-close aria-label="닫기">×</button></div>
-    <div class="dialog-body"><div id="world-list" class="file-list"></div>
-      <form id="world-upload-form"><fieldset data-writable><legend>기존 월드 가져오기</legend><p class="subtle">이름이 같은 .db와 .fwl 파일을 함께 선택하세요. Steam 클라우드 월드는 게임에서 로컬로 옮긴 뒤 가져와주세요.</p><div class="field-grid"><label>월드 데이터 · .db<input name="db" type="file" accept=".db" required></label><label>월드 정보 · .fwl<input name="fwl" type="file" accept=".fwl" required></label></div><label class="compact-toggle"><input name="overwrite" type="checkbox">같은 이름의 기존 월드 덮어쓰기</label><p class="micro">기존 월드가 있으면 먼저 ZIP 백업을 만듭니다. 업로드 후 서버 설정에서 월드를 선택해주세요.</p><button type="submit" class="primary">월드 업로드</button></fieldset><p id="worlds-message" class="form-message" role="status"></p></form>
+    <div class="dialog-body"><div id="world-list" class="file-list" data-running-lock></div>
+      <form id="world-upload-form"><fieldset data-writable data-running-lock><legend>기존 월드 가져오기</legend><p class="subtle">이름이 같은 .db와 .fwl 파일을 함께 선택하세요. Steam 클라우드 월드는 게임에서 로컬로 옮긴 뒤 가져와주세요.</p><div class="field-grid"><label>월드 데이터 · .db<input name="db" type="file" accept=".db" required></label><label>월드 정보 · .fwl<input name="fwl" type="file" accept=".fwl" required></label></div><label class="compact-toggle"><input name="overwrite" type="checkbox">같은 이름의 기존 월드 덮어쓰기</label><p class="micro">기존 월드가 있으면 먼저 ZIP 백업을 만듭니다. 업로드 후 서버 설정에서 월드를 선택해주세요.</p><button type="submit" class="primary">월드 업로드</button></fieldset><p id="worlds-message" class="form-message" role="status"></p></form>
     </div><div class="dialog-foot"><button data-close>닫기</button></div>
   </dialog>
 
   <dialog id="server-files-dialog" class="wide-dialog"><div class="dialog-head"><div><p class="eyebrow">SERVER FILE EXPLORER</p><h2>서버 폴더 탐색기</h2></div><button data-close aria-label="닫기">×</button></div>
-    <div class="dialog-body explorer-shell">
+    <div class="dialog-body explorer-shell" data-running-lock>
       <div class="explorer-toolbar">
         <div><span class="tiny-label">CURRENT PATH</span><nav id="server-files-path" class="explorer-path" aria-label="현재 서버 폴더 경로"><button type="button" data-path="" aria-current="location">/server</button></nav></div>
         <div class="explorer-actions">
@@ -232,11 +231,11 @@
   </dialog>
 
   <dialog id="permissions-dialog"><div class="dialog-head"><div><p class="eyebrow">PLAYER ACCESS</p><h2>플레이어 권한</h2></div><button data-close aria-label="닫기">×</button></div>
-    <form id="permissions-form"><div class="dialog-body"><fieldset data-writable><label>관리할 목록<select id="permission-kind"><option value="admin">관리자 목록</option><option value="banned">차단 목록</option><option value="permitted">접속 허용 목록</option></select></label><label>플랫폼 사용자 ID<textarea id="permission-ids" rows="8" spellcheck="false" placeholder="Steam_76561198000000000"></textarea><small>게임 F2 화면 또는 서버 로그의 Platform_UserID를 한 줄에 하나씩 입력하세요.</small></label></fieldset><p id="permission-warning" class="callout" hidden>허용 목록에 한 명이라도 등록하면 이 목록에 없는 플레이어는 접속할 수 없습니다.</p><p id="permissions-message" class="form-message" role="status"></p></div><div class="dialog-foot"><button type="button" data-close>닫기</button><button type="submit" class="primary" data-writable>목록 저장</button></div></form>
+    <form id="permissions-form"><div class="dialog-body"><fieldset data-writable data-running-lock><label>관리할 목록<select id="permission-kind"><option value="admin">관리자 목록</option><option value="banned">차단 목록</option><option value="permitted">접속 허용 목록</option></select></label><label>플랫폼 사용자 ID<textarea id="permission-ids" rows="8" spellcheck="false" placeholder="Steam_76561198000000000"></textarea><small>게임 F2 화면 또는 서버 로그의 Platform_UserID를 한 줄에 하나씩 입력하세요.</small></label></fieldset><p id="permission-warning" class="callout" hidden>허용 목록에 한 명이라도 등록하면 이 목록에 없는 플레이어는 접속할 수 없습니다.</p><p id="permissions-message" class="form-message" role="status"></p></div><div class="dialog-foot"><button type="button" data-close>닫기</button><button type="submit" class="primary" data-writable>목록 저장</button></div></form>
   </dialog>
 
   <dialog id="schedule-dialog"><div class="dialog-head"><div><p class="eyebrow">SCHEDULED RESTART</p><h2>예약 재시작</h2></div><button data-close aria-label="닫기">×</button></div>
-    <form id="schedule-form"><div class="dialog-body"><p class="callout">실행 중인 서버만 정상 종료한 뒤 다시 시작합니다. 꺼진 서버는 자동으로 켜지지 않습니다.</p><fieldset data-writable><label class="switch-row"><span>매일 예약 재시작<small>Asia/Seoul · 한국 시간</small></span><input name="enabled" type="checkbox" role="switch"></label><label>재시작 시각 · 최대 3개<input name="times" placeholder="04:00, 12:00" required><small>여러 시각은 쉼표로 구분하세요.</small></label></fieldset><p id="schedule-result" class="subtle"></p><p id="schedule-message" class="form-message" role="status"></p></div><div class="dialog-foot"><button type="button" data-close>닫기</button><button type="submit" class="primary" data-writable>예약 저장</button></div></form>
+    <form id="schedule-form"><div class="dialog-body"><p class="callout">실행 중인 서버만 정상 종료한 뒤 다시 시작합니다. 꺼진 서버는 자동으로 켜지지 않습니다.</p><fieldset data-writable data-running-lock><label class="switch-row"><span>매일 예약 재시작<small>Asia/Seoul · 한국 시간</small></span><input name="enabled" type="checkbox" role="switch"></label><label>재시작 시각 · 최대 3개<input name="times" placeholder="04:00, 12:00" required><small>여러 시각은 쉼표로 구분하세요.</small></label></fieldset><p id="schedule-result" class="subtle"></p><p id="schedule-message" class="form-message" role="status"></p></div><div class="dialog-foot"><button type="button" data-close>닫기</button><button type="submit" class="primary" data-writable>예약 저장</button></div></form>
   </dialog>
 
   <dialog id="mods-dialog" class="wide-dialog"><div class="dialog-head"><div><p class="eyebrow">BEPINEX MOD MANAGEMENT</p><h2>모드 관리</h2></div><button data-close aria-label="닫기">×</button></div>
@@ -247,7 +246,7 @@
         <div><span class="tiny-label">ENABLED MODS</span><strong id="mods-enabled-count">0개</strong><small>다음 서버 시작에 적용</small></div>
         <div><span class="tiny-label">REGISTERED</span><strong id="mods-registered-count">0개</strong><small>보관 중인 서버 모드</small></div>
       </section>
-      <div class="mod-install-bar">
+      <div class="mod-install-bar" data-running-lock>
         <div><strong>서버 모드 추가</strong><small>ZIP 또는 DLL · 여러 파일 동시 선택</small></div>
         <div class="mod-install-actions">
           <a href="https://thunderstore.io/c/valheim/" target="_blank" rel="noopener noreferrer">Thunderstore ↗</a>
@@ -265,7 +264,7 @@
       </div>
       <div id="mods-list" class="mod-list" aria-live="polite"></div>
 
-      <details class="mod-tool-panel">
+      <details class="mod-tool-panel" data-running-lock>
         <summary>모드 설정 파일 <span id="mods-config-count">0개</span></summary>
         <div class="mod-tool-body">
           <div class="mod-config-toolbar"><select id="mods-config-select" aria-label="모드 설정 파일"><option value="">설정 파일 선택</option></select><button id="mods-config-load" type="button">불러오기</button></div>
@@ -273,7 +272,7 @@
           <div class="mod-tool-actions"><span class="subtle">저장 시 기존 파일을 자동 백업합니다.</span><button id="mods-config-save" class="primary" type="button" disabled>설정 저장</button></div>
         </div>
       </details>
-      <details class="mod-tool-panel">
+      <details class="mod-tool-panel" data-running-lock>
         <summary>모드팩 · 전체 관리</summary>
         <div class="mod-tool-body mod-pack-tools">
           <button id="mods-export" type="button">모드팩 저장</button>
@@ -297,5 +296,6 @@
   </dialog>
 
   <dialog id="confirm-dialog" class="confirm-dialog"><div class="dialog-head"><h2 id="confirm-title">작업 확인</h2><button data-close aria-label="닫기">×</button></div><p id="confirm-text" class="dialog-body"></p><div class="dialog-foot"><button id="confirm-cancel">취소</button><button id="confirm-ok" class="primary">진행</button></div></dialog>
+  <dialog id="notice-dialog" class="confirm-dialog"><div class="dialog-head"><h2 id="notice-title">안내</h2><button data-close aria-label="닫기">×</button></div><p id="notice-text" class="dialog-body"></p><div class="dialog-foot"><button id="notice-ok" class="primary" type="button">확인</button></div></dialog>
   <div id="toast" class="toast" role="status" hidden></div>
 </body></html>
