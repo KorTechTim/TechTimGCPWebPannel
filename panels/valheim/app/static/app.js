@@ -193,7 +193,7 @@ function updateControls() {
   $('restart').disabled = !available || !running;
   $('install').disabled = !available || running;
   $('sidebar-settings').disabled = !state;
-  $('panel-update-action').disabled = !available || running;
+  $('panel-update-action').disabled = !available;
   updateRunningLocks();
   updateServerFileControls();
   updateModControls();

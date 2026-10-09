@@ -72,13 +72,17 @@ class StaticUiTests(unittest.TestCase):
         self.assertIn(".management-shortcut b { font-size: 15.6px;", css)
         self.assertIn("font-size: 11.7px; line-height: 1.25;", css)
 
-    def test_panel_update_text_is_doubled(self):
+    def test_panel_update_text_is_compact_and_available_while_server_runs(self):
+        html = self.read("dashboard.html")
+        script = self.read("app.js")
         css = self.read("valheim-palshell.css")
-        self.assertIn("#panel-update-dialog .dialog-head h2 { font-size: 38px; }", css)
-        self.assertIn("#panel-update-dialog .feature-status strong { font-size: 34px; }", css)
-        self.assertIn("#panel-update-dialog .feature-status p { font-size: 22px;", css)
-        self.assertIn("#panel-update-message { font-size: 24px;", css)
-        self.assertIn("#panel-update-dialog .dialog-foot button { font-size: 24px; }", css)
+        self.assertIn("#panel-update-dialog .dialog-head h2 { font-size: 19px; }", css)
+        self.assertIn("#panel-update-dialog .feature-status strong { font-size: 17px; }", css)
+        self.assertIn("#panel-update-dialog .feature-status p { font-size: 11px;", css)
+        self.assertIn("#panel-update-message { font-size: 12px;", css)
+        self.assertIn("#panel-update-dialog .dialog-foot button { font-size: 12px; }", css)
+        self.assertIn("게임 서버 실행 여부와 관계없이 진행할 수 있으며", html)
+        self.assertIn("$('panel-update-action').disabled = !available;", script)
 
     def test_engine_update_checks_steam_build_before_installing(self):
         script = self.read("app.js")

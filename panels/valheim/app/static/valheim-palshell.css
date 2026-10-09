@@ -565,14 +565,14 @@ dialog::backdrop { background: rgba(6, 15, 20, .7); backdrop-filter: blur(7px); 
 .detail-page .dialog-head { padding-top: 24px; }
 .detail-page .dialog-body { padding-top: 22px; }
 .detail-page .dialog-foot { border-color: #d9e0df; }
-#panel-update-dialog .dialog-head .eyebrow { font-size: 18px; }
-#panel-update-dialog .dialog-head h2 { font-size: 38px; }
-#panel-update-dialog .tiny-label { font-size: 16px; }
-#panel-update-dialog .feature-status strong { font-size: 34px; }
-#panel-update-dialog .feature-status p { font-size: 22px; line-height: 1.65; }
-#panel-update-dialog .callout { width: 100%; max-width: none; padding: 20px 24px; font-size: 22px; line-height: 1.8; }
-#panel-update-message { font-size: 24px; line-height: 1.6; }
-#panel-update-dialog .dialog-foot button { font-size: 24px; }
+#panel-update-dialog .dialog-head .eyebrow { font-size: 9px; }
+#panel-update-dialog .dialog-head h2 { font-size: 19px; }
+#panel-update-dialog .tiny-label { font-size: 8px; }
+#panel-update-dialog .feature-status strong { font-size: 17px; }
+#panel-update-dialog .feature-status p { font-size: 11px; line-height: 1.65; }
+#panel-update-dialog .callout { width: 100%; max-width: none; padding: 20px 24px; font-size: 11px; line-height: 1.8; }
+#panel-update-message { font-size: 12px; line-height: 1.6; }
+#panel-update-dialog .dialog-foot button { font-size: 12px; }
 
 @media (max-width: 1050px) {
   .status-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }

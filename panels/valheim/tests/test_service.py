@@ -160,6 +160,15 @@ class LifecycleTests(ServiceCase):
         self.assertEqual(status["image_id"], "runtime-imag")
         self.assertIn("1.5.0", status["message"])
 
+    def test_panel_update_is_allowed_while_game_server_runs(self):
+        self.docker.containers.add(self.settings.panel_container)
+        self.docker.containers.add(self.settings.server_container, status="running")
+
+        self.service.update_panel()
+
+        status = read_json(self.service.root / "panel-update-status.json", {})
+        self.assertEqual(status["status"], "completed")
+
     def test_panel_update_check_uses_registry_digest_and_cache(self):
         self.docker.containers.add(self.settings.panel_container)
 

@@ -740,7 +740,6 @@ class PanelService:
     def update_panel(self):
         status_file = self.root / "panel-update-status.json"
         try:
-            self.require_stopped()
             write_json(status_file, {"status": "running", "message": "최신 패널 이미지를 확인하고 있습니다."})
             with self.client() as client:
                 current = client.containers.get(self.settings.panel_container)
