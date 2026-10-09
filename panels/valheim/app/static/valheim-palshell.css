@@ -449,6 +449,10 @@ dialog::backdrop { background: rgba(6, 15, 20, .7); backdrop-filter: blur(7px); 
 .dialog-head, .dialog-foot { border-color: #d9e0df; }
 .dialog-head > button { color: #6a797e; }
 .dialog-body .callout { background: #f8f1e5; color: #74562e; }
+#settings-dialog .dialog-body > .callout { margin-bottom: 15px; }
+#settings-dialog .dialog-body .callout,
+#settings-dialog .dialog-body label small { font-size: 14.3px; }
+#settings-dialog .dialog-body > .micro { font-size: 13px; }
 .feature-status, .file-row { border-color: #d6dfdd; background: #f1f5f4; }
 .feature-status strong, .file-row strong { color: var(--ink); }
 .feature-list { border-color: #d6dfdd; }

@@ -189,6 +189,17 @@ class StaticUiTests(unittest.TestCase):
         self.assertIn("게임 접속 비밀번호를 먼저 저장해주세요.", script)
         self.assertIn("backdrop-filter: blur(7px)", css)
 
+    def test_settings_callout_has_section_spacing(self):
+        html = self.read("dashboard.html")
+        css = self.read("valheim-palshell.css")
+        self.assertIn('<dialog id="settings-dialog"', html)
+        self.assertIn("#settings-dialog .dialog-body > .callout { margin-bottom: 15px; }", css)
+
+    def test_settings_guidance_text_is_thirty_percent_larger(self):
+        css = self.read("valheim-palshell.css")
+        self.assertIn("#settings-dialog .dialog-body label small { font-size: 14.3px; }", css)
+        self.assertIn("#settings-dialog .dialog-body > .micro { font-size: 13px; }", css)
+
     def test_detail_navigation_and_quick_settings_are_wired(self):
         script = self.read("app.js")
         self.assertIn("function openDetail", script)
