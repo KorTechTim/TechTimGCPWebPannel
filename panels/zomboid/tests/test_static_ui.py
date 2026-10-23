@@ -50,6 +50,7 @@ class StaticUiTests(unittest.TestCase):
         self.assertIn('class="control-card-art"', html)
         self.assertIn('/static/zomboid-control-zombies-v1.png?v=1', html)
         self.assertIn('.control-card-art img{', css)
+        self.assertIn('.control-card-art img{top:-38px;', css)
         self.assertTrue((root / "app/static/zomboid-control-zombies-v1.png").is_file())
 
     def test_header_uses_shared_panel_order(self):
