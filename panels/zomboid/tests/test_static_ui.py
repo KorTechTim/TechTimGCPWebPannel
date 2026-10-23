@@ -387,12 +387,36 @@ class StaticUiTests(unittest.TestCase):
         self.assertIn(".admin-password-dialog::backdrop", css)
         self.assertIn("backdrop-filter:blur(12px)", css)
 
+    def test_server_ready_dialog_appears_after_start_completion(self):
+        root = Path(__file__).parents[1]
+        html = (root / "app/static/dashboard.html").read_text()
+        script = (root / "app/static/app.js").read_text()
+        css = (root / "app/static/app.css").read_text()
+        self.assertIn('id="server-ready-dialog"', html)
+        self.assertIn("서버 기동이 완료되었습니다.", html)
+        self.assertIn("pendingServerReadyOperation = '서버 시작'", script)
+        self.assertIn("pendingServerReadyOperation = '서버 재시작'", script)
+        self.assertIn("status.server !== 'running'", script)
+        self.assertIn("status.operation.status !== 'completed'", script)
+        self.assertIn("showDialog($('#server-ready-dialog'))", script)
+        self.assertIn("@keyframes server-ready-shake", css)
+        self.assertIn(".server-ready-dialog::backdrop", css)
+        self.assertIn("backdrop-filter:blur(12px)", css)
+
     def test_dashboard_busts_script_cache_and_revalidates_app_assets(self):
         root = Path(__file__).parents[1]
         html = (root / "app/static/dashboard.html").read_text()
+        login = (root / "app/static/login.html").read_text()
+        config = (root / "app/config.py").read_text()
         main = (root / "app/main.py").read_text()
-        self.assertIn('/static/app.js?v=1.7.0', html)
-        self.assertIn('/static/app.css?v=1.7.0', html)
+        self.assertIn('PANEL_VERSION = "1.0.1"', config)
+        self.assertIn('id="sidebar-version">PANEL 1.0.1', html)
+        self.assertIn('id="panel-version">1.0.1', html)
+        self.assertIn('id="update-current-version">1.0.1', html)
+        self.assertIn('/static/app.js?v=1.0.1', html)
+        self.assertIn('/static/app.css?v=1.0.1', html)
+        self.assertIn('/static/login.js?v=1.0.1', login)
+        self.assertIn('/static/app.css?v=1.0.1', login)
         self.assertIn('"no-cache, must-revalidate"', main)
 
     def test_all_dialogs_use_shared_blurred_backdrop(self):

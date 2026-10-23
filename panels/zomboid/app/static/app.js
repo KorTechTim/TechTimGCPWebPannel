@@ -28,6 +28,7 @@ let fastLogRefreshUntil = 0;
 let copyTooltipTimer = null;
 let panelUpdatePollTimer = null;
 let panelUpdateProgress = 0;
+let pendingServerReadyOperation = '';
 const PANEL_UPDATE_ACTIVE = new Set(['running', 'downloading', 'preparing', 'replacing', 'verifying', 'reconnecting']);
 const PANEL_UPDATE_STAGES = ['download', 'replace', 'verify', 'complete'];
 
@@ -124,6 +125,23 @@ function stateLabel(state) {
   return {running:'서버 실행 중',restarting:'서버 재시작 중',exited:'서버 중지됨',created:'서버 준비됨',missing:'서버 미생성',unavailable:'Docker 확인 필요'}[state] || state;
 }
 
+function shakeServerReadyDialog() {
+  const dialog = $('#server-ready-dialog');
+  dialog.classList.remove('dialog-shake');
+  void dialog.offsetWidth;
+  dialog.classList.add('dialog-shake');
+}
+
+function maybeShowServerReadyDialog(status) {
+  if (!pendingServerReadyOperation || status.operation?.name !== pendingServerReadyOperation) return;
+  if (status.operation.status === 'failed') { pendingServerReadyOperation = ''; return; }
+  if (status.busy || status.server !== 'running' || status.operation.status !== 'completed') return;
+  if ($$('dialog').some(dialog => dialog.open)) return;
+  pendingServerReadyOperation = '';
+  showDialog($('#server-ready-dialog'));
+  shakeServerReadyDialog();
+}
+
 async function refreshStatus() {
   const status = await api('/api/status');
   statusCache = status;
@@ -147,6 +165,7 @@ async function refreshStatus() {
   $('#terminal-command-state').textContent = terminalReady ? '● 명령 전송 가능' : '● 서버 실행 중에만 명령 전송 가능';
   const activePage = $('.view.active')?.dataset.page;
   if (STOPPED_ONLY_VIEWS.has(activePage) && serverIsRunning(status)) showServerRunningLock();
+  maybeShowServerReadyDialog(status);
   return status;
 }
 
@@ -344,8 +363,12 @@ $('#install-engine').addEventListener('click', () => perform(() => api('/api/ins
 async function runServerAction(action) {
   if (action === 'start' || action === 'restart') startFastLogRefresh();
   try {
-    return await perform(() => api(`/api/server/${action}`, {method:'POST'}), '서버 작업을 시작했습니다.');
+    const result = await perform(() => api(`/api/server/${action}`, {method:'POST'}), '서버 작업을 시작했습니다.');
+    if (action === 'start') pendingServerReadyOperation = '서버 시작';
+    if (action === 'restart') pendingServerReadyOperation = '서버 재시작';
+    return result;
   } catch (error) {
+    if (action === 'start' || action === 'restart') pendingServerReadyOperation = '';
     if (action === 'start' && error.message.includes('최초 관리자 비밀번호')) {
       message('');
       showAdminPasswordDialog();
@@ -373,6 +396,10 @@ $('#close-admin-password').addEventListener('click', closeAdminPasswordDialog);
 $('#cancel-admin-password').addEventListener('click', closeAdminPasswordDialog);
 $('#admin-password-dialog').addEventListener('animationend', event => {
   if (event.animationName === 'admin-password-shake') event.currentTarget.classList.remove('dialog-shake');
+});
+$('#confirm-server-ready').addEventListener('click', () => closeDialog($('#server-ready-dialog'), 'confirm'));
+$('#server-ready-dialog').addEventListener('animationend', event => {
+  if (event.animationName === 'server-ready-shake') event.currentTarget.classList.remove('dialog-shake');
 });
 $('#admin-password-form').addEventListener('submit', async event => {
   event.preventDefault();
