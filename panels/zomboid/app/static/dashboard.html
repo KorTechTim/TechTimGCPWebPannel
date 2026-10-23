@@ -63,7 +63,7 @@
 
     <section class="view active" data-page="overview">
       <div class="hero-band">
-        <div class="hero-copy"><p class="eyebrow">PROJECT ZOMBOID · DEDICATED SERVER</p><h2>THIS IS HOW<br>YOUR SERVER SURVIVES.</h2><p>엔진, 월드, 모드와 GCP 자원을 한 화면에서 통제합니다.</p></div>
+        <div class="hero-copy"><p class="eyebrow">PROJECT ZOMBOID · DEDICATED SERVER</p><h2>THIS IS HOW<br>YOUR SERVER SURVIVES.</h2><p>당신의 서버가 살아남는 법.</p></div>
         <div class="connection-block"><small>SERVER CONNECTION</small><strong id="connection-endpoint">VM IP : 16261</strong><span id="copy-endpoint-tooltip" class="copy-tooltip" role="status" aria-live="polite">클립보드에 IP가 저장되었습니다.</span><button id="copy-endpoint">주소 복사</button></div>
       </div>
       <div class="overview-grid">
@@ -181,6 +181,21 @@
       <h2 id="engine-required-title">아직 게임이 설치되지 않았습니다.</h2>
       <p>먼저 게임엔진부터 설치해주세요.</p>
       <footer><button class="primary" id="confirm-engine-required" type="button">확인</button></footer>
+    </dialog>
+
+    <dialog id="admin-password-dialog" class="app-dialog input-dialog admin-password-dialog" aria-labelledby="admin-password-title" aria-describedby="admin-password-description">
+      <form id="admin-password-form">
+        <header><div><p class="eyebrow">FIRST SERVER START</p><h2 id="admin-password-title">서버 관리자 비밀번호 설정</h2></div><button id="close-admin-password" class="dialog-close" type="button" title="닫기" aria-label="관리자 비밀번호 설정창 닫기">×</button></header>
+        <div class="input-dialog-body">
+          <div class="admin-password-intro"><img src="/static/zomboid-menu-players-v1.png" alt=""><p id="admin-password-description">게임 서버 내부의 <strong>admin 계정</strong>으로 로그인할 때 사용할 비밀번호를 설정해주세요. 웹패널 로그인 비밀번호와는 별개입니다.</p></div>
+          <div class="admin-password-fields">
+            <label><span>관리자 비밀번호</span><input id="initial-admin-password" name="admin_password" type="password" minlength="4" maxlength="64" pattern="[!-~]{4,64}" autocomplete="new-password" required></label>
+            <label><span>비밀번호 확인</span><input id="initial-admin-password-confirm" type="password" minlength="4" maxlength="64" pattern="[!-~]{4,64}" autocomplete="new-password" required></label>
+          </div>
+          <p id="admin-password-status" class="admin-password-status" role="alert" hidden></p>
+        </div>
+        <footer><button id="cancel-admin-password" type="button">취소</button><button id="save-admin-password" class="primary" type="submit">저장 후 서버 시작</button></footer>
+      </form>
     </dialog>
 
     <dialog id="file-editor-dialog" class="app-dialog file-editor-dialog" aria-labelledby="file-editor-title">

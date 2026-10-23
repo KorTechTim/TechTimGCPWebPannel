@@ -121,7 +121,7 @@ async function showView(name) {
 $$('[data-view]').forEach(element => element.addEventListener('click', event => { event.preventDefault(); showView(element.dataset.view); }));
 
 function stateLabel(state) {
-  return {running:'● 서버 실행 중',restarting:'● 서버 재시작 중',exited:'● 서버 중지됨',created:'● 서버 준비됨',missing:'● 서버 미생성',unavailable:'● Docker 확인 필요'}[state] || state;
+  return {running:'서버 실행 중',restarting:'서버 재시작 중',exited:'서버 중지됨',created:'서버 준비됨',missing:'서버 미생성',unavailable:'Docker 확인 필요'}[state] || state;
 }
 
 async function refreshStatus() {
@@ -175,12 +175,22 @@ function drawResourceHistory(canvasId, valueIndex, color) {
   const ratio = Math.min(window.devicePixelRatio || 1, 2);
   canvas.width = Math.floor(width * ratio); canvas.height = Math.floor(height * ratio);
   const context = canvas.getContext('2d'); context.scale(ratio, ratio);
-  const top = 5, bottom = height - 6, chartHeight = bottom - top;
+  const yAxisWidth = 30;
+  const top = 7, bottom = height - 7, chartHeight = bottom - top;
+  const plotWidth = Math.max(1, width - yAxisWidth - 1);
   context.lineWidth = 1;
   context.strokeStyle = 'rgba(119,160,150,.18)';
   for (const percent of [0, 25, 50, 75, 100]) {
     const y = bottom - chartHeight * percent / 100;
-    context.beginPath(); context.moveTo(0, y); context.lineTo(width, y); context.stroke();
+    context.beginPath(); context.moveTo(yAxisWidth, y); context.lineTo(width, y); context.stroke();
+  }
+  context.fillStyle = 'rgba(139,188,175,.82)';
+  context.font = '700 8px ui-monospace, SFMono-Regular, Menlo, monospace';
+  context.textAlign = 'left';
+  context.textBaseline = 'middle';
+  for (const percent of [100, 50, 0]) {
+    const y = bottom - chartHeight * percent / 100;
+    context.fillText(`${percent}%`, 0, y);
   }
   const now = Date.now(), start = now - RESOURCE_HISTORY_WINDOW_MS;
   const samples = resourceHistory.filter(point => point[0] >= start && point[valueIndex] != null);
@@ -190,7 +200,7 @@ function drawResourceHistory(canvasId, valueIndex, color) {
   for (let index = 0; index < samples.length; index += step) {
     const bucket = samples.slice(index, index + step);
     const sample = bucket[bucket.length - 1];
-    points.push([Math.min(width - 1, Math.max(0, (sample[0] - start) / RESOURCE_HISTORY_WINDOW_MS * width)), bottom - sample[valueIndex] / 100 * chartHeight]);
+    points.push([yAxisWidth + Math.min(plotWidth, Math.max(0, (sample[0] - start) / RESOURCE_HISTORY_WINDOW_MS * plotWidth)), bottom - sample[valueIndex] / 100 * chartHeight]);
   }
   context.beginPath(); context.moveTo(points[0][0], bottom);
   for (const point of points) context.lineTo(point[0], point[1]);
@@ -329,16 +339,75 @@ $('#terminal-command-form').addEventListener('submit', async event => {
 });
 
 $('#install-engine').addEventListener('click', () => perform(() => api('/api/install', {method:'POST'}), '엔진 설치·업데이트를 시작했습니다.'));
+function runServerAction(action) {
+  if (action === 'start' || action === 'restart') startFastLogRefresh();
+  return perform(() => api(`/api/server/${action}`, {method:'POST'}), '서버 작업을 시작했습니다.').catch(() => {});
+}
+function shakeAdminPasswordDialog() {
+  const dialog = $('#admin-password-dialog');
+  dialog.classList.remove('dialog-shake');
+  void dialog.offsetWidth;
+  dialog.classList.add('dialog-shake');
+}
+function showAdminPasswordDialog() {
+  const form = $('#admin-password-form');
+  form.reset();
+  $('#admin-password-status').hidden = true;
+  $('#admin-password-status').textContent = '';
+  showDialog($('#admin-password-dialog'));
+  shakeAdminPasswordDialog();
+  requestAnimationFrame(() => $('#initial-admin-password').focus());
+}
+function closeAdminPasswordDialog() { closeDialog($('#admin-password-dialog')); }
+$('#close-admin-password').addEventListener('click', closeAdminPasswordDialog);
+$('#cancel-admin-password').addEventListener('click', closeAdminPasswordDialog);
+$('#admin-password-dialog').addEventListener('animationend', event => {
+  if (event.animationName === 'admin-password-shake') event.currentTarget.classList.remove('dialog-shake');
+});
+$('#admin-password-form').addEventListener('submit', async event => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const password = $('#initial-admin-password').value;
+  const confirmation = $('#initial-admin-password-confirm').value;
+  const status = $('#admin-password-status');
+  if (password !== confirmation) {
+    status.textContent = '비밀번호와 확인 값이 일치하지 않습니다.';
+    status.hidden = false;
+    shakeAdminPasswordDialog();
+    $('#initial-admin-password-confirm').focus();
+    return;
+  }
+  if (!form.reportValidity()) { shakeAdminPasswordDialog(); return; }
+  const submit = $('#save-admin-password');
+  submit.disabled = true;
+  submit.textContent = '저장 중';
+  status.hidden = true;
+  try {
+    const config = await api('/api/config');
+    config.admin_password = password;
+    configCache = await api('/api/config', json('POST', config));
+    closeDialog($('#admin-password-dialog'), 'saved');
+    form.reset();
+    runServerAction('start');
+  } catch (error) {
+    status.textContent = error.message;
+    status.hidden = false;
+    shakeAdminPasswordDialog();
+  } finally {
+    submit.disabled = false;
+    submit.textContent = '저장 후 서버 시작';
+  }
+});
 $$('[data-action]').forEach(button => button.addEventListener('click', async () => {
   const action = button.dataset.action;
   if (action === 'start') {
     try {
       const status = await refreshStatus();
       if (!status.engine.installed) { showDialog($('#engine-required-dialog')); return; }
+      if (!status.config_ready) { showAdminPasswordDialog(); return; }
     } catch (error) { message(error.message, true); return; }
   }
-  if (action === 'start' || action === 'restart') startFastLogRefresh();
-  perform(() => api(`/api/server/${action}`, {method:'POST'}), '서버 작업을 시작했습니다.').catch(() => {});
+  runServerAction(action);
 }));
 $('#copy-endpoint').addEventListener('click', async () => {
   try {

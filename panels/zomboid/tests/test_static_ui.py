@@ -60,6 +60,15 @@ class StaticUiTests(unittest.TestCase):
         self.assertEqual(positions, sorted(positions))
         self.assertNotIn('data-view="panel-update"><b>', html)
 
+    def test_server_status_labels_do_not_include_bullet(self):
+        script = (Path(__file__).parents[1] / "app/static/app.js").read_text()
+        self.assertIn("running:'서버 실행 중'", script)
+        self.assertIn("missing:'서버 미생성'", script)
+        self.assertIn("unavailable:'Docker 확인 필요'", script)
+        self.assertNotIn("running:'●", script)
+        self.assertNotIn("missing:'●", script)
+        self.assertNotIn("unavailable:'●", script)
+
     def test_panel_update_opens_as_dialog(self):
         root = Path(__file__).parents[1]
         html = (root / "app/static/dashboard.html").read_text()
@@ -113,10 +122,14 @@ class StaticUiTests(unittest.TestCase):
         self.assertIn("RESOURCE_HISTORY_WINDOW_MS = 8 * 60 * 60 * 1000", script)
         self.assertIn("setInterval(() => refreshResources().catch(() => {}), RESOURCE_REFRESH_MS)", script)
         self.assertIn("RESOURCE_HISTORY_STORAGE_KEY", script)
+        self.assertIn("const yAxisWidth = 30;", script)
+        self.assertIn("for (const percent of [100, 50, 0])", script)
+        self.assertIn("context.fillText(`${percent}%`, 0, y);", script)
         self.assertIn(".history-chart", css)
         self.assertIn(".monitor-grid.compact header strong{font-size:28px", css)
         self.assertIn(".monitor-grid.compact .history-metric b{font-size:44px}", css)
-        self.assertIn(".monitor-grid.compact article>span{margin-top:18px!important;color:#8bbcaf;font-size:32px", css)
+        self.assertIn(".monitor-grid.compact .history-axis{margin-top:8px;color:#8bbcaf;font-size:14px", css)
+        self.assertIn(".monitor-grid.compact article>span{margin-top:18px!important;color:#8bbcaf;font-size:16px", css)
         self.assertIn("@media(max-width:1600px){.monitor-grid.compact{grid-template-columns:repeat(2", css)
 
     def test_copy_endpoint_copies_ip_and_shows_temporary_tooltip(self):
@@ -179,7 +192,7 @@ class StaticUiTests(unittest.TestCase):
     def test_file_explorer_typography_is_doubled(self):
         css = (Path(__file__).parents[1] / "app/static/app.css").read_text()
         self.assertIn('.view[data-page="files"] .breadcrumbs button{padding:5px 8px;font-size:24px}', css)
-        self.assertIn('.view[data-page="files"] .explorer-tools button{padding:11px 15px;font-size:22px}', css)
+        self.assertIn('.view[data-page="files"] .explorer-tools button{padding:11px 15px;font-size:15px}', css)
         self.assertIn('.view[data-page="files"] .file-entry-name{font-size:22px', css)
         self.assertIn('.view[data-page="files"] .file-row small{font-size:20px', css)
         self.assertIn('.view[data-page="files"] .file-row button,.view[data-page="files"] .file-row a{padding:8px 10px;font-size:22px', css)
@@ -305,6 +318,7 @@ class StaticUiTests(unittest.TestCase):
         html = (root / "app/static/dashboard.html").read_text()
         css = (root / "app/static/app.css").read_text()
         self.assertIn('class="hero-copy"', html)
+        self.assertIn("당신의 서버가 살아남는 법.", html)
         self.assertIn(".hero-copy{align-self:flex-start}", css)
 
     def test_management_terminal_has_command_controls_and_help(self):
@@ -336,6 +350,20 @@ class StaticUiTests(unittest.TestCase):
         self.assertIn("if (logRefreshPending) return;", script)
         self.assertIn("if (action === 'start' || action === 'restart') startFastLogRefresh();", script)
         self.assertNotIn("setInterval(() => loadLogs().catch(() => {}), 5000);", script)
+
+    def test_first_start_prompts_for_admin_password(self):
+        root = Path(__file__).parents[1]
+        html = (root / "app/static/dashboard.html").read_text()
+        script = (root / "app/static/app.js").read_text()
+        css = (root / "app/static/app.css").read_text()
+        self.assertIn('id="admin-password-dialog"', html)
+        self.assertIn('id="initial-admin-password-confirm"', html)
+        self.assertIn("if (!status.config_ready) { showAdminPasswordDialog(); return; }", script)
+        self.assertIn("config.admin_password = password;", script)
+        self.assertIn("runServerAction('start');", script)
+        self.assertIn("@keyframes admin-password-shake", css)
+        self.assertIn(".admin-password-dialog::backdrop", css)
+        self.assertIn("backdrop-filter:blur(12px)", css)
 
     def test_all_dialogs_use_shared_blurred_backdrop(self):
         root = Path(__file__).parents[1]
