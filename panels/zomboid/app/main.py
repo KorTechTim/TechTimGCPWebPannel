@@ -15,7 +15,8 @@ from pydantic import BaseModel, Field, ValidationError, field_validator
 from starlette.background import BackgroundTask
 
 from .auth import Auth, SESSION_COOKIE, SESSION_SECONDS
-from .config import PANEL_VERSION, RestartSchedule, SandboxConfig, Settings, sandbox_schema
+from .config import (PANEL_VERSION, BackupSchedule, RestartSchedule, SandboxConfig,
+                     Settings, sandbox_schema)
 from .discord_webhook import normalize_webhook_url
 from .service import BusyError, PanelService
 from .storage import inside
@@ -117,7 +118,9 @@ def create_app(settings=None, docker_factory=None):
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Referrer-Policy"] = "same-origin"
         response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
-        if not request.url.path.startswith("/static/"):
+        if request.url.path in {"/static/app.js", "/static/app.css", "/static/login.js"}:
+            response.headers["Cache-Control"] = "no-cache, must-revalidate"
+        elif not request.url.path.startswith("/static/"):
             response.headers["Cache-Control"] = "no-store"
         return response
 
@@ -230,6 +233,14 @@ def create_app(settings=None, docker_factory=None):
     def save_schedule(payload: RestartSchedule, request: Request):
         auth.require(request); return service.save_schedule(payload.model_dump())
 
+    @app.get("/api/backups/settings")
+    def get_backup_schedule(request: Request):
+        auth.require(request); return service.backup_schedule().model_dump()
+
+    @app.post("/api/backups/settings")
+    def save_backup_schedule(payload: BackupSchedule, request: Request):
+        auth.require(request); return service.save_backup_schedule(payload.model_dump())
+
     @app.get("/api/discord")
     def get_discord_config(request: Request):
         auth.require(request)
@@ -280,6 +291,9 @@ def create_app(settings=None, docker_factory=None):
     @app.post("/api/server/{action}")
     def server_action(action: Literal["start", "stop", "restart"], request: Request, tasks: BackgroundTasks):
         names = {"start": "서버 시작", "stop": "서버 중지", "restart": "서버 재시작"}
+        if action == "start":
+            auth.require(request)
+            service.validate_start_requirements()
         return queued(request, tasks, names[action], getattr(service, action))
 
     @app.get("/api/logs")
@@ -313,7 +327,7 @@ def create_app(settings=None, docker_factory=None):
     def backup(request: Request):
         auth.require(request)
         with service.operation("수동 백업"):
-            result = service.create_backup()
+            result = service.create_backup(allow_running=True)
         return result
 
     @app.post("/api/backups/restore")

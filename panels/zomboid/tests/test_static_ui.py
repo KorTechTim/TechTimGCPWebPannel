@@ -121,6 +121,8 @@ class StaticUiTests(unittest.TestCase):
         self.assertIn("RESOURCE_REFRESH_MS = 1000", script)
         self.assertIn("RESOURCE_HISTORY_WINDOW_MS = 8 * 60 * 60 * 1000", script)
         self.assertIn("setInterval(() => refreshResources().catch(() => {}), RESOURCE_REFRESH_MS)", script)
+        self.assertNotIn("1초 갱신", html)
+        self.assertNotIn("1초 갱신", script)
         self.assertIn("RESOURCE_HISTORY_STORAGE_KEY", script)
         self.assertIn("const yAxisWidth = 30;", script)
         self.assertIn("for (const percent of [100, 50, 0])", script)
@@ -155,10 +157,23 @@ class StaticUiTests(unittest.TestCase):
         self.assertIn('data-persistent="true"', html)
         self.assertIn("서버 기동중에는 조작할 수 없습니다.", html)
         self.assertIn("설정을 원하실 경우 서버를 종료해주세요.", html)
-        self.assertIn("STOPPED_ONLY_VIEWS = new Set(['settings', 'sandbox', 'mods', 'players', 'backups', 'advanced', 'files'])", script)
+        self.assertIn("STOPPED_ONLY_VIEWS = new Set(['settings', 'sandbox', 'mods', 'players', 'advanced', 'files'])", script)
         self.assertIn("if (STOPPED_ONLY_VIEWS.has(name))", script)
         self.assertIn("if (serverIsRunning()) { showServerRunningLock(); return; }", script)
         self.assertIn(".server-running-lock-dialog{", css)
+
+    def test_backup_page_supports_three_schedules_and_retention(self):
+        root = Path(__file__).parents[1]
+        html = (root / "app/static/dashboard.html").read_text()
+        script = (root / "app/static/app.js").read_text()
+        css = (root / "app/static/app.css").read_text()
+        self.assertIn('id="backup-schedule-form"', html)
+        self.assertIn('name="time_3"', html)
+        self.assertIn('name="retention_count"', html)
+        self.assertIn('name="retention_days"', html)
+        self.assertIn("/api/backups/settings", script)
+        self.assertIn("create_backup", (root / "app/service.py").read_text())
+        self.assertIn(".backup-settings-footer{", css)
 
     def test_start_without_engine_shows_installation_dialog(self):
         root = Path(__file__).parents[1]
@@ -359,11 +374,20 @@ class StaticUiTests(unittest.TestCase):
         self.assertIn('id="admin-password-dialog"', html)
         self.assertIn('id="initial-admin-password-confirm"', html)
         self.assertIn("if (!status.config_ready) { showAdminPasswordDialog(); return; }", script)
+        self.assertIn("error.message.includes('최초 관리자 비밀번호')", script)
         self.assertIn("config.admin_password = password;", script)
         self.assertIn("runServerAction('start');", script)
         self.assertIn("@keyframes admin-password-shake", css)
         self.assertIn(".admin-password-dialog::backdrop", css)
         self.assertIn("backdrop-filter:blur(12px)", css)
+
+    def test_dashboard_busts_script_cache_and_revalidates_app_assets(self):
+        root = Path(__file__).parents[1]
+        html = (root / "app/static/dashboard.html").read_text()
+        main = (root / "app/main.py").read_text()
+        self.assertIn('/static/app.js?v=1.7.0', html)
+        self.assertIn('/static/app.css?v=1.7.0', html)
+        self.assertIn('"no-cache, must-revalidate"', main)
 
     def test_all_dialogs_use_shared_blurred_backdrop(self):
         root = Path(__file__).parents[1]

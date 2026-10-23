@@ -1,10 +1,14 @@
 import tempfile
 import unittest
-from pathlib import Path
+import os
 import sqlite3
+import time
+from datetime import datetime
+from pathlib import Path
+from unittest.mock import patch
 
 from app.config import Settings
-from app.service import PanelService
+from app.service import KST, PanelService
 
 
 class MissingContainers:
@@ -142,6 +146,92 @@ class ServiceTests(unittest.TestCase):
         status = self.service.status()
         self.assertEqual(status["server"], "missing")
         self.assertEqual(status["profile"], "servertest")
+
+    def test_backup_schedule_prunes_old_files_by_count(self):
+        for index in range(5):
+            path = self.service.backups / f"backup-{index}.zip"
+            path.write_bytes(b"backup")
+            timestamp = time.time() - (5 - index) * 60
+            os.utime(path, (timestamp, timestamp))
+
+        saved = self.service.save_backup_schedule({
+            "enabled": True,
+            "times": ["03:00", "15:00"],
+            "retention_count": 3,
+            "retention_days": 365,
+        })
+
+        self.assertEqual(saved["times"], ["03:00", "15:00"])
+        self.assertEqual(len(list(self.service.backups.glob("*.zip"))), 3)
+        self.assertEqual(self.service.config().backup_retention_count, 3)
+
+    def test_backup_schedule_prunes_expired_files_but_keeps_minimum(self):
+        now = time.time()
+        for index in range(4):
+            path = self.service.backups / f"dated-{index}.zip"
+            path.write_bytes(b"backup")
+            timestamp = now - (20 * 86400 if index == 0 else index * 60)
+            os.utime(path, (timestamp, timestamp))
+
+        self.service.save_backup_schedule({
+            "enabled": False,
+            "times": ["03:00"],
+            "retention_count": 20,
+            "retention_days": 7,
+        })
+
+        self.assertFalse((self.service.backups / "dated-0.zip").exists())
+        self.assertEqual(len(list(self.service.backups.glob("*.zip"))), 3)
+
+    def test_scheduler_runs_matching_backup_once(self):
+        now = datetime.now(KST)
+        self.service.save_backup_schedule({
+            "enabled": True,
+            "times": [now.strftime("%H:%M")],
+            "retention_count": 20,
+            "retention_days": 30,
+        })
+        calls = []
+        self.service.create_backup = lambda *args, **kwargs: calls.append((args, kwargs))
+
+        class OneCycleEvent:
+            calls = 0
+
+            def wait(self, _seconds):
+                self.calls += 1
+                return self.calls > 1
+
+        self.service.stop_event = OneCycleEvent()
+        self.service._scheduler_loop()
+
+        self.assertEqual(calls, [(('scheduled',), {'allow_running': True})])
+
+    @patch("app.service.time.sleep")
+    def test_online_backup_flushes_world_before_archive(self, _sleep):
+        commands = []
+        self.service.is_running = lambda: True
+        self.service.console_command = lambda command: commands.append(command)
+        (self.service.saves / "map.bin").write_bytes(b"world")
+
+        backup = self.service.create_backup(allow_running=True)
+
+        self.assertEqual(commands, ["save"])
+        self.assertTrue((self.service.backups / backup["name"]).is_file())
+        self.assertFalse(any(self.service.backups.glob("*.part")))
+
+    @patch("app.service.shutil.disk_usage")
+    def test_backup_stops_before_filling_disk(self, disk_usage):
+        disk_usage.return_value = type("Usage", (), {
+            "total": 1024**3,
+            "used": 924 * 1024**2,
+            "free": 100 * 1024**2,
+        })()
+        (self.service.saves / "map.bin").write_bytes(b"world")
+
+        with self.assertRaisesRegex(RuntimeError, "디스크 여유 공간"):
+            self.service.create_backup()
+
+        self.assertFalse(any(self.service.backups.glob("*.part")))
 
     def test_active_panel_update_status_does_not_pull_image_again(self):
         self.service._write_panel_update_status(

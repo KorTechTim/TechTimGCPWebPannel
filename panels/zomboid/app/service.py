@@ -13,8 +13,8 @@ import zipfile
 import docker
 from docker.errors import APIError, DockerException, NotFound
 
-from .config import (PANEL_VERSION, SERVER_PROFILE, STEAM_APP_ID, DiscordConfig,
-                     SandboxConfig, ServerConfig, RestartSchedule, Settings,
+from .config import (PANEL_VERSION, SERVER_PROFILE, STEAM_APP_ID, BackupSchedule,
+                     DiscordConfig, SandboxConfig, ServerConfig, RestartSchedule, Settings,
                      ini_values, migrate_sandbox_payload, sandbox_values)
 from .discord_webhook import (build_webhook_payload, execute_webhook,
                               masked_webhook_url, normalize_webhook_url)
@@ -41,6 +41,7 @@ DISCORD_OPERATION_EVENTS = {
     "서버 중지": ("server_stop", "Project Zomboid 서버 중지", "게임 서버가 정상적으로 중지되었습니다."),
     "서버 재시작": ("server_restart", "Project Zomboid 서버 재시작", "게임 서버가 정상적으로 재시작되었습니다."),
     "예약 재시작": ("server_restart", "예약 재시작 완료", "예약된 게임 서버 재시작을 완료했습니다."),
+    "예약 백업": ("backup", "예약 백업 완료", "예약된 세이브와 설정 파일 백업을 생성했습니다."),
     "수동 백업": ("backup", "서버 백업 완료", "세이브와 설정 파일 백업을 생성했습니다."),
     "백업 복원": ("backup", "서버 백업 복원 완료", "선택한 백업을 서버에 복원했습니다."),
 }
@@ -66,6 +67,7 @@ class PanelService:
         self.config_path = self.data / "config.json"
         self.sandbox_path = self.data / "sandbox.json"
         self.schedule_path = self.data / "restart-schedule.json"
+        self.backup_schedule_path = self.data / "backup-schedule.json"
         self.discord_path = self.data / "discord-config.json"
         self.operation_path = self.data / "operation.json"
         self.update_status_path = self.data / "panel-update-status.json"
@@ -84,6 +86,12 @@ class PanelService:
             write_json(self.sandbox_path, SandboxConfig().model_dump())
         if not self.schedule_path.exists():
             write_json(self.schedule_path, RestartSchedule().model_dump())
+        if not self.backup_schedule_path.exists():
+            config = self.config()
+            write_json(self.backup_schedule_path, BackupSchedule(
+                retention_count=config.backup_retention_count,
+                retention_days=config.backup_retention_days,
+            ).model_dump())
         if not self.discord_path.exists():
             write_json(self.discord_path, DiscordConfig().model_dump())
         self.render_game_files()
@@ -237,6 +245,9 @@ class PanelService:
     def schedule(self):
         return RestartSchedule.model_validate(read_json(self.schedule_path, {}))
 
+    def backup_schedule(self):
+        return BackupSchedule.model_validate(read_json(self.backup_schedule_path, {}))
+
     def discord_config(self):
         stored = read_json(self.discord_path, {})
         defaults = DiscordConfig().model_dump()
@@ -280,7 +291,7 @@ class PanelService:
     def save_config(self, payload):
         self.require_stopped()
         existing = self.config()
-        payload = dict(payload)
+        payload = {**existing.model_dump(), **dict(payload)}
         for key in ("password", "admin_password", "rcon_password"):
             self._merge_secret(existing, payload, key)
         config = ServerConfig.model_validate(payload)
@@ -298,6 +309,17 @@ class PanelService:
     def save_schedule(self, payload):
         schedule = RestartSchedule.model_validate(payload)
         write_json(self.schedule_path, schedule.model_dump())
+        return schedule.model_dump()
+
+    def save_backup_schedule(self, payload):
+        schedule = BackupSchedule.model_validate(payload)
+        write_json(self.backup_schedule_path, schedule.model_dump())
+        config = self.config().model_copy(update={
+            "backup_retention_count": schedule.retention_count,
+            "backup_retention_days": schedule.retention_days,
+        })
+        write_json(self.config_path, config.model_dump())
+        self._prune_backups()
         return schedule.model_dump()
 
     def discord_event_fields(self, extra_fields=None):
@@ -523,11 +545,7 @@ class PanelService:
         self.render_game_files()
 
     def start(self):
-        if not self.engine()["installed"]:
-            raise RuntimeError("먼저 엔진을 설치해주세요.")
-        config = self.config()
-        if not config.admin_password:
-            raise ValueError("최초 관리자 비밀번호를 먼저 저장해주세요.")
+        config = self.validate_start_requirements()
         if config.backup_before_start and self.saves.exists() and any(self.saves.iterdir()):
             self.create_backup("start")
         self.render_game_files()
@@ -553,6 +571,14 @@ class PanelService:
             )
         self._log("control", "서버 시작 요청 완료")
 
+    def validate_start_requirements(self):
+        if not self.engine()["installed"]:
+            raise RuntimeError("먼저 엔진을 설치해주세요.")
+        config = self.config()
+        if not config.admin_password:
+            raise ValueError("최초 관리자 비밀번호를 먼저 저장해주세요.")
+        return config
+
     def stop(self):
         with self.client() as client:
             try:
@@ -573,19 +599,30 @@ class PanelService:
                 "config_ready": bool(self.config().admin_password),
                 "profile": SERVER_PROFILE, "endpoint_port": self.config().default_port}
 
-    def create_backup(self, reason="manual"):
-        self.require_stopped()
-        timestamp = datetime.now(KST).strftime("%Y%m%d-%H%M%S")
-        target = self.backups / f"{SERVER_PROFILE}-{reason}-{timestamp}.zip"
+    def create_backup(self, reason="manual", allow_running=False):
+        running = self.is_running()
+        if running and not allow_running:
+            self.require_stopped()
+        if running:
+            self.console_command("save")
+            time.sleep(2)
         roots = [(self.server_config_dir, "Server"), (self.saves, f"Saves/Multiplayer/{SERVER_PROFILE}"),
                  (self.database, "db")]
-        with zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED, allowZip64=True) as archive:
-            for root, prefix in roots:
-                if not root.exists():
-                    continue
-                for source in root.rglob("*"):
-                    if source.is_file() and not source.is_symlink():
-                        archive.write(source, f"{prefix}/{source.relative_to(root).as_posix()}")
+        self._prepare_backup_space(roots)
+        timestamp = datetime.now(KST).strftime("%Y%m%d-%H%M%S")
+        target = self.backups / f"{SERVER_PROFILE}-{reason}-{timestamp}.zip"
+        temporary = target.with_suffix(".zip.part")
+        try:
+            with zipfile.ZipFile(temporary, "w", zipfile.ZIP_DEFLATED, allowZip64=True) as archive:
+                for root, prefix in roots:
+                    if not root.exists():
+                        continue
+                    for source in root.rglob("*"):
+                        if source.is_file() and not source.is_symlink():
+                            archive.write(source, f"{prefix}/{source.relative_to(root).as_posix()}")
+            temporary.replace(target)
+        finally:
+            temporary.unlink(missing_ok=True)
         self._prune_backups()
         return {"name": target.name, "size": target.stat().st_size,
                 "created": datetime.fromtimestamp(target.stat().st_mtime, KST).isoformat(timespec="seconds")}
@@ -611,12 +648,33 @@ class PanelService:
             archive.extractall(self.zomboid)
 
     def _prune_backups(self):
-        config = self.config()
+        schedule = self.backup_schedule()
         backups = sorted(self.backups.glob("*.zip"), key=lambda item: item.stat().st_mtime, reverse=True)
-        cutoff = time.time() - config.backup_retention_days * 86400
+        cutoff = time.time() - schedule.retention_days * 86400
         for index, path in enumerate(backups):
-            if index >= config.backup_retention_count or (index >= self.settings.storage_min_backups and path.stat().st_mtime < cutoff):
+            if index >= schedule.retention_count or (index >= self.settings.storage_min_backups and path.stat().st_mtime < cutoff):
                 path.unlink(missing_ok=True)
+
+    def _prepare_backup_space(self, roots):
+        self._prune_backups()
+        source_size = sum(
+            source.stat().st_size
+            for root, _prefix in roots if root.exists()
+            for source in root.rglob("*")
+            if source.is_file() and not source.is_symlink()
+        )
+        usage = shutil.disk_usage(self.data)
+        reserve = max(256 * 1024**2, usage.total // 100)
+        required = source_size + reserve
+        backups = sorted(self.backups.glob("*.zip"), key=lambda item: item.stat().st_mtime)
+        while usage.free < required and len(backups) > self.settings.storage_min_backups:
+            backups.pop(0).unlink(missing_ok=True)
+            usage = shutil.disk_usage(self.data)
+        if usage.free < required:
+            raise RuntimeError(
+                "안전한 백업 생성에 필요한 디스크 여유 공간이 부족합니다. "
+                f"최소 {(required + 1024**2 - 1) // 1024**2} MB를 확보해주세요."
+            )
 
     @staticmethod
     def _quote_identifier(value):
@@ -803,16 +861,27 @@ class PanelService:
         completed = set()
         while not self.stop_event.wait(20):
             now = datetime.now(KST)
-            marker = now.strftime("%Y-%m-%d %H:%M")
+            date = now.strftime("%Y-%m-%d")
+            current_time = now.strftime("%H:%M")
+            backup_marker = f"{date}|backup|{current_time}"
+            backup_schedule = self.backup_schedule()
+            if backup_schedule.enabled and current_time in backup_schedule.times and backup_marker not in completed:
+                completed.add(backup_marker)
+                try:
+                    with self.operation("예약 백업"):
+                        self.create_backup("scheduled", allow_running=True)
+                except Exception as error:
+                    self._log("control", f"예약 백업 실패: {error}")
+            marker = f"{date}|restart|{current_time}"
             schedule = self.schedule()
-            if schedule.enabled and now.strftime("%H:%M") in schedule.times and marker not in completed and self.is_running():
+            if schedule.enabled and current_time in schedule.times and marker not in completed and self.is_running():
                 completed.add(marker)
                 try:
                     with self.operation("예약 재시작"):
                         self.restart()
                 except (BusyError, Exception) as error:
                     self._log("control", f"예약 재시작 실패: {error}")
-            completed = {value for value in completed if value.startswith(now.strftime("%Y-%m-%d"))}
+            completed = {value for value in completed if value.startswith(date)}
 
     def _maintenance_loop(self):
         while not self.stop_event.wait(self.settings.storage_cleanup_interval):

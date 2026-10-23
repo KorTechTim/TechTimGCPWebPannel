@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>T2 Zomboid Server Pannel</title>
   <link rel="icon" href="/static/zomboid-panel-mark.png?v=1">
-  <link rel="stylesheet" href="/static/app.css?v=1.6.14">
-  <script src="/static/app.js?v=1.6.11" defer></script>
+  <link rel="stylesheet" href="/static/app.css?v=1.7.0">
+  <script src="/static/app.js?v=1.7.0" defer></script>
 </head>
 <body>
 <div class="app-shell">
@@ -82,7 +82,7 @@
         </section>
       </div>
       <section class="monitor-grid compact">
-        <article class="history-metric"><header><strong>CPU</strong><small>HOST · 8H</small></header><b id="cpu-value">-</b><div class="history-chart"><canvas id="cpu-history-chart" role="img" aria-label="최근 8시간 CPU 사용률"></canvas><div class="history-axis"><span>8시간 전</span><span>현재</span></div></div><span>1초 갱신 · VM 전체 사용률</span></article>
+        <article class="history-metric"><header><strong>CPU</strong><small>HOST · 8H</small></header><b id="cpu-value">-</b><div class="history-chart"><canvas id="cpu-history-chart" role="img" aria-label="최근 8시간 CPU 사용률"></canvas><div class="history-axis"><span>8시간 전</span><span>현재</span></div></div><span>VM 전체 사용률</span></article>
         <article class="history-metric"><header><strong>메모리</strong><small>WORKING SET · 8H</small></header><b id="memory-value">-</b><div class="history-chart"><canvas id="memory-history-chart" role="img" aria-label="최근 8시간 메모리 사용률"></canvas><div class="history-axis"><span>8시간 전</span><span>현재</span></div></div><span id="memory-detail">사용량 / 전체</span></article>
         <article><header><strong>호스트 디스크</strong><small>STORAGE</small></header><b id="disk-value">-</b><div class="meter"><i id="disk-meter"></i></div><span id="disk-detail">80%부터 자동 정리</span></article>
         <article><header><strong>네트워크</strong><small>THROUGHPUT</small></header><b id="network-value">-</b><div class="network-split"><span>↓ <i id="network-down">-</i></span><span>↑ <i id="network-up">-</i></span></div><span>초당 실시간 전송률</span></article>
@@ -114,7 +114,7 @@
       <form id="settings-form" class="form-sections">
         <fieldset><legend>서버 정보</legend><div class="form-grid"><label>공개 서버 이름<input name="server_name" required></label><label>공개 설명<input name="description"></label><label>게임 접속 비밀번호<input name="password" type="password" placeholder="변경할 때만 입력"></label><label>최초 관리자 비밀번호<input name="admin_password" type="password" placeholder="4자 이상"></label><label>최대 플레이어<input name="max_players" type="number" min="1" max="100"></label><label>서버 메모리<input name="memory_gb" type="number" min="2" max="64"><span>GB</span></label><label class="wide">환영 메시지<textarea name="welcome_message" rows="3"></textarea></label></div></fieldset>
         <fieldset><legend>네트워크 · 공개</legend><div class="form-grid"><label>게임 포트<input name="default_port" type="number"></label><label>추가 UDP 포트<input name="udp_port" type="number"></label><label>RCON 포트<input name="rcon_port" type="number"></label><label>RCON 비밀번호<input name="rcon_password" type="password" placeholder="변경할 때만 입력"></label><label>배포 채널<select name="branch"><option value="public">Build 42 공개 안정판</option><option value="legacy41">Build 41.78.21 (legacy41)</option></select></label></div><div class="toggle-grid"><label><input name="public" type="checkbox"> Steam 서버 목록 공개</label><label><input name="open" type="checkbox"> 신규 계정 접속 허용</label><label><input name="auto_whitelist" type="checkbox"> 화이트리스트 자동 등록</label><label><input name="steam_vac" type="checkbox"> Steam VAC</label><label><input name="pvp" type="checkbox"> PvP 허용</label><label><input name="pause_empty" type="checkbox"> 빈 서버 일시정지</label><label><input name="display_username" type="checkbox"> 사용자명 표시</label><label><input name="announce_death" type="checkbox"> 사망 알림</label></div></fieldset>
-        <fieldset><legend>운영 보호</legend><div class="toggle-grid"><label><input name="backup_before_start" type="checkbox"> 시작 전 자동 백업</label><label><input name="backup_before_update" type="checkbox"> 업데이트 전 자동 백업</label></div><div class="form-grid"><label>백업 보관 개수<input name="backup_retention_count" type="number" min="3" max="100"></label><label>백업 보관 일수<input name="backup_retention_days" type="number" min="1" max="365"></label></div></fieldset>
+        <fieldset><legend>운영 보호</legend><div class="toggle-grid"><label><input name="backup_before_start" type="checkbox"> 시작 전 자동 백업</label><label><input name="backup_before_update" type="checkbox"> 업데이트 전 자동 백업</label></div></fieldset>
       </form>
     </section>
 
@@ -135,6 +135,12 @@
 
     <section class="view" data-page="backups">
       <div class="page-head"><div><p class="eyebrow">WORLD ARCHIVE</p><h2>백업 · 복원</h2><p>세이브, 서버 설정, 계정 DB를 하나의 ZIP으로 보관합니다.</p></div><button class="primary" id="create-backup">지금 백업</button></div>
+      <form id="backup-schedule-form" class="form-sections backup-settings">
+        <fieldset><legend>자동 백업 예약</legend><div class="toggle-grid"><label><input name="enabled" type="checkbox"> 매일 예약 백업 사용</label></div><div class="form-grid backup-times"><label>첫 번째 시각<input name="time_1" type="time" value="03:00" required></label><label>두 번째 시각<input name="time_2" type="time"></label><label>세 번째 시각<input name="time_3" type="time"></label></div><p class="backup-field-help">한국 시간 기준으로 하루 최대 3번 실행됩니다. 실행 중인 서버는 저장 명령을 먼저 처리한 뒤 백업합니다.</p></fieldset>
+        <fieldset><legend>보관 정책</legend><div class="form-grid backup-retention"><label>최대 보관 개수<input name="retention_count" type="number" min="3" max="100" required><span>개</span></label><label>최대 보관 기간<input name="retention_days" type="number" min="1" max="365" required><span>일</span></label></div><p class="backup-field-help">개수 또는 기간을 넘긴 오래된 파일부터 자동 삭제합니다. 디스크 사용량이 임계치에 도달하면 최소 백업을 남기고 추가 정리합니다.</p></fieldset>
+        <div class="backup-settings-footer"><div id="backup-storage-summary" class="backup-storage-summary" aria-live="polite">백업 현황을 불러오는 중입니다.</div><button id="save-backup-settings" type="button">예약 · 보관 설정 저장</button></div>
+      </form>
+      <h3 class="backup-list-title">보관된 백업</h3>
       <div id="backup-list" class="record-list"></div>
     </section>
 

@@ -2,11 +2,24 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from app.config import (SandboxConfig, ServerConfig, Settings, WorkshopModPair, ini_values,
+from app.config import (BackupSchedule, SandboxConfig, ServerConfig, Settings, WorkshopModPair, ini_values,
                         migrate_sandbox_payload, sandbox_schema, sandbox_values)
 
 
 class ConfigTests(unittest.TestCase):
+    def test_backup_schedule_accepts_three_unique_times_and_valid_retention(self):
+        schedule = BackupSchedule(
+            enabled=True,
+            times=["18:30", "03:00", "18:30"],
+            retention_count=12,
+            retention_days=14,
+        )
+        self.assertEqual(schedule.times, ["03:00", "18:30"])
+        with self.assertRaises(ValueError):
+            BackupSchedule(times=["01:00", "02:00", "03:00", "04:00"])
+        with self.assertRaises(ValueError):
+            BackupSchedule(times=["24:00"])
+
     def test_default_ports_and_app_values(self):
         values = ini_values(ServerConfig())
         self.assertEqual(values["DefaultPort"], "16261")

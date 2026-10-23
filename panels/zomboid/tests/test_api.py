@@ -43,6 +43,16 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(status.status_code, 200)
         self.assertEqual(status.json()["profile"], "servertest")
 
+    def test_start_without_admin_password_is_rejected_before_queue(self):
+        service = self.client.app.state.service
+        service.engine = lambda: {"installed": True, "build_id": "test", "branch": "public"}
+
+        response = self.client.post("/api/server/start")
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("최초 관리자 비밀번호", response.json()["detail"])
+        self.assertFalse(service.busy)
+
     def test_config_and_sandbox_round_trip(self):
         config = self.client.get("/api/config").json()
         config["server_name"] = "Test Survivors"
@@ -56,6 +66,19 @@ class ApiTests(unittest.TestCase):
         schema = self.client.get("/api/sandbox/schema")
         self.assertEqual(schema.status_code, 200)
         self.assertGreaterEqual(len(schema.json()["fields"]), 260)
+
+    def test_backup_schedule_round_trip(self):
+        saved = self.client.post("/api/backups/settings", json={
+            "enabled": True,
+            "times": ["02:30", "14:30", "22:30"],
+            "retention_count": 15,
+            "retention_days": 21,
+        })
+        self.assertEqual(saved.status_code, 200)
+        loaded = self.client.get("/api/backups/settings")
+        self.assertEqual(loaded.status_code, 200)
+        self.assertEqual(loaded.json(), saved.json())
+        self.assertEqual(loaded.json()["times"], ["02:30", "14:30", "22:30"])
 
     @patch("app.main.lookup_workshop_item")
     def test_workshop_lookup_accepts_url_and_returns_mod_pair(self, mocked_lookup):

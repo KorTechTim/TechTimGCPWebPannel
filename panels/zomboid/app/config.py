@@ -215,6 +215,21 @@ class RestartSchedule(BaseModel):
         return sorted(set(values))
 
 
+class BackupSchedule(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    enabled: bool = False
+    times: list[str] = Field(default_factory=lambda: ["03:00"], min_length=1, max_length=3)
+    retention_count: int = Field(default=20, ge=3, le=100)
+    retention_days: int = Field(default=30, ge=1, le=365)
+
+    @field_validator("times")
+    @classmethod
+    def valid_times(cls, values):
+        if any(not re.fullmatch(r"(?:[01]\d|2[0-3]):[0-5]\d", value) for value in values):
+            raise ValueError("백업 시각은 HH:MM 형식으로 입력해주세요.")
+        return sorted(set(values))
+
+
 class DiscordConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
     enabled: bool = False

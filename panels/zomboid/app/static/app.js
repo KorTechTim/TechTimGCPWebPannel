@@ -19,7 +19,7 @@ const LOG_REFRESH_IDLE_MS = 5000;
 const LOG_REFRESH_START_WINDOW_MS = 2 * 60 * 1000;
 const RESOURCE_HISTORY_WINDOW_MS = 8 * 60 * 60 * 1000;
 const RESOURCE_HISTORY_STORAGE_KEY = 'techtim-zomboid-resource-history-v1';
-const STOPPED_ONLY_VIEWS = new Set(['settings', 'sandbox', 'mods', 'players', 'backups', 'advanced', 'files']);
+const STOPPED_ONLY_VIEWS = new Set(['settings', 'sandbox', 'mods', 'players', 'advanced', 'files']);
 let resourceRefreshPending = false;
 let resourceHistorySavedAt = 0;
 let logRefreshPending = false;
@@ -139,6 +139,8 @@ async function refreshStatus() {
     button.disabled = status.busy || (action === 'start' && status.server === 'running') || (action !== 'start' && status.server !== 'running');
   });
   $('#install-engine').disabled = status.busy || status.server === 'running';
+  $('#create-backup').disabled = status.busy;
+  $$('#backup-list button[data-restore]').forEach(button => { button.disabled = status.busy || serverIsRunning(status); button.title = serverIsRunning(status) ? '복원하려면 서버를 먼저 중지해주세요.' : ''; });
   const terminalReady = status.server === 'running' && !status.busy;
   $('#terminal-command').disabled = !terminalReady;
   $('#terminal-command-submit').disabled = !terminalReady;
@@ -229,7 +231,7 @@ async function refreshResources() {
     $('#cpu-value').textContent = cpu == null ? '수집 중' : `${cpu.toFixed(1)}%`;
     $('#memory-value').textContent = mem == null ? '-' : `${mem.toFixed(1)}%`;
     $('#disk-value').textContent = `${disk.toFixed(1)}%`;
-    $('#memory-detail').textContent = `${bytes(data.memory.used)} / ${bytes(data.memory.total)} · 1초 갱신`;
+    $('#memory-detail').textContent = `${bytes(data.memory.used)} / ${bytes(data.memory.total)}`;
     $('#disk-detail').textContent = `${bytes(data.disk.used)} / ${bytes(data.disk.total)}`;
     setMeter('#disk-meter', disk);
     appendResourceHistory(cpu, mem);
@@ -268,7 +270,7 @@ async function loadLogs() {
       if ($('#auto-scroll')?.checked) target.scrollTop = target.scrollHeight;
     }
     $('#log-pulse').textContent = logsNeedFastRefresh()
-      ? '● 서버 시작 로그 · 1초 갱신'
+      ? '● 서버 시작 로그'
       : statusCache?.server === 'running' ? '● 서버 로그 연결됨' : '● 저장된 로그 표시 중';
   } finally { logRefreshPending = false; }
 }
@@ -339,9 +341,17 @@ $('#terminal-command-form').addEventListener('submit', async event => {
 });
 
 $('#install-engine').addEventListener('click', () => perform(() => api('/api/install', {method:'POST'}), '엔진 설치·업데이트를 시작했습니다.'));
-function runServerAction(action) {
+async function runServerAction(action) {
   if (action === 'start' || action === 'restart') startFastLogRefresh();
-  return perform(() => api(`/api/server/${action}`, {method:'POST'}), '서버 작업을 시작했습니다.').catch(() => {});
+  try {
+    return await perform(() => api(`/api/server/${action}`, {method:'POST'}), '서버 작업을 시작했습니다.');
+  } catch (error) {
+    if (action === 'start' && error.message.includes('최초 관리자 비밀번호')) {
+      message('');
+      showAdminPasswordDialog();
+    }
+    return null;
+  }
 }
 function shakeAdminPasswordDialog() {
   const dialog = $('#admin-password-dialog');
@@ -638,18 +648,36 @@ $('#save-schedule').addEventListener('click', () => perform(() => {
 }, '예약 재시작 설정을 저장했습니다.'));
 
 async function loadBackups() {
-  const data = await api('/api/backups'); const list = $('#backup-list'); list.replaceChildren();
+  const [data, schedule] = await Promise.all([api('/api/backups'), api('/api/backups/settings')]);
+  const form = $('#backup-schedule-form'); form.elements.enabled.checked = schedule.enabled;
+  for (let index = 1; index <= 3; index++) form.elements[`time_${index}`].value = schedule.times[index - 1] || '';
+  form.elements.retention_count.value = schedule.retention_count;
+  form.elements.retention_days.value = schedule.retention_days;
+  const totalSize = data.backups.reduce((sum, backup) => sum + Number(backup.size || 0), 0);
+  $('#backup-storage-summary').textContent = `${data.backups.length}개 보관 중 · ${bytes(totalSize)} 사용 · 최대 ${schedule.retention_count}개 / ${schedule.retention_days}일`;
+  const list = $('#backup-list'); list.replaceChildren();
   if (!data.backups.length) { list.textContent = '아직 생성된 백업이 없습니다.'; return; }
   for (const backup of data.backups) {
     const row = document.createElement('article'); row.className = 'record';
     const info = document.createElement('div'); const title = document.createElement('strong'); title.textContent = backup.name; const meta = document.createElement('small'); meta.textContent = `${backup.created} · ${bytes(backup.size)}`; info.append(title, meta);
     const actions = document.createElement('div'); actions.className = 'record-actions';
     const download = document.createElement('a'); download.href = `/api/backups/download?name=${encodeURIComponent(backup.name)}`; download.textContent = '다운로드';
-    const restore = document.createElement('button'); restore.textContent = '복원'; restore.addEventListener('click', () => perform(() => api('/api/backups/restore', json('POST', {name: backup.name})), '백업을 복원했습니다.').then(loadBackups));
+    const restore = document.createElement('button'); restore.textContent = '복원'; restore.dataset.restore = 'true'; restore.disabled = serverIsRunning(); restore.title = restore.disabled ? '복원하려면 서버를 먼저 중지해주세요.' : ''; restore.addEventListener('click', () => perform(() => api('/api/backups/restore', json('POST', {name: backup.name})), '백업을 복원했습니다.').then(loadBackups));
     actions.append(download, restore); row.append(info, actions); list.append(row);
   }
 }
 $('#create-backup').addEventListener('click', () => perform(() => api('/api/backups', {method:'POST'}), '백업을 생성했습니다.').then(loadBackups));
+$('#save-backup-settings').addEventListener('click', () => perform(() => {
+  const form = $('#backup-schedule-form');
+  const times = [1,2,3].map(index => form.elements[`time_${index}`].value).filter(Boolean);
+  if (!times.length) throw new Error('백업 시각을 하나 이상 입력해주세요.');
+  return api('/api/backups/settings', json('POST', {
+    enabled: form.elements.enabled.checked,
+    times,
+    retention_count: Number(form.elements.retention_count.value),
+    retention_days: Number(form.elements.retention_days.value),
+  }));
+}, '백업 예약과 보관 정책을 저장했습니다.').then(loadBackups));
 
 async function loadTextFile() { const data = await api(`/api/text-file/${$('#text-file-kind').value}`); $('#text-file-editor').value = data.content; }
 $('#text-file-kind').addEventListener('change', () => loadTextFile().catch(error => message(error.message, true)));
