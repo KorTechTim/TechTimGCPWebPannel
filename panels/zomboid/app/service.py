@@ -156,16 +156,41 @@ class PanelService:
         with (self.logs_dir / f"{kind}.log").open("a", encoding="utf-8") as handle:
             handle.write(f"[{timestamp}] {message.rstrip()}\n")
 
+    @staticmethod
+    def _log_line_timestamp(line):
+        docker_timestamp = re.match(r"^(\d{4}-\d{2}-\d{2}T\S+)", line)
+        if docker_timestamp:
+            try:
+                return datetime.fromisoformat(docker_timestamp.group(1).replace("Z", "+00:00")).timestamp()
+            except ValueError:
+                pass
+        panel_timestamp = re.match(r"^\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\]", line)
+        if panel_timestamp:
+            try:
+                return datetime.strptime(panel_timestamp.group(1), "%Y-%m-%d %H:%M:%S").replace(tzinfo=KST).timestamp()
+            except ValueError:
+                pass
+        return None
+
     def logs(self, kind="server", tail=600):
         if kind == "all":
-            sections = []
-            for log_kind, title in (
-                ("server", "서버 로그"),
-                ("install", "설치 로그"),
-                ("control", "작업 기록"),
-            ):
-                sections.append(f"===== {title} =====\n{self.logs(log_kind, tail=tail).rstrip()}")
-            return "\n\n".join(sections).rstrip() + "\n"
+            records = []
+            sequence = 0
+            for log_kind, label in (("server", "서버"), ("install", "설치"), ("control", "작업")):
+                previous_timestamp = None
+                for line in self.logs(log_kind, tail=tail).splitlines():
+                    if not line or line == "아직 기록된 로그가 없습니다.":
+                        continue
+                    timestamp = self._log_line_timestamp(line)
+                    if timestamp is not None:
+                        previous_timestamp = timestamp
+                    records.append((previous_timestamp if previous_timestamp is not None else float("-inf"), sequence,
+                                    f"[{label}] {line}"))
+                    sequence += 1
+            if not records:
+                return "아직 기록된 로그가 없습니다."
+            records.sort(key=lambda record: (record[0], record[1]))
+            return "\n".join(record[2] for record in records) + "\n"
         if kind == "server":
             try:
                 with self.client() as client:

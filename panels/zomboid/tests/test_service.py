@@ -326,14 +326,25 @@ class ServiceTests(unittest.TestCase):
         self.service._log("install", "install ready")
         self.service._log("control", "control ready")
         combined = self.service.logs("all")
-        self.assertIn("===== 서버 로그 =====", combined)
-        self.assertIn("===== 설치 로그 =====", combined)
-        self.assertIn("===== 작업 기록 =====", combined)
+        self.assertIn("[서버] ", combined)
+        self.assertIn("[설치] ", combined)
+        self.assertIn("[작업] ", combined)
         self.assertEqual(combined.count("server ready"), 1)
         self.assertEqual(combined.count("install ready"), 1)
         self.assertEqual(combined.count("control ready"), 1)
-        self.assertLess(combined.index("===== 서버 로그 ====="), combined.index("===== 설치 로그 ====="))
-        self.assertLess(combined.index("===== 설치 로그 ====="), combined.index("===== 작업 기록 ====="))
+
+    def test_all_logs_merges_live_server_output_by_timestamp(self):
+        self.service.docker_factory = lambda: LogClient()
+        (self.service.logs_dir / "install.log").write_text(
+            "[2026-10-05 16:59:00] install ready\n", encoding="utf-8"
+        )
+        (self.service.logs_dir / "control.log").write_text(
+            "[2026-10-05 17:01:00] control ready\n", encoding="utf-8"
+        )
+        combined = self.service.logs("all")
+        self.assertIn("[서버] 2026-10-05T08:00:00Z live server output", combined)
+        self.assertLess(combined.index("install ready"), combined.index("live server output"))
+        self.assertLess(combined.index("live server output"), combined.index("control ready"))
 
     def test_all_logs_applies_tail_to_every_category(self):
         for kind in ("server", "install", "control"):

@@ -111,7 +111,7 @@ class StaticUiTests(unittest.TestCase):
         self.assertNotIn('class="operation"', html)
         self.assertNotIn("operation-name", script)
 
-    def test_cpu_and_memory_show_eight_hour_history(self):
+    def test_cpu_and_memory_show_ten_minute_history(self):
         root = Path(__file__).parents[1]
         html = (root / "app/static/dashboard.html").read_text()
         script = (root / "app/static/app.js").read_text()
@@ -119,7 +119,11 @@ class StaticUiTests(unittest.TestCase):
         self.assertIn('id="cpu-history-chart"', html)
         self.assertIn('id="memory-history-chart"', html)
         self.assertIn("RESOURCE_REFRESH_MS = 1000", script)
-        self.assertIn("RESOURCE_HISTORY_WINDOW_MS = 8 * 60 * 60 * 1000", script)
+        self.assertIn("RESOURCE_HISTORY_WINDOW_MS = 10 * 60 * 1000", script)
+        self.assertEqual(html.count("10분 전"), 2)
+        self.assertIn('aria-label="최근 10분 CPU 사용률"', html)
+        self.assertIn('aria-label="최근 10분 메모리 사용률"', html)
+        self.assertNotIn("8시간 전", html)
         self.assertIn("setInterval(() => refreshResources().catch(() => {}), RESOURCE_REFRESH_MS)", script)
         self.assertNotIn("1초 갱신", html)
         self.assertNotIn("1초 갱신", script)
