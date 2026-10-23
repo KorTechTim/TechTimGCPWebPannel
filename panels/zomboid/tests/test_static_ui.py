@@ -346,6 +346,8 @@ class StaticUiTests(unittest.TestCase):
         self.assertIn('id="command-help-dialog"', html)
         self.assertIn('id="export-support-log"', html)
         self.assertIn('href="/api/logs/export"', html)
+        self.assertIn('href="https://pzwiki.net/wiki/Admin_commands"', html)
+        self.assertNotIn('href="https://pzwiki.net/wiki/Server_commands"', html)
         self.assertIn("/api/console/command", script)
         self.assertIn(".command-help-grid dd{font-size:12px", css)
         self.assertNotIn("<span>실시간 로그</span>", html)

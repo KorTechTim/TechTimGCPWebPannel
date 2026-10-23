@@ -158,7 +158,14 @@ class PanelService:
 
     def logs(self, kind="server", tail=600):
         if kind == "all":
-            return f"===== 설치 로그 =====\n{self.logs('install', tail=tail).rstrip()}\n"
+            sections = []
+            for log_kind, title in (
+                ("server", "서버 로그"),
+                ("install", "설치 로그"),
+                ("control", "작업 기록"),
+            ):
+                sections.append(f"===== {title} =====\n{self.logs(log_kind, tail=tail).rstrip()}")
+            return "\n\n".join(sections).rstrip() + "\n"
         if kind == "server":
             try:
                 with self.client() as client:

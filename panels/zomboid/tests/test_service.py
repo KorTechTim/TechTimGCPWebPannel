@@ -321,15 +321,31 @@ class ServiceTests(unittest.TestCase):
         self.assertIn("[REDACTED]", report)
         self.assertNotIn("support-secret", report)
 
-    def test_all_logs_only_contains_install_history(self):
+    def test_all_logs_combines_each_log_category_once(self):
+        self.service._log("server", "server ready")
         self.service._log("install", "install ready")
         self.service._log("control", "control ready")
         combined = self.service.logs("all")
+        self.assertIn("===== 서버 로그 =====", combined)
         self.assertIn("===== 설치 로그 =====", combined)
-        self.assertIn("install ready", combined)
-        self.assertNotIn("===== 작업 기록 =====", combined)
-        self.assertNotIn("control ready", combined)
-        self.assertNotIn("===== 서버 로그 =====", combined)
+        self.assertIn("===== 작업 기록 =====", combined)
+        self.assertEqual(combined.count("server ready"), 1)
+        self.assertEqual(combined.count("install ready"), 1)
+        self.assertEqual(combined.count("control ready"), 1)
+        self.assertLess(combined.index("===== 서버 로그 ====="), combined.index("===== 설치 로그 ====="))
+        self.assertLess(combined.index("===== 설치 로그 ====="), combined.index("===== 작업 기록 ====="))
+
+    def test_all_logs_applies_tail_to_every_category(self):
+        for kind in ("server", "install", "control"):
+            self.service._log(kind, f"{kind} old")
+            self.service._log(kind, f"{kind} recent")
+        combined = self.service.logs("all", tail=1)
+        self.assertNotIn("server old", combined)
+        self.assertNotIn("install old", combined)
+        self.assertNotIn("control old", combined)
+        self.assertIn("server recent", combined)
+        self.assertIn("install recent", combined)
+        self.assertIn("control recent", combined)
 
     def test_completed_server_operation_maps_to_discord_event(self):
         events = []
