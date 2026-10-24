@@ -101,7 +101,7 @@ class InstallContainers:
 
 class LogContainer:
     def logs(self, **_kwargs):
-        return b"2026-10-05T08:00:00Z live server output\n"
+        return b"2026-10-05T08:00:00Z \x1b[0mlive server output\n"
 
 
 class LogClient:
@@ -344,6 +344,20 @@ class ServiceTests(unittest.TestCase):
         self.assertEqual(options["environment"], {"PZ_COMMAND": 'servermsg "Welcome survivors"'})
         with self.assertRaisesRegex(ValueError, "서버 제어 메뉴"):
             service.console_command("quit")
+
+    def test_logs_remove_ansi_escape_codes_and_visible_fragments(self):
+        self.service._log("install", "\x1b[0mOK")
+        self.service._log("control", "[0mcontrol ready")
+
+        self.assertIn(" OK", self.service.logs("install"))
+        self.assertIn(" control ready", self.service.logs("control"))
+        self.assertNotIn("[0m", (self.service.logs_dir / "control.log").read_text())
+        self.assertNotIn("[0m", self.service.logs("all"))
+
+        service = PanelService(self.service.settings, lambda: LogClient())
+        server_log = service.logs("server")
+        self.assertIn("live server output", server_log)
+        self.assertNotIn("[0m", server_log)
 
     def test_start_uses_compatible_container_options(self):
         containers = StartContainers()

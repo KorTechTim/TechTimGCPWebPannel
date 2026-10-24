@@ -6,7 +6,7 @@ let statusCache = null;
 let configCache = null;
 let sandboxSchemaCache = null;
 let discordWebhookConfigured = false;
-let activeSandboxCategory = 'population';
+let activeSandboxCategory = 'all';
 let currentLog = 'all';
 let currentPath = '';
 let editingFilePath = '';
@@ -18,10 +18,12 @@ const LOG_REFRESH_ACTIVE_MS = 1000;
 const LOG_REFRESH_IDLE_MS = 5000;
 const LOG_REFRESH_START_WINDOW_MS = 2 * 60 * 1000;
 const RESOURCE_HISTORY_WINDOW_MS = 10 * 60 * 1000;
+const RESOURCE_CHART_FRAME_MS = 50;
 const RESOURCE_HISTORY_STORAGE_KEY = 'techtim-zomboid-resource-history-v1';
 const STOPPED_ONLY_VIEWS = new Set(['settings', 'sandbox', 'mods', 'players', 'advanced', 'files']);
 let resourceRefreshPending = false;
 let resourceHistorySavedAt = 0;
+let resourceChartFrameAt = 0;
 let logRefreshPending = false;
 let logRefreshTimer = null;
 let fastLogRefreshUntil = 0;
@@ -183,19 +185,21 @@ function appendResourceHistory(cpu, memory) {
   if (cpuValue == null && memoryValue == null) return;
   resourceHistory.push([now, cpuValue, memoryValue]);
   const cutoff = now - RESOURCE_HISTORY_WINDOW_MS;
-  while (resourceHistory.length && resourceHistory[0][0] < cutoff) resourceHistory.shift();
+  while (resourceHistory.length > 1 && resourceHistory[1][0] < cutoff) resourceHistory.shift();
   saveResourceHistory();
 }
 
-function drawResourceHistory(canvasId, valueIndex, color) {
+function drawResourceHistory(canvasId, valueIndex, color, now = Date.now()) {
   const canvas = $(canvasId);
   const rect = canvas.getBoundingClientRect();
   if (!rect.width) return;
   const width = Math.max(1, Math.floor(rect.width));
-  const height = 68;
+  const height = Math.max(1, Math.floor(rect.height || 68));
   const ratio = Math.min(window.devicePixelRatio || 1, 2);
-  canvas.width = Math.floor(width * ratio); canvas.height = Math.floor(height * ratio);
-  const context = canvas.getContext('2d'); context.scale(ratio, ratio);
+  const pixelWidth = Math.floor(width * ratio), pixelHeight = Math.floor(height * ratio);
+  if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) { canvas.width = pixelWidth; canvas.height = pixelHeight; }
+  const context = canvas.getContext('2d');
+  context.setTransform(ratio, 0, 0, ratio, 0, 0); context.clearRect(0, 0, width, height);
   const yAxisWidth = 30;
   const top = 7, bottom = height - 7, chartHeight = bottom - top;
   const plotWidth = Math.max(1, width - yAxisWidth - 1);
@@ -213,16 +217,17 @@ function drawResourceHistory(canvasId, valueIndex, color) {
     const y = bottom - chartHeight * percent / 100;
     context.fillText(`${percent}%`, 0, y);
   }
-  const now = Date.now(), start = now - RESOURCE_HISTORY_WINDOW_MS;
-  const samples = resourceHistory.filter(point => point[0] >= start && point[valueIndex] != null);
+  const start = now - RESOURCE_HISTORY_WINDOW_MS;
+  const validSamples = resourceHistory.filter(point => point[valueIndex] != null);
+  let firstVisible = validSamples.findIndex(point => point[0] >= start);
+  if (firstVisible < 0) firstVisible = Math.max(0, validSamples.length - 1);
+  else if (firstVisible > 0) firstVisible--;
+  const samples = validSamples.slice(firstVisible);
   if (!samples.length) return;
-  const step = Math.max(1, Math.ceil(samples.length / width));
-  const points = [];
-  for (let index = 0; index < samples.length; index += step) {
-    const bucket = samples.slice(index, index + step);
-    const sample = bucket[bucket.length - 1];
-    points.push([yAxisWidth + Math.min(plotWidth, Math.max(0, (sample[0] - start) / RESOURCE_HISTORY_WINDOW_MS * plotWidth)), bottom - sample[valueIndex] / 100 * chartHeight]);
-  }
+  const points = samples.map(sample => [
+    yAxisWidth + Math.min(plotWidth, Math.max(0, (sample[0] - start) / RESOURCE_HISTORY_WINDOW_MS * plotWidth)),
+    bottom - sample[valueIndex] / 100 * chartHeight,
+  ]);
   context.beginPath(); context.moveTo(points[0][0], bottom);
   for (const point of points) context.lineTo(point[0], point[1]);
   context.lineTo(points[points.length - 1][0], bottom); context.closePath();
@@ -234,9 +239,17 @@ function drawResourceHistory(canvasId, valueIndex, color) {
   const latest = points[points.length - 1]; context.beginPath(); context.arc(latest[0], latest[1], 2.4, 0, Math.PI * 2); context.fillStyle = color; context.fill();
 }
 
-function renderResourceHistory() {
-  drawResourceHistory('#cpu-history-chart', 1, '#56c9b4');
-  drawResourceHistory('#memory-history-chart', 2, '#d2a24e');
+function renderResourceHistory(now = Date.now()) {
+  drawResourceHistory('#cpu-history-chart', 1, '#56c9b4', now);
+  drawResourceHistory('#memory-history-chart', 2, '#d2a24e', now);
+}
+
+function animateResourceHistory(frameAt) {
+  if (!resourceChartFrameAt || frameAt - resourceChartFrameAt >= RESOURCE_CHART_FRAME_MS) {
+    resourceChartFrameAt = frameAt;
+    renderResourceHistory();
+  }
+  requestAnimationFrame(animateResourceHistory);
 }
 
 async function refreshResources() {
@@ -1042,5 +1055,6 @@ checkPanelUpdate().catch(() => {});
 setInterval(() => refreshStatus().catch(() => {}), 3000);
 setInterval(() => refreshResources().catch(() => {}), RESOURCE_REFRESH_MS);
 setInterval(() => checkPanelUpdate().catch(() => {}), 300000);
-window.addEventListener('resize', renderResourceHistory);
+window.addEventListener('resize', () => renderResourceHistory());
 window.addEventListener('pagehide', () => saveResourceHistory(true));
+requestAnimationFrame(animateResourceHistory);

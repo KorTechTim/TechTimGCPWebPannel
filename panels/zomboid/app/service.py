@@ -48,6 +48,7 @@ DISCORD_OPERATION_EVENTS = {
 }
 INSTALL_MAX_RETRIES = 3
 INSTALL_RETRY_DELAY_SECONDS = 5
+ANSI_ESCAPE_PATTERN = re.compile(r"(?:\x1b\[|\x9b|\[)[0-?]*[ -/]*[@-~]")
 
 
 class BusyError(RuntimeError):
@@ -156,8 +157,15 @@ class PanelService:
     def _log(self, kind, message):
         self.logs_dir.mkdir(parents=True, exist_ok=True)
         timestamp = datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S")
+        message = self._sanitize_log_text(message).rstrip()
+        if not message:
+            return
         with (self.logs_dir / f"{kind}.log").open("a", encoding="utf-8") as handle:
-            handle.write(f"[{timestamp}] {message.rstrip()}\n")
+            handle.write(f"[{timestamp}] {message}\n")
+
+    @staticmethod
+    def _sanitize_log_text(value):
+        return ANSI_ESCAPE_PATTERN.sub("", str(value or ""))
 
     @staticmethod
     def _log_line_timestamp(line):
@@ -198,13 +206,15 @@ class PanelService:
             try:
                 with self.client() as client:
                     container = client.containers.get(self.settings.server_container)
-                    return container.logs(tail=tail, timestamps=True).decode(errors="replace")
+                    output = container.logs(tail=tail, timestamps=True).decode(errors="replace")
+                    return self._sanitize_log_text(output)
             except (NotFound, DockerException):
                 pass
         path = self.logs_dir / f"{kind}.log"
         if not path.exists():
             return "아직 기록된 로그가 없습니다."
-        return "".join(path.read_text(encoding="utf-8", errors="replace").splitlines(True)[-tail:])
+        output = "".join(path.read_text(encoding="utf-8", errors="replace").splitlines(True)[-tail:])
+        return self._sanitize_log_text(output)
 
     def _redact_support_text(self, value):
         text = str(value or "")
