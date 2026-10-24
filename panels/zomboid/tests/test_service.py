@@ -126,6 +126,8 @@ class ServiceTests(unittest.TestCase):
         self.assertIn("AntiCheatSpeed=2", ini_content)
         self.assertIn("BackupsCount=5", ini_content)
         self.assertGreater(len(ini_content.splitlines()), 100)
+        self.assertIn("# [한국어] 플레이어 간 공격과 처치를 허용합니다.\nPVP=true", ini_content)
+        self.assertIn("# [한국어] 서버를 공개 서버 목록에 표시합니다.\nPublic=false", ini_content)
         content = sandbox.read_text()
         self.assertIn("VERSION = 6", content)
         self.assertIn("ZombieConfig = {", content)
@@ -150,7 +152,34 @@ class ServiceTests(unittest.TestCase):
         self.assertIn("BackupsCount=27", content)
         self.assertIn("CustomModOption=keep-me", content)
         self.assertIn("AntiCheatSpeed=2", content)
+        self.assertIn("# [한국어] 비정상 이동 속도 관련 안티치트 수준을 지정합니다.", content)
         self.assertGreater(len(content.splitlines()), 100)
+        backup = ini.with_name(f"{ini.name}.pre-korean-comments.bak")
+        self.assertIn("PublicName=My Existing Server", backup.read_text(encoding="utf-8"))
+
+    def test_korean_server_ini_comments_are_idempotent_and_preserve_existing_comments(self):
+        ini = self.service.server_config_dir / "servertest.ini"
+        ini.write_text(
+            "# Custom operator note\n"
+            "# Players can hurt and kill other players\n"
+            "PVP=false\n"
+            "BackupsCount=27\n"
+            "CustomModOption=keep-me\n",
+            encoding="utf-8",
+        )
+
+        self.service.render_game_files()
+        first = ini.read_text(encoding="utf-8")
+        self.service.render_game_files()
+        second = ini.read_text(encoding="utf-8")
+
+        self.assertEqual(first, second)
+        self.assertIn("# Custom operator note", second)
+        self.assertIn("# Players can hurt and kill other players", second)
+        self.assertEqual(second.count("# [한국어] 플레이어 간 공격과 처치를 허용합니다."), 1)
+        self.assertIn("PVP=true", second)
+        self.assertIn("BackupsCount=27", second)
+        self.assertIn("CustomModOption=keep-me", second)
 
     def test_legacy_dotted_sandbox_values_are_backed_up_and_migrated(self):
         sandbox = self.service.server_config_dir / "servertest_SandboxVars.lua"
@@ -332,6 +361,65 @@ class ServiceTests(unittest.TestCase):
         self.service.update_player("survivor", "access_level", "moderator")
         self.assertEqual(self.service.player_accounts()["accounts"][0]["access_level"], "moderator")
         self.assertTrue(any(self.service.backups.glob("*database-safety*.zip")))
+
+    def test_player_account_management_supports_reset_ban_steam_unlink_and_delete(self):
+        database = self.service.database / "servertest.db"
+        connection = sqlite3.connect(database)
+        connection.execute(
+            "CREATE TABLE whitelist ("
+            "username TEXT PRIMARY KEY, password TEXT, steamid TEXT, ownerid TEXT, "
+            "displayName TEXT, lastConnection TEXT, accesslevel TEXT, banned INTEGER)"
+        )
+        connection.execute(
+            "INSERT INTO whitelist VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            ("survivor", "hashed-password", "76561198000000000", "76561198000000001",
+             "Survivor One", "2026-10-24", "none", 0),
+        )
+        connection.commit(); connection.close()
+
+        accounts = self.service.player_accounts()
+        self.assertEqual(accounts["accounts"][0]["display_name"], "Survivor One")
+        self.assertTrue(accounts["accounts"][0]["whitelisted"])
+        self.assertTrue(accounts["capabilities"]["password_reset"])
+        self.assertTrue(accounts["capabilities"]["steam_reset"])
+        self.assertTrue(accounts["capabilities"]["account_delete"])
+
+        self.service.manage_player("survivor", "reset_password")
+        with sqlite3.connect(database) as connection:
+            self.assertIsNone(connection.execute(
+                "SELECT password FROM whitelist WHERE username='survivor'"
+            ).fetchone()[0])
+
+        self.service.manage_player("survivor", "reset_steam")
+        with sqlite3.connect(database) as connection:
+            steam_id, owner_id = connection.execute(
+                "SELECT steamid, ownerid FROM whitelist WHERE username='survivor'"
+            ).fetchone()
+            self.assertIsNone(steam_id)
+            self.assertIsNone(owner_id)
+
+        self.service.update_player("survivor", "banned", True)
+        self.assertTrue(self.service.player_accounts()["accounts"][0]["banned"])
+        self.service.manage_player("survivor", "delete")
+        self.assertEqual(self.service.player_accounts()["accounts"], [])
+
+    def test_player_account_management_protects_admin_and_staff_from_destructive_actions(self):
+        database = self.service.database / "servertest.db"
+        connection = sqlite3.connect(database)
+        connection.execute(
+            "CREATE TABLE whitelist (username TEXT PRIMARY KEY, password TEXT, accesslevel TEXT, banned INTEGER)"
+        )
+        connection.execute("INSERT INTO whitelist VALUES ('admin', 'hash', 'admin', 0)")
+        connection.execute("INSERT INTO whitelist VALUES ('operator', 'hash', 'moderator', 0)")
+        connection.commit(); connection.close()
+
+        with self.assertRaisesRegex(ValueError, "기본 admin 계정"):
+            self.service.manage_player("admin", "delete")
+        with self.assertRaisesRegex(ValueError, "기본 admin 계정"):
+            self.service.update_player("admin", "access_level", "none")
+        with self.assertRaisesRegex(ValueError, "운영 권한을 먼저"):
+            self.service.update_player("operator", "banned", True)
+        self.assertEqual(len(self.service.player_accounts()["accounts"]), 2)
 
     def test_console_command_uses_fixed_fifo_writer(self):
         container = ConsoleContainer()

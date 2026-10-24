@@ -31,6 +31,8 @@ let copyTooltipTimer = null;
 let panelUpdatePollTimer = null;
 let panelUpdateProgress = 0;
 let pendingServerReadyOperation = '';
+let playerDataCache = null;
+let pendingPlayerAction = null;
 const PANEL_UPDATE_ACTIVE = new Set(['running', 'downloading', 'preparing', 'replacing', 'verifying', 'reconnecting']);
 const PANEL_UPDATE_STAGES = ['download', 'replace', 'verify', 'complete'];
 
@@ -313,6 +315,47 @@ $$('.log-tab').forEach(button => button.addEventListener('click', () => {
   loadLogs().catch(error => message(error.message, true));
 }));
 $('#refresh-log').addEventListener('click', () => loadLogs().catch(error => message(error.message, true)));
+
+function supportLogFilename() {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
+  }).formatToParts(new Date());
+  const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
+  return `techtim-zomboid-support-${values.year}${values.month}${values.day}-${values.hour}${values.minute}${values.second}.txt`;
+}
+
+$('#export-support-log').addEventListener('click', async event => {
+  if (typeof window.showSaveFilePicker !== 'function') {
+    message('저장 위치 선택은 HTTPS로 접속한 Chrome 또는 Edge에서 지원됩니다. 현재 환경에서는 자동 다운로드하지 않습니다.', true);
+    return;
+  }
+  let handle;
+  try {
+    handle = await window.showSaveFilePicker({
+      suggestedName: supportLogFilename(),
+      types: [{description: '텍스트 로그 파일', accept: {'text/plain': ['.txt']}}],
+    });
+  } catch (error) {
+    if (error.name !== 'AbortError') message(`저장 위치를 선택하지 못했습니다: ${error.message}`, true);
+    return;
+  }
+  const button = event.currentTarget;
+  button.disabled = true;
+  try {
+    const response = await fetch('/api/logs/export', {credentials: 'same-origin'});
+    if (response.status === 401) { location.assign('/login'); return; }
+    if (!response.ok) throw new Error('로그 파일을 생성하지 못했습니다.');
+    const writable = await handle.createWritable();
+    await writable.write(await response.blob());
+    await writable.close();
+    message('선택한 위치에 로그를 내보냈습니다.');
+  } catch (error) {
+    message(error.message, true);
+  } finally {
+    button.disabled = false;
+  }
+});
 
 const commandHelpDialog = $('#command-help-dialog');
 $('#open-command-help').addEventListener('click', () => showDialog(commandHelpDialog));
@@ -662,20 +705,110 @@ async function updatePlayer(username, field, value) {
   await perform(() => api('/api/players', json('POST', {username, field, value})), '사용자 DB를 변경했습니다.');
   await loadPlayers();
 }
-async function loadPlayers() {
-  const data = await api('/api/players'); $('#players-summary').textContent = data.message; const list = $('#player-list'); list.replaceChildren();
-  if (!data.accounts.length) { list.textContent = data.message; return; }
-  for (const account of data.accounts) {
-    const row = document.createElement('article'); row.className = 'record';
-    const info = document.createElement('div'); const title = document.createElement('strong'); title.textContent = account.username; const meta = document.createElement('small'); meta.textContent = `Steam ${account.steam_id || '-'} · ${account.access_level || 'none'} · ${account.whitelisted ? '화이트리스트' : '일반'}${account.banned ? ' · 차단됨' : ''}`; info.append(title, meta);
+const PLAYER_ACCESS_LABELS = {none:'일반', admin:'관리자', moderator:'운영자', overseer:'감독자', gm:'게임 마스터', observer:'관전자'};
+const PLAYER_ACTION_COPY = {
+  ban: account => ({title: account.banned ? '블랙리스트 해제' : '블랙리스트 등록', heading: `${account.username} 계정의 접속 상태를 변경합니다.`, description: account.banned ? '차단을 해제하면 다음 서버 시작부터 다시 접속할 수 있습니다.' : '블랙리스트에 등록하면 이 계정은 서버에 접속할 수 없습니다.', button: account.banned ? '차단 해제' : '차단'}),
+  reset_password: account => ({title:'비밀번호 초기화', heading:`${account.username} 계정의 비밀번호를 초기화합니다.`, description:'저장된 비밀번호만 제거합니다. 다음 접속 때 사용자가 새로운 비밀번호를 등록해야 합니다.', button:'초기화'}),
+  reset_steam: account => ({title:'Steam 연결 해제', heading:`${account.username} 계정의 Steam 연결을 해제합니다.`, description:'저장된 Steam ID와 소유자 ID를 제거합니다. 다음 접속 때 계정 연결이 다시 만들어질 수 있습니다.', button:'연결 해제'}),
+  delete: account => ({title:'계정 삭제', heading:`${account.username} 계정을 삭제합니다.`, description:'화이트리스트와 로그인 정보가 함께 제거됩니다. 월드 캐릭터 저장 데이터는 삭제하지 않습니다.', button:'계정 삭제'}),
+};
+function openPlayerAction(account, action) {
+  const copy = PLAYER_ACTION_COPY[action](account);
+  pendingPlayerAction = {account, action};
+  $('#player-action-title').textContent = copy.title;
+  $('#player-action-heading').textContent = copy.heading;
+  $('#player-action-description').textContent = copy.description;
+  $('#confirm-player-action').textContent = copy.button;
+  $('#confirm-player-action').disabled = false;
+  $('#player-action-status').hidden = true;
+  $('#player-action-status').textContent = '';
+  showDialog($('#player-action-dialog'));
+}
+function closePlayerAction() { pendingPlayerAction = null; closeDialog($('#player-action-dialog')); }
+$('#close-player-action').addEventListener('click', closePlayerAction);
+$('#cancel-player-action').addEventListener('click', closePlayerAction);
+$('#player-action-dialog').addEventListener('close', () => { pendingPlayerAction = null; });
+$('#confirm-player-action').addEventListener('click', async event => {
+  if (!pendingPlayerAction) return;
+  const {account, action} = pendingPlayerAction;
+  const status = $('#player-action-status');
+  event.currentTarget.disabled = true;
+  status.hidden = false;
+  status.classList.remove('error');
+  status.textContent = '안전 백업 후 계정 DB를 변경하고 있습니다.';
+  try {
+    if (action === 'ban') await api('/api/players', json('POST', {username:account.username, field:'banned', value:!account.banned}));
+    else await api('/api/players/action', json('POST', {username:account.username, action}));
+    closeDialog($('#player-action-dialog'), 'completed');
+    pendingPlayerAction = null;
+    message('사용자 계정 변경을 완료했습니다.');
+    await loadPlayers();
+  } catch (error) {
+    status.classList.add('error');
+    status.textContent = error.message;
+    event.currentTarget.disabled = false;
+  }
+});
+function playerMatchesFilter(account) {
+  const search = $('#player-search').value.trim().toLocaleLowerCase();
+  const status = $('#player-status-filter').value;
+  const searchable = [account.username, account.display_name, account.steam_id].join(' ').toLocaleLowerCase();
+  if (search && !searchable.includes(search)) return false;
+  if (status === 'operator' && (!account.access_level || account.access_level === 'none')) return false;
+  if (status === 'banned' && !account.banned) return false;
+  if (status === 'steam' && !account.steam_id) return false;
+  return true;
+}
+function playerButton(label, action, account, className = '') {
+  const button = document.createElement('button');
+  button.type = 'button'; button.textContent = label; button.className = className;
+  button.addEventListener('click', () => openPlayerAction(account, action));
+  return button;
+}
+function renderPlayers() {
+  const data = playerDataCache; const list = $('#player-list'); list.replaceChildren();
+  if (!data?.accounts.length) { $('#player-counts').textContent = '전체 0 · 운영 권한 0 · 블랙리스트 0'; list.textContent = data?.message || '등록된 계정이 없습니다.'; return; }
+  const accounts = data.accounts.filter(playerMatchesFilter);
+  const banned = data.accounts.filter(account => account.banned).length;
+  const operators = data.accounts.filter(account => account.access_level && account.access_level !== 'none').length;
+  $('#player-counts').textContent = `전체 ${data.accounts.length} · 운영 권한 ${operators} · 블랙리스트 ${banned}`;
+  if (!accounts.length) { list.textContent = '검색 조건에 맞는 계정이 없습니다.'; return; }
+  for (const account of accounts) {
+    const row = document.createElement('article'); row.className = `record player-record${account.banned ? ' is-banned' : ''}`;
+    const info = document.createElement('div'); info.className = 'player-record-info';
+    const heading = document.createElement('div'); heading.className = 'player-record-heading';
+    const title = document.createElement('strong'); title.textContent = account.username;
+    const badge = document.createElement('span'); badge.className = `player-badge ${account.banned ? 'banned' : account.protected ? 'protected' : 'active'}`; badge.textContent = account.banned ? '블랙리스트' : account.protected ? '기본 관리자' : '접속 허용';
+    heading.append(title, badge);
+    const details = document.createElement('small');
+    const role = PLAYER_ACCESS_LABELS[account.access_level] || account.access_level || '일반';
+    const steam = account.steam_id ? `Steam ${account.steam_id}` : 'Steam 미연결';
+    const display = account.display_name && account.display_name !== account.username ? ` · 표시 이름 ${account.display_name}` : '';
+    details.textContent = `${steam} · 권한 ${role}${display}`;
+    info.append(heading, details);
     const actions = document.createElement('div'); actions.className = 'record-actions player-actions';
-    if (data.capabilities?.access_level) { const select = document.createElement('select'); for (const level of ['none','admin','moderator','overseer','gm','observer']) { const option = document.createElement('option'); option.value = level; option.textContent = level; option.selected = account.access_level === level; select.append(option); } select.addEventListener('change', () => updatePlayer(account.username, 'access_level', select.value)); actions.append(select); }
-    if (data.capabilities?.whitelisted) { const white = document.createElement('button'); white.textContent = account.whitelisted ? '허용 해제' : '화이트리스트'; white.addEventListener('click', () => updatePlayer(account.username, 'whitelisted', !account.whitelisted)); actions.append(white); }
-    if (data.capabilities?.banned) { const ban = document.createElement('button'); ban.textContent = account.banned ? '차단 해제' : '차단'; ban.addEventListener('click', () => updatePlayer(account.username, 'banned', !account.banned)); actions.append(ban); }
+    if (account.protected) {
+      const note = document.createElement('small'); note.className = 'player-protected-note'; note.textContent = '기본 서버 설정에서 관리'; actions.append(note);
+    } else {
+      if (data.capabilities?.access_level) {
+        const select = document.createElement('select'); select.title = `${account.username} 운영 권한`;
+        for (const level of Object.keys(PLAYER_ACCESS_LABELS)) { const option = document.createElement('option'); option.value = level; option.textContent = PLAYER_ACCESS_LABELS[level]; option.selected = account.access_level === level; select.append(option); }
+        select.addEventListener('change', () => updatePlayer(account.username, 'access_level', select.value)); actions.append(select);
+      }
+      if (data.capabilities?.password_reset) actions.append(playerButton('비밀번호 초기화', 'reset_password', account));
+      if (data.capabilities?.steam_reset && account.steam_id) actions.append(playerButton('Steam 연결 해제', 'reset_steam', account));
+      if (data.capabilities?.banned) actions.append(playerButton(account.banned ? '블랙리스트 해제' : '블랙리스트 등록', 'ban', account, account.banned ? '' : 'warning'));
+      if (data.capabilities?.account_delete) actions.append(playerButton('계정 삭제', 'delete', account, 'danger'));
+    }
     row.append(info, actions); list.append(row);
   }
 }
+async function loadPlayers() {
+  playerDataCache = await api('/api/players'); $('#players-summary').textContent = playerDataCache.message; renderPlayers();
+}
 $('#refresh-players').addEventListener('click', () => loadPlayers().catch(error => message(error.message, true)));
+$('#player-search').addEventListener('input', renderPlayers);
+$('#player-status-filter').addEventListener('change', renderPlayers);
 
 async function loadSchedule() {
   const schedule = await api('/api/schedule'); const form = $('#schedule-form'); form.elements.enabled.checked = schedule.enabled;

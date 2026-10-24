@@ -149,6 +149,25 @@ class ApiTests(unittest.TestCase):
         invalid = self.client.post("/api/console/command", json={"command": "players\nquit"})
         self.assertEqual(invalid.status_code, 422)
 
+    def test_player_account_action_endpoint(self):
+        actions = []
+        service = self.client.app.state.service
+        service.manage_player = lambda username, action: actions.append((username, action))
+        service.player_accounts = lambda: {"supported": True, "message": "whitelist · 0개 계정", "accounts": []}
+
+        response = self.client.post("/api/players/action", json={
+            "username": "survivor",
+            "action": "reset_password",
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(actions, [("survivor", "reset_password")])
+        invalid = self.client.post("/api/players/action", json={
+            "username": "survivor",
+            "action": "set_plain_password",
+        })
+        self.assertEqual(invalid.status_code, 422)
+
     def test_support_log_export_is_text_attachment(self):
         self.client.app.state.service.support_log_report = lambda: "support report\n"
         response = self.client.get("/api/logs/export")

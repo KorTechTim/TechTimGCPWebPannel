@@ -19,6 +19,7 @@ from .config import (BUILD_42_SERVER_INI_DEFAULTS, PANEL_VERSION, SERVER_PROFILE
                      migrate_sandbox_payload, sandbox_values)
 from .discord_webhook import (build_webhook_payload, execute_webhook,
                               masked_webhook_url, normalize_webhook_url)
+from .server_ini_ko import SERVER_INI_KO_COMMENTS
 from .storage import read_json, write_json
 
 KST = timezone(timedelta(hours=9), name="KST")
@@ -410,10 +411,15 @@ class PanelService:
     def render_game_files(self):
         self.server_config_dir.mkdir(parents=True, exist_ok=True)
         ini = self.server_config_dir / f"{SERVER_PROFILE}.ini"
+        original_ini = ini.read_text(encoding="utf-8", errors="replace") if ini.exists() else None
         if self.config().branch == "public":
             self._merge_key_value_file(ini, BUILD_42_SERVER_INI_DEFAULTS, overwrite=False)
         values = ini_values(self.config())
         self._merge_key_value_file(ini, values)
+        if self._add_korean_server_ini_comments(ini) and original_ini is not None:
+            backup = ini.with_name(f"{ini.name}.pre-korean-comments.bak")
+            if not backup.exists():
+                self._atomic_text(backup, original_ini)
         sandbox = self.server_config_dir / f"{SERVER_PROFILE}_SandboxVars.lua"
         existing = sandbox.read_text(encoding="utf-8", errors="replace") if sandbox.exists() else "SandboxVars = {\n    VERSION = 6,\n}\n"
         original_sandbox = existing
@@ -511,6 +517,27 @@ class PanelService:
                 output.append(line)
         output.extend(f"{key}={value}" for key, value in pending.items())
         self._atomic_text(path, "\n".join(output).rstrip() + "\n")
+
+    def _add_korean_server_ini_comments(self, path):
+        marker = "# [한국어] "
+        original = path.read_text(encoding="utf-8", errors="replace")
+        lines = [line for line in original.splitlines() if not line.startswith(marker)]
+        output = []
+        for line in lines:
+            key = ""
+            if "=" in line and not line.lstrip().startswith(("#", ";")):
+                key = line.split("=", 1)[0].strip()
+            description = SERVER_INI_KO_COMMENTS.get(key)
+            if description:
+                if output and output[-1] and "=" in output[-1] and not output[-1].lstrip().startswith(("#", ";")):
+                    output.append("")
+                output.append(f"{marker}{description}")
+            output.append(line)
+        localized = "\n".join(output).rstrip() + "\n"
+        if localized == original:
+            return False
+        self._atomic_text(path, localized)
+        return True
 
     @staticmethod
     def _atomic_text(path, content):
@@ -749,6 +776,7 @@ class PanelService:
     def _account_schema(self, connection):
         tables = [row[0] for row in connection.execute(
             "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").fetchall()]
+        tables.sort(key=lambda name: (str(name).casefold() != "whitelist", str(name).casefold()))
         for table in tables:
             quoted = self._quote_identifier(table)
             columns = [row[1] for row in connection.execute(f"PRAGMA table_info({quoted})").fetchall()]
@@ -757,7 +785,11 @@ class PanelService:
             if not username:
                 continue
             return {"table": table, "username": username,
+                    "password": next((by_name[key] for key in ("password", "passwd") if key in by_name), None),
                     "steam_id": next((by_name[key] for key in ("steamid", "steam_id") if key in by_name), None),
+                    "owner_id": next((by_name[key] for key in ("ownerid", "owner_id") if key in by_name), None),
+                    "display_name": next((by_name[key] for key in ("displayname", "display_name") if key in by_name), None),
+                    "last_connection": next((by_name[key] for key in ("lastconnection", "last_connection") if key in by_name), None),
                     "access_level": next((by_name[key] for key in ("accesslevel", "access_level") if key in by_name), None),
                     "whitelisted": next((by_name[key] for key in ("whitelisted", "whitelist") if key in by_name), None),
                     "banned": next((by_name[key] for key in ("banned", "ban") if key in by_name), None)}
@@ -773,6 +805,7 @@ class PanelService:
             if not schema:
                 return {"supported": False, "message": "지원 가능한 계정 테이블을 찾지 못했습니다.", "accounts": []}
             selected = [("username", schema["username"]), ("steam_id", schema["steam_id"]),
+                        ("display_name", schema["display_name"]), ("last_connection", schema["last_connection"]),
                         ("access_level", schema["access_level"]), ("whitelisted", schema["whitelisted"]),
                         ("banned", schema["banned"])]
             expressions = [f"{self._quote_identifier(column)} AS {alias}" if column else f"NULL AS {alias}"
@@ -780,19 +813,42 @@ class PanelService:
             table = self._quote_identifier(schema["table"])
             username = self._quote_identifier(schema["username"])
             rows = connection.execute(f"SELECT {', '.join(expressions)} FROM {table} ORDER BY {username} COLLATE NOCASE").fetchall()
-            accounts = [{"username": row[0] or "", "steam_id": row[1] or "", "access_level": row[2] or "none",
-                         "whitelisted": bool(row[3]) if row[3] is not None else None,
-                         "banned": bool(row[4]) if row[4] is not None else None} for row in rows]
+            accounts = [{"username": row[0] or "", "steam_id": row[1] or "", "display_name": row[2] or "",
+                         "last_connection": row[3] or "", "access_level": str(row[4] or "none").casefold(),
+                         "whitelisted": bool(row[5]) if schema["whitelisted"] else True,
+                         "banned": bool(row[6]) if row[6] is not None else False,
+                         "protected": str(row[0] or "").casefold() == "admin"} for row in rows]
             return {"supported": True, "message": f"{schema['table']} · {len(accounts)}개 계정", "accounts": accounts,
-                    "capabilities": {key: bool(schema[key]) for key in ("steam_id", "access_level", "whitelisted", "banned")}}
+                    "capabilities": {
+                        "steam_id": bool(schema["steam_id"]),
+                        "access_level": bool(schema["access_level"]),
+                        "whitelisted": bool(schema["whitelisted"]),
+                        "banned": bool(schema["banned"]),
+                        "password_reset": bool(schema["password"]),
+                        "steam_reset": bool(schema["steam_id"] or schema["owner_id"]),
+                        "account_delete": True,
+                    }}
         finally:
             connection.close()
 
-    def update_player(self, username, field, value):
-        self.require_stopped()
+    @staticmethod
+    def _validate_player_username(username):
         username = str(username or "").strip()
         if not username or len(username) > 128 or any(ord(char) < 32 for char in username):
             raise ValueError("사용자 이름을 확인해주세요.")
+        return username
+
+    @staticmethod
+    def _check_database_integrity(connection):
+        integrity = connection.execute("PRAGMA integrity_check").fetchone()[0]
+        if str(integrity).casefold() != "ok":
+            raise RuntimeError(f"DB 무결성 검사 실패: {integrity}")
+
+    def update_player(self, username, field, value):
+        self.require_stopped()
+        username = self._validate_player_username(username)
+        if username.casefold() == "admin":
+            raise ValueError("기본 admin 계정은 기본 서버 설정에서 관리해주세요.")
         allowed_access = {"none", "admin", "moderator", "overseer", "gm", "observer"}
         if field == "access_level":
             value = str(value or "none").strip().lower()
@@ -815,14 +871,71 @@ class PanelService:
             table = self._quote_identifier(schema["table"])
             column = self._quote_identifier(schema[field])
             user_column = self._quote_identifier(schema["username"])
+            if field == "banned" and value:
+                if schema["access_level"]:
+                    access_column = self._quote_identifier(schema["access_level"])
+                    current = connection.execute(
+                        f"SELECT {access_column} FROM {table} WHERE {user_column}=?", (username,)
+                    ).fetchone()
+                    if current and str(current[0] or "none").casefold() not in {"", "none"}:
+                        raise ValueError("운영 권한을 먼저 'none'으로 변경한 뒤 블랙리스트에 등록해주세요.")
             cursor = connection.execute(f"UPDATE {table} SET {column}=? WHERE {user_column}=?", (value, username))
             if cursor.rowcount != 1:
                 raise ValueError("변경할 계정을 정확히 한 개 찾지 못했습니다.")
-            integrity = connection.execute("PRAGMA integrity_check").fetchone()[0]
-            if str(integrity).casefold() != "ok":
-                raise RuntimeError(f"DB 무결성 검사 실패: {integrity}")
+            self._check_database_integrity(connection)
             connection.commit()
             self._log("control", f"계정 변경: {username} / {field}")
+        except Exception:
+            connection.rollback()
+            raise
+        finally:
+            connection.close()
+
+    def manage_player(self, username, action):
+        self.require_stopped()
+        username = self._validate_player_username(username)
+        actions = {
+            "reset_password": "비밀번호 초기화",
+            "reset_steam": "Steam 연결 해제",
+            "delete": "계정 삭제",
+        }
+        if action not in actions:
+            raise ValueError("지원하지 않는 계정 관리 작업입니다.")
+        if username.casefold() == "admin":
+            raise ValueError("기본 admin 계정은 기본 서버 설정에서 관리해주세요.")
+        path = self.database / f"{SERVER_PROFILE}.db"
+        if not path.exists():
+            raise FileNotFoundError(path)
+        self.create_backup("database-safety")
+        connection = sqlite3.connect(path)
+        try:
+            connection.execute("BEGIN IMMEDIATE")
+            schema = self._account_schema(connection)
+            if not schema:
+                raise ValueError("지원 가능한 계정 테이블을 찾지 못했습니다.")
+            table = self._quote_identifier(schema["table"])
+            user_column = self._quote_identifier(schema["username"])
+            matches = connection.execute(
+                f"SELECT COUNT(*) FROM {table} WHERE {user_column}=?", (username,)
+            ).fetchone()[0]
+            if matches != 1:
+                raise ValueError("관리할 계정을 정확히 한 개 찾지 못했습니다.")
+            if action == "reset_password":
+                if not schema["password"]:
+                    raise ValueError("현재 DB 스키마는 비밀번호 초기화를 지원하지 않습니다.")
+                password = self._quote_identifier(schema["password"])
+                connection.execute(f"UPDATE {table} SET {password}=NULL WHERE {user_column}=?", (username,))
+            elif action == "reset_steam":
+                columns = [schema[key] for key in ("steam_id", "owner_id") if schema[key]]
+                if not columns:
+                    raise ValueError("현재 DB 스키마는 Steam 연결 해제를 지원하지 않습니다.")
+                assignments = ", ".join(f"{self._quote_identifier(column)}=NULL" for column in columns)
+                connection.execute(f"UPDATE {table} SET {assignments} WHERE {user_column}=?", (username,))
+            else:
+                connection.execute(f"DELETE FROM {table} WHERE {user_column}=?", (username,))
+            self._check_database_integrity(connection)
+            connection.commit()
+            self._log("control", f"계정 관리: {username} / {actions[action]}")
         except Exception:
             connection.rollback()
             raise

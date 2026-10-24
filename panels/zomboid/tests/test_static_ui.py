@@ -178,6 +178,8 @@ class StaticUiTests(unittest.TestCase):
         self.assertIn('name="time_3"', html)
         self.assertIn('name="retention_count"', html)
         self.assertIn('name="retention_days"', html)
+        self.assertEqual(html.count('class="backup-number-input"'), 2)
+        self.assertIn('</fieldset>\n        <section class="backup-disk-usage"', html)
         self.assertIn('id="backup-disk-meter"', html)
         self.assertIn('id="backup-disk-percent"', html)
         self.assertIn("/api/backups/settings", script)
@@ -186,6 +188,8 @@ class StaticUiTests(unittest.TestCase):
         self.assertIn("create_backup", (root / "app/service.py").read_text())
         self.assertIn(".backup-settings-footer{", css)
         self.assertIn(".backup-disk-meter{", css)
+        self.assertIn(".backup-retention{grid-template-columns:repeat(2", css)
+        self.assertIn(".backup-number-input b{position:absolute;top:50%", css)
 
     def test_start_without_engine_shows_installation_dialog(self):
         root = Path(__file__).parents[1]
@@ -374,7 +378,11 @@ class StaticUiTests(unittest.TestCase):
         self.assertIn('id="terminal-command-form"', html)
         self.assertIn('id="command-help-dialog"', html)
         self.assertIn('id="export-support-log"', html)
-        self.assertIn('href="/api/logs/export"', html)
+        self.assertNotIn('href="/api/logs/export"', html)
+        self.assertIn("window.showSaveFilePicker", script)
+        self.assertIn("fetch('/api/logs/export'", script)
+        self.assertLess(script.index("window.showSaveFilePicker"), script.index("fetch('/api/logs/export'"))
+        self.assertIn("현재 환경에서는 자동 다운로드하지 않습니다.", script)
         self.assertIn("⇩ 로그 내보내기", html)
         self.assertNotIn("⇩ 로그 저장", html)
         self.assertIn('href="https://pzwiki.net/wiki/Admin_commands"', html)
@@ -415,6 +423,21 @@ class StaticUiTests(unittest.TestCase):
         self.assertIn(".admin-password-dialog::backdrop", css)
         self.assertIn("backdrop-filter:blur(12px)", css)
 
+    def test_player_management_has_safe_account_actions(self):
+        static = Path(__file__).parents[1] / "app/static"
+        html = (static / "dashboard.html").read_text()
+        script = (static / "app.js").read_text()
+        css = (static / "app.css").read_text()
+
+        self.assertIn('id="player-search"', html)
+        self.assertIn('id="player-status-filter"', html)
+        self.assertIn('id="player-action-dialog"', html)
+        for label in ("비밀번호 초기화", "Steam 연결 해제", "블랙리스트 등록", "계정 삭제"):
+            self.assertIn(label, script)
+        self.assertIn("/api/players/action", script)
+        self.assertIn("account.protected", script)
+        self.assertIn(".player-toolbar", css)
+
     def test_server_ready_dialog_appears_after_start_completion(self):
         root = Path(__file__).parents[1]
         html = (root / "app/static/dashboard.html").read_text()
@@ -437,14 +460,14 @@ class StaticUiTests(unittest.TestCase):
         login = (root / "app/static/login.html").read_text()
         config = (root / "app/config.py").read_text()
         main = (root / "app/main.py").read_text()
-        self.assertIn('PANEL_VERSION = "1.0.4"', config)
-        self.assertIn('id="sidebar-version">PANEL 1.0.4', html)
-        self.assertIn('id="panel-version">1.0.4', html)
-        self.assertIn('id="update-current-version">1.0.4', html)
-        self.assertIn('/static/app.js?v=1.0.4', html)
-        self.assertIn('/static/app.css?v=1.0.4', html)
-        self.assertIn('/static/login.js?v=1.0.4', login)
-        self.assertIn('/static/app.css?v=1.0.4', login)
+        self.assertIn('PANEL_VERSION = "1.0.5"', config)
+        self.assertIn('id="sidebar-version">PANEL 1.0.5', html)
+        self.assertIn('id="panel-version">1.0.5', html)
+        self.assertIn('id="update-current-version">1.0.5', html)
+        self.assertIn('/static/app.js?v=1.0.5', html)
+        self.assertIn('/static/app.css?v=1.0.5', html)
+        self.assertIn('/static/login.js?v=1.0.5', login)
+        self.assertIn('/static/app.css?v=1.0.5', login)
         self.assertIn('"no-cache, must-revalidate"', main)
 
     def test_all_dialogs_use_shared_blurred_backdrop(self):

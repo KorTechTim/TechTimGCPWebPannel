@@ -58,6 +58,11 @@ class PlayerUpdate(BaseModel):
     value: str | bool
 
 
+class PlayerAction(BaseModel):
+    username: str = Field(min_length=1, max_length=128)
+    action: Literal["reset_password", "reset_steam", "delete"]
+
+
 class ConsoleCommand(BaseModel):
     command: str = Field(min_length=1, max_length=512)
 
@@ -376,6 +381,13 @@ def create_app(settings=None, docker_factory=None):
         auth.require(request)
         with service.operation("사용자 DB 변경"):
             service.update_player(payload.username, payload.field, payload.value)
+        return service.player_accounts()
+
+    @app.post("/api/players/action")
+    def manage_player(payload: PlayerAction, request: Request):
+        auth.require(request)
+        with service.operation("사용자 계정 관리"):
+            service.manage_player(payload.username, payload.action)
         return service.player_accounts()
 
     allowed_text_files = {
