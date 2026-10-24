@@ -63,6 +63,42 @@ class StartClient:
     def close(self): pass
 
 
+class InstallContainer:
+    def __init__(self, status_code, on_success=None):
+        self.status_code = status_code
+        self.on_success = on_success
+        self.removed = False
+
+    def logs(self, **_kwargs):
+        return [b"SteamCMD install output\n"]
+
+    def wait(self, **_kwargs):
+        if self.status_code == 0 and self.on_success:
+            self.on_success()
+        return {"StatusCode": self.status_code}
+
+    def remove(self, **_kwargs):
+        self.removed = True
+
+
+class InstallContainers:
+    def __init__(self, status_codes, on_success=None):
+        self.status_codes = list(status_codes)
+        self.on_success = on_success
+        self.run_calls = []
+        self.created = []
+
+    def get(self, _name):
+        from docker.errors import NotFound
+        raise NotFound("missing")
+
+    def run(self, image, **kwargs):
+        self.run_calls.append((image, kwargs))
+        container = InstallContainer(self.status_codes.pop(0), self.on_success)
+        self.created.append(container)
+        return container
+
+
 class LogContainer:
     def logs(self, **_kwargs):
         return b"2026-10-05T08:00:00Z live server output\n"
@@ -329,6 +365,47 @@ class ServiceTests(unittest.TestCase):
         _image, options = containers.run_calls[0]
         self.assertNotIn("stop_timeout", options)
         self.assertEqual(options["restart_policy"], {"Name": "unless-stopped"})
+
+    @patch("app.service.time.sleep")
+    def test_install_retries_up_to_three_times_before_succeeding(self, sleep):
+        def mark_installed():
+            (self.service.server / "start-server.sh").write_text("#!/bin/sh\n")
+
+        containers = InstallContainers([1, 1, 1, 0], mark_installed)
+        settings = Settings(
+            data_dir=self.service.settings.data_dir,
+            host_data_dir=self.service.settings.host_data_dir,
+            scheduler_enabled=False,
+            pull_runtime=False,
+        )
+        service = PanelService(settings, lambda: StartClient(containers))
+
+        service.install()
+
+        self.assertEqual(len(containers.run_calls), 4)
+        self.assertEqual(sleep.call_count, 3)
+        self.assertTrue(all(container.removed for container in containers.created))
+        install_log = service.logs("install")
+        self.assertIn("재시도 3/3", install_log)
+        self.assertIn("SteamCMD 설치 시도 4/4", install_log)
+
+    @patch("app.service.time.sleep")
+    def test_install_fails_after_three_retries(self, sleep):
+        containers = InstallContainers([1, 1, 1, 1])
+        settings = Settings(
+            data_dir=self.service.settings.data_dir,
+            host_data_dir=self.service.settings.host_data_dir,
+            scheduler_enabled=False,
+            pull_runtime=False,
+        )
+        service = PanelService(settings, lambda: StartClient(containers))
+
+        with self.assertRaisesRegex(RuntimeError, "총 4회 시도"):
+            service.install()
+
+        self.assertEqual(len(containers.run_calls), 4)
+        self.assertEqual(sleep.call_count, 3)
+        self.assertTrue(all(container.removed for container in containers.created))
 
     def test_support_log_report_combines_logs_and_redacts_secrets(self):
         config = self.service.config().model_dump()

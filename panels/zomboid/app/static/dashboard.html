@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>T2 Zomboid Server Pannel</title>
   <link rel="icon" href="/static/zomboid-panel-mark.png?v=1">
-  <link rel="stylesheet" href="/static/app.css?v=1.0.2">
-  <script src="/static/app.js?v=1.0.2" defer></script>
+  <link rel="stylesheet" href="/static/app.css?v=1.0.3">
+  <script src="/static/app.js?v=1.0.3" defer></script>
 </head>
 <body>
 <div class="app-shell">
@@ -30,7 +30,7 @@
       <button class="nav-item" data-view="players"><b class="nav-icon"><img src="/static/zomboid-menu-players-v1.png" alt=""></b><span>사용자 관리</span></button>
       <button class="nav-item" data-view="backups"><b class="nav-icon"><img src="/static/zomboid-menu-backups-v1.png" alt=""></b><span>백업 · 복원</span></button>
     </nav>
-    <div class="sidebar-foot"><span>GCP LINUX</span><span id="sidebar-version">PANEL 1.0.2</span></div>
+    <div class="sidebar-foot"><span>GCP LINUX</span><span id="sidebar-version">PANEL 1.0.3</span></div>
   </aside>
 
   <main class="workspace">
@@ -56,7 +56,7 @@
       <article><span class="status-mark game"><img src="/static/zomboid-panel-mark.png?v=1" alt=""></span><div><small>게임</small><strong>Project Zomboid</strong><em>Dedicated Server</em></div></article>
       <article><span class="status-mark install"><img src="/static/zomboid-status-install-v1.png" alt=""></span><div><small>설치 상태</small><strong id="engine-state">확인 중</strong><em id="engine-build">Steam App 380870</em></div></article>
       <article><span class="status-mark server"><img src="/static/zomboid-status-server-v1.png" alt=""></span><div><small>서버 상태</small><strong id="server-state">확인 중</strong><em>servertest · <span id="branch-state">public</span></em></div></article>
-      <article><span class="status-mark panel"><img src="/static/zomboid-status-panel-v1.png" alt=""></span><div><small>패널 버전</small><strong id="panel-version">1.0.2</strong><em>TechTim GCP Panel</em></div></article>
+      <article><span class="status-mark panel"><img src="/static/zomboid-status-panel-v1.png" alt=""></span><div><small>패널 버전</small><strong id="panel-version">1.0.3</strong><em>TechTim GCP Panel</em></div></article>
     </section>
 
     <p id="global-message" class="global-message" role="status"></p>
@@ -244,7 +244,7 @@
     <dialog id="panel-update-dialog" class="app-dialog panel-update-dialog" aria-labelledby="panel-update-title">
       <header><div><p class="eyebrow">PANEL MAINTENANCE</p><h2 id="panel-update-title">구동기 업데이트</h2><p>게임 서버 업데이트와 별개로 웹 구동기 이미지만 교체합니다.</p></div><button id="close-panel-update" class="dialog-close" type="button" title="닫기" aria-label="업데이트 창 닫기">×</button></header>
       <div class="panel-update-body">
-        <section class="panel update-card"><div><small>CURRENT VERSION</small><strong id="update-current-version">1.0.2</strong><span>TechTim GCP Project Zomboid 웹 구동기</span></div><div><small>IMAGE STATUS</small><strong id="update-image-status">확인 중</strong><span id="update-image-detail">컨테이너 레지스트리를 확인합니다.</span></div></section>
+        <section class="panel update-card"><div><small>CURRENT VERSION</small><strong id="update-current-version">1.0.3</strong><span>TechTim GCP Project Zomboid 웹 구동기</span></div><div><small>IMAGE STATUS</small><strong id="update-image-status">확인 중</strong><span id="update-image-detail">컨테이너 레지스트리를 확인합니다.</span></div></section>
         <section id="panel-update-progress" class="panel-update-progress" aria-labelledby="panel-update-progress-label" hidden>
           <div class="panel-update-progress-head"><strong id="panel-update-progress-label">업데이트 준비</strong><b id="panel-update-progress-percent">0%</b></div>
           <div id="panel-update-progress-track" class="panel-update-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="panel-update-progress-bar"></i></div>

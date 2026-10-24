@@ -46,6 +46,8 @@ DISCORD_OPERATION_EVENTS = {
     "수동 백업": ("backup", "서버 백업 완료", "세이브와 설정 파일 백업을 생성했습니다."),
     "백업 복원": ("backup", "서버 백업 복원 완료", "선택한 백업을 서버에 복원했습니다."),
 }
+INSTALL_MAX_RETRIES = 3
+INSTALL_RETRY_DELAY_SECONDS = 5
 
 
 class BusyError(RuntimeError):
@@ -553,31 +555,49 @@ class PanelService:
             self.create_backup("update")
         with self.client() as client:
             self._pull_runtime(client)
-            try:
-                old = client.containers.get(f"{self.settings.server_container}-installer")
-                old.remove(force=True)
-            except NotFound:
-                pass
-            container = client.containers.run(
-                self.settings.runtime_image, command=["install", config.branch],
-                name=f"{self.settings.server_container}-installer", detach=True,
-                volumes=self._mounts(), environment={"STEAM_APP_ID": STEAM_APP_ID},
-                cap_drop=["ALL"], cap_add=["CHOWN", "DAC_OVERRIDE", "SETGID", "SETUID"],
-                security_opt=["no-new-privileges:true"],
-            )
-            try:
-                for line in container.logs(stream=True, follow=True):
-                    self._log("install", line.decode(errors="replace"))
-                result = container.wait(timeout=self.settings.install_timeout)
-                if int(result.get("StatusCode", 1)) != 0:
-                    raise RuntimeError("SteamCMD 설치 또는 검증에 실패했습니다. 설치 로그를 확인해주세요.")
-            finally:
+            for attempt in range(INSTALL_MAX_RETRIES + 1):
+                container = None
                 try:
-                    container.remove(force=True)
-                except APIError:
-                    pass
-        if not self.engine()["installed"]:
-            raise RuntimeError("설치 후 start-server.sh를 찾지 못했습니다.")
+                    try:
+                        old = client.containers.get(f"{self.settings.server_container}-installer")
+                        old.remove(force=True)
+                    except NotFound:
+                        pass
+                    self._log("install", f"SteamCMD 설치 시도 {attempt + 1}/{INSTALL_MAX_RETRIES + 1}")
+                    container = client.containers.run(
+                        self.settings.runtime_image, command=["install", config.branch],
+                        name=f"{self.settings.server_container}-installer", detach=True,
+                        volumes=self._mounts(), environment={"STEAM_APP_ID": STEAM_APP_ID},
+                        cap_drop=["ALL"], cap_add=["CHOWN", "DAC_OVERRIDE", "SETGID", "SETUID"],
+                        security_opt=["no-new-privileges:true"],
+                    )
+                    for line in container.logs(stream=True, follow=True):
+                        self._log("install", line.decode(errors="replace"))
+                    result = container.wait(timeout=self.settings.install_timeout)
+                    if int(result.get("StatusCode", 1)) != 0:
+                        raise RuntimeError("SteamCMD 설치 또는 검증에 실패했습니다.")
+                    if not self.engine()["installed"]:
+                        raise RuntimeError("설치 후 start-server.sh를 찾지 못했습니다.")
+                    break
+                except Exception as error:
+                    if attempt >= INSTALL_MAX_RETRIES:
+                        raise RuntimeError(
+                            f"SteamCMD 설치가 총 {INSTALL_MAX_RETRIES + 1}회 시도 후에도 실패했습니다. "
+                            "설치 로그를 확인해주세요."
+                        ) from error
+                    delay = INSTALL_RETRY_DELAY_SECONDS * (2 ** attempt)
+                    self._log(
+                        "install",
+                        f"설치 실패: {error} {delay}초 후 재시도합니다. "
+                        f"(재시도 {attempt + 1}/{INSTALL_MAX_RETRIES})",
+                    )
+                    time.sleep(delay)
+                finally:
+                    if container is not None:
+                        try:
+                            container.remove(force=True)
+                        except APIError:
+                            pass
         self.render_game_files()
 
     def start(self):

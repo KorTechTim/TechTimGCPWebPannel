@@ -7,7 +7,7 @@ import re
 
 from pydantic import BaseModel, ConfigDict, Field, create_model, field_validator, model_validator
 
-PANEL_VERSION = "1.0.2"
+PANEL_VERSION = "1.0.3"
 STEAM_APP_ID = "380870"
 WORKSHOP_APP_ID = "108600"
 DEFAULT_RUNTIME_IMAGE = "ghcr.io/kortechtim/zomboid-runtime:steamcmd-nonroot-v1"
