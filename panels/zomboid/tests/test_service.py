@@ -85,13 +85,36 @@ class ServiceTests(unittest.TestCase):
     def test_initial_files_are_rendered(self):
         ini = self.service.server_config_dir / "servertest.ini"
         sandbox = self.service.server_config_dir / "servertest_SandboxVars.lua"
-        self.assertIn("DefaultPort=16261", ini.read_text())
+        ini_content = ini.read_text()
+        self.assertIn("DefaultPort=16261", ini_content)
+        self.assertIn("AntiCheatSpeed=2", ini_content)
+        self.assertIn("BackupsCount=5", ini_content)
+        self.assertGreater(len(ini_content.splitlines()), 100)
         content = sandbox.read_text()
         self.assertIn("VERSION = 6", content)
         self.assertIn("ZombieConfig = {", content)
         self.assertIn("        RespawnHours =", content)
         self.assertNotIn("ZombieConfig.RespawnHours", content)
         self.assertIn("MultiplierConfig = {", content)
+
+    def test_render_game_files_repairs_short_ini_without_overwriting_existing_values(self):
+        ini = self.service.server_config_dir / "servertest.ini"
+        ini.write_text(
+            "Public=false\n"
+            "PublicName=My Existing Server\n"
+            "BackupsCount=27\n"
+            "CustomModOption=keep-me\n",
+            encoding="utf-8",
+        )
+
+        self.service.render_game_files()
+
+        content = ini.read_text(encoding="utf-8")
+        self.assertIn("PublicName=TechTim Project Zomboid", content)
+        self.assertIn("BackupsCount=27", content)
+        self.assertIn("CustomModOption=keep-me", content)
+        self.assertIn("AntiCheatSpeed=2", content)
+        self.assertGreater(len(content.splitlines()), 100)
 
     def test_legacy_dotted_sandbox_values_are_backed_up_and_migrated(self):
         sandbox = self.service.server_config_dir / "servertest_SandboxVars.lua"

@@ -675,11 +675,21 @@ $('#save-schedule').addEventListener('click', () => perform(() => {
 }, '예약 재시작 설정을 저장했습니다.'));
 
 async function loadBackups() {
-  const [data, schedule] = await Promise.all([api('/api/backups'), api('/api/backups/settings')]);
+  const [data, schedule, resources] = await Promise.all([api('/api/backups'), api('/api/backups/settings'), api('/api/resources')]);
   const form = $('#backup-schedule-form'); form.elements.enabled.checked = schedule.enabled;
   for (let index = 1; index <= 3; index++) form.elements[`time_${index}`].value = schedule.times[index - 1] || '';
   form.elements.retention_count.value = schedule.retention_count;
   form.elements.retention_days.value = schedule.retention_days;
+  const disk = resources.disk || {};
+  const diskPercent = Math.max(0, Math.min(100, Number(disk.percent) || 0));
+  const diskMeter = $('#backup-disk-meter');
+  diskMeter.setAttribute('aria-valuenow', String(diskPercent));
+  diskMeter.classList.toggle('warning', diskPercent >= 75 && diskPercent < 90);
+  diskMeter.classList.toggle('danger', diskPercent >= 90);
+  $('#backup-disk-fill').style.width = `${diskPercent}%`;
+  $('#backup-disk-percent').textContent = `${diskPercent.toFixed(1)}%`;
+  $('#backup-disk-used').textContent = `${bytes(disk.used || 0)} / ${bytes(disk.total || 0)} 사용`;
+  $('#backup-disk-free').textContent = `${bytes(disk.free || 0)} 여유`;
   const totalSize = data.backups.reduce((sum, backup) => sum + Number(backup.size || 0), 0);
   $('#backup-storage-summary').textContent = `${data.backups.length}개 보관 중 · ${bytes(totalSize)} 사용 · 최대 ${schedule.retention_count}개 / ${schedule.retention_days}일`;
   const list = $('#backup-list'); list.replaceChildren();
@@ -839,6 +849,22 @@ function renderDiscord(data) {
   state.textContent = config.enabled ? '연동 사용 중' : discordWebhookConfigured ? '웹훅 등록됨' : '연동 꺼짐';
   state.classList.toggle('online', Boolean(config.enabled && discordWebhookConfigured));
   $('#test-discord').disabled = !discordWebhookConfigured;
+  updateDiscordPreview();
+}
+
+function updateDiscordPreview() {
+  const username = $('#discord-form').elements.username.value.trim() || 'TechTim Project Zomboid Server';
+  $('#discord-preview-username').textContent = username;
+  const now = new Date();
+  const messageTime = new Intl.DateTimeFormat('ko-KR', {
+    timeZone:'Asia/Seoul', hour:'numeric', minute:'2-digit', hour12:true,
+  }).format(now);
+  const eventTime = new Intl.DateTimeFormat('sv-SE', {
+    timeZone:'Asia/Seoul', year:'numeric', month:'2-digit', day:'2-digit',
+    hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false,
+  }).format(now);
+  $$('.discord-preview-time').forEach(element => { element.textContent = `오늘 ${messageTime}`; });
+  $('#discord-preview-event-time').textContent = `${eventTime} KST`;
 }
 
 async function loadDiscord() {
@@ -851,6 +877,7 @@ async function loadDiscord() {
 }
 
 $('#discord-form').elements.enabled.addEventListener('change', event => { $('#discord-enabled-label').textContent = event.target.checked ? '사용 중' : '사용 안 함'; });
+$('#discord-form').elements.username.addEventListener('input', updateDiscordPreview);
 $('#discord-form').elements.clear_webhook.addEventListener('change', event => { $('#discord-form').elements.webhook_url.disabled = event.target.checked; });
 $('#save-discord').addEventListener('click', async () => {
   const status = $('#discord-status');

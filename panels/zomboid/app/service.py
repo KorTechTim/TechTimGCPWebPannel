@@ -13,9 +13,10 @@ import zipfile
 import docker
 from docker.errors import APIError, DockerException, NotFound
 
-from .config import (PANEL_VERSION, SERVER_PROFILE, STEAM_APP_ID, BackupSchedule,
-                     DiscordConfig, SandboxConfig, ServerConfig, RestartSchedule, Settings,
-                     ini_values, migrate_sandbox_payload, sandbox_values)
+from .config import (BUILD_42_SERVER_INI_DEFAULTS, PANEL_VERSION, SERVER_PROFILE,
+                     STEAM_APP_ID, BackupSchedule, DiscordConfig, SandboxConfig,
+                     ServerConfig, RestartSchedule, Settings, ini_values,
+                     migrate_sandbox_payload, sandbox_values)
 from .discord_webhook import (build_webhook_payload, execute_webhook,
                               masked_webhook_url, normalize_webhook_url)
 from .storage import read_json, write_json
@@ -397,6 +398,8 @@ class PanelService:
     def render_game_files(self):
         self.server_config_dir.mkdir(parents=True, exist_ok=True)
         ini = self.server_config_dir / f"{SERVER_PROFILE}.ini"
+        if self.config().branch == "public":
+            self._merge_key_value_file(ini, BUILD_42_SERVER_INI_DEFAULTS, overwrite=False)
         values = ini_values(self.config())
         self._merge_key_value_file(ini, values)
         sandbox = self.server_config_dir / f"{SERVER_PROFILE}_SandboxVars.lua"
@@ -480,7 +483,7 @@ class PanelService:
         table_text = f"\n    {table} = {{\n        {key} = {value},\n    }},"
         return content[:closing] + table_text + content[closing:]
 
-    def _merge_key_value_file(self, path, values):
+    def _merge_key_value_file(self, path, values, overwrite=True):
         lines = path.read_text(encoding="utf-8", errors="replace").splitlines() if path.exists() else []
         pending = dict(values)
         output = []
@@ -490,7 +493,8 @@ class PanelService:
                 continue
             key = line.split("=", 1)[0].strip()
             if key in pending:
-                output.append(f"{key}={pending.pop(key)}")
+                value = pending.pop(key)
+                output.append(f"{key}={value}" if overwrite else line)
             else:
                 output.append(line)
         output.extend(f"{key}={value}" for key, value in pending.items())

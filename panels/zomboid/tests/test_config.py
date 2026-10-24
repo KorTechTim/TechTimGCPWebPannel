@@ -7,6 +7,14 @@ from app.config import (BackupSchedule, SandboxConfig, ServerConfig, Settings, W
 
 
 class ConfigTests(unittest.TestCase):
+    def test_backup_retention_defaults_are_consistent(self):
+        server = ServerConfig()
+        schedule = BackupSchedule()
+        self.assertEqual(server.backup_retention_count, 10)
+        self.assertEqual(server.backup_retention_days, 15)
+        self.assertEqual(schedule.retention_count, 10)
+        self.assertEqual(schedule.retention_days, 15)
+
     def test_backup_schedule_accepts_three_unique_times_and_valid_retention(self):
         schedule = BackupSchedule(
             enabled=True,

@@ -7,13 +7,161 @@ import re
 
 from pydantic import BaseModel, ConfigDict, Field, create_model, field_validator, model_validator
 
-PANEL_VERSION = "1.0.1"
+PANEL_VERSION = "1.0.2"
 STEAM_APP_ID = "380870"
 WORKSHOP_APP_ID = "108600"
 DEFAULT_RUNTIME_IMAGE = "ghcr.io/kortechtim/zomboid-runtime:steamcmd-nonroot-v1"
 LEGACY_RUNTIME_IMAGE = "ghcr.io/kortechtim/zomboid-runtime:latest"
 SERVER_PROFILE = "servertest"
 BRANCHES = ("public", "legacy41")
+
+# Build 42 server defaults are used only to fill missing keys. Existing values in
+# servertest.ini always win, while the smaller panel-managed subset is synced
+# separately below. Generated world identity values are intentionally left to the
+# game server.
+BUILD_42_SERVER_INI_DEFAULTS = {
+    "PVP": "true",
+    "PVPLogToolChat": "true",
+    "PVPLogToolFile": "true",
+    "PauseEmpty": "true",
+    "GlobalChat": "true",
+    "ChatStreams": "s,r,a,w,y,sh,f,all",
+    "Open": "true",
+    "ServerWelcomeMessage": "Welcome to Project Zomboid!",
+    "DisplayUserName": "true",
+    "ShowFirstAndLastName": "false",
+    "UsernameDisguises": "false",
+    "HideDisguisedUserName": "false",
+    "SwitchZombiesOwnershipEachUpdate": "false",
+    "SpawnPoint": "0,0,0",
+    "SafetySystem": "true",
+    "ShowSafety": "true",
+    "SafetyToggleTimer": "2",
+    "SafetyCooldownTimer": "3",
+    "SafetyDisconnectDelay": "60",
+    "SpawnItems": "",
+    "DefaultPort": "16261",
+    "UDPPort": "16262",
+    "Mods": "",
+    "Map": "Muldraugh, KY",
+    "DoLuaChecksum": "true",
+    "DenyLoginOnOverloadedServer": "true",
+    "Public": "false",
+    "PublicName": "",
+    "PublicDescription": "",
+    "MaxPlayers": "32",
+    "PingLimit": "0",
+    "SafehousePreventsLootRespawn": "true",
+    "DropOffWhiteListAfterDeath": "false",
+    "NoFire": "false",
+    "AnnounceDeath": "false",
+    "AnnounceAnimalDeath": "false",
+    "SaveWorldEveryMinutes": "0",
+    "PlayerSafehouse": "false",
+    "AdminSafehouse": "false",
+    "SafehouseAllowTrepass": "true",
+    "SafehouseAllowFire": "true",
+    "SafehouseAllowLoot": "true",
+    "SafehouseAllowRespawn": "false",
+    "SafehouseDaySurvivedToClaim": "0",
+    "SafeHouseRemovalTime": "144",
+    "SafehouseAllowNonResidential": "false",
+    "SafehouseDisableDisguises": "true",
+    "MaxSafezoneSize": "20000",
+    "AllowDestructionBySledgehammer": "true",
+    "SledgehammerOnlyInSafehouse": "false",
+    "War": "false",
+    "WarStartDelay": "600",
+    "WarDuration": "3600",
+    "WarSafehouseHitPoints": "3",
+    "RCONPort": "27015",
+    "RCONPassword": "",
+    "DiscordEnable": "false",
+    "DiscordToken": "",
+    "DiscordChatChannel": "",
+    "DiscordLogChannel": "",
+    "DiscordCommandChannel": "",
+    "WebhookAddress": "",
+    "Password": "",
+    "MaxAccountsPerUser": "0",
+    "AllowCoop": "true",
+    "SleepAllowed": "false",
+    "SleepNeeded": "false",
+    "KnockedDownAllowed": "false",
+    "SneakModeHideFromOtherPlayers": "true",
+    "UltraSpeedDoesnotAffectToAnimals": "false",
+    "WorkshopItems": "",
+    "SteamScoreboard": "false",
+    "SteamVAC": "true",
+    "UPnP": "true",
+    "VoiceEnable": "true",
+    "VoiceMinDistance": "10.0",
+    "VoiceMaxDistance": "100.0",
+    "Voice3D": "true",
+    "SpeedLimit": "70.0",
+    "LoginQueueEnabled": "false",
+    "LoginQueueConnectTimeout": "60",
+    "server_browser_announced_ip": "",
+    "PlayerRespawnWithSelf": "false",
+    "PlayerRespawnWithOther": "false",
+    "FastForwardMultiplier": "40.0",
+    "DisableSafehouseWhenOwnerConnected": "false",
+    "Faction": "true",
+    "FactionDaySurvivedToCreate": "0",
+    "FactionPlayersRequiredForTag": "1",
+    "DisableRadioStaff": "false",
+    "DisableRadioAdmin": "true",
+    "DisableRadioGM": "true",
+    "DisableRadioOverseer": "false",
+    "DisableRadioModerator": "false",
+    "DisableRadioInvisible": "true",
+    "ClientCommandFilter": "-vehicle.*;+vehicle.damageWindow;+vehicle.fixPart;+vehicle.installPart;+vehicle.uninstallPart",
+    "ClientActionLogs": "ISEnterVehicle;ISExitVehicle;ISTakeEngineParts;",
+    "PerkLogs": "true",
+    "ItemNumbersLimitPerContainer": "0",
+    "BloodSplatLifespanDays": "0",
+    "AllowNonAsciiUsername": "false",
+    "BanKickGlobalSound": "true",
+    "RemovePlayerCorpsesOnCorpseRemoval": "false",
+    "TrashDeleteAll": "false",
+    "PVPMeleeWhileHitReaction": "false",
+    "MouseOverToSeeDisplayName": "true",
+    "HidePlayersBehindYou": "true",
+    "PVPMeleeDamageModifier": "30.0",
+    "PVPFirearmDamageModifier": "50.0",
+    "CarEngineAttractionModifier": "0.5",
+    "PlayerBumpPlayer": "false",
+    "MapRemotePlayerVisibility": "1",
+    "BackupsCount": "5",
+    "BackupsOnStart": "true",
+    "BackupsOnVersionChange": "true",
+    "BackupsPeriod": "0",
+    "DisableVehicleTowing": "false",
+    "DisableTrailerTowing": "false",
+    "DisableBurntTowing": "false",
+    "BadWordListFile": "",
+    "GoodWordListFile": "",
+    "BadWordPolicy": "3",
+    "BadWordReplacement": "[HIDDEN]",
+    "AntiCheatSafety": "2",
+    "AntiCheatSpeed": "2",
+    "AntiCheatNoClip": "4",
+    "AntiCheatHit": "2",
+    "AntiCheatPacketException": "4",
+    "AntiCheatPermission": "2",
+    "AntiCheatXP": "2",
+    "AntiCheatSafeHouse": "2",
+    "AntiCheatPlayer": "2",
+    "AntiCheatChecksum": "2",
+    "MultiplayerStatisticsPeriod": "1",
+    "DisableScoreboard": "false",
+    "HideAdminsInPlayerList": "false",
+    "MaxPacketsPerSecond": "300",
+    "ShowCoordinates": "false",
+    "UsePhysicsHitReaction": "false",
+    "ChatMessageCharacterLimit": "200",
+    "ChatMessageSlowModeTime": "3",
+}
 
 
 def resolve_runtime_image(value: str | None) -> str:
@@ -114,8 +262,8 @@ class ServerConfig(BaseModel):
     map_order: list[str] = Field(default_factory=lambda: ["Muldraugh, KY"], max_length=100)
     backup_before_start: bool = False
     backup_before_update: bool = True
-    backup_retention_count: int = Field(default=20, ge=3, le=100)
-    backup_retention_days: int = Field(default=30, ge=1, le=365)
+    backup_retention_count: int = Field(default=10, ge=3, le=100)
+    backup_retention_days: int = Field(default=15, ge=1, le=365)
 
     @field_validator("server_name", "description", "welcome_message")
     @classmethod
@@ -219,8 +367,8 @@ class BackupSchedule(BaseModel):
     model_config = ConfigDict(extra="forbid")
     enabled: bool = False
     times: list[str] = Field(default_factory=lambda: ["03:00"], min_length=1, max_length=3)
-    retention_count: int = Field(default=20, ge=3, le=100)
-    retention_days: int = Field(default=30, ge=1, le=365)
+    retention_count: int = Field(default=10, ge=3, le=100)
+    retention_days: int = Field(default=15, ge=1, le=365)
 
     @field_validator("times")
     @classmethod
