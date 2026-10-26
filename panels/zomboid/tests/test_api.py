@@ -98,6 +98,22 @@ class ApiTests(unittest.TestCase):
             "https://steamcommunity.com/sharedfiles/filedetails/?id=3796373365"
         )
 
+    def test_workshop_lists_safe_paths_for_mod_configuration_shortcuts(self):
+        installed = self.root / "server/steamapps/workshop/content/108600/3796373365"
+        installed.mkdir(parents=True)
+
+        response = self.client.get("/api/workshop")
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["installed"], ["3796373365"])
+        self.assertEqual(
+            data["installed_paths"]["3796373365"],
+            "server/steamapps/workshop/content/108600/3796373365",
+        )
+        self.assertEqual(data["sandbox_settings_path"], "Zomboid/Server/servertest_SandboxVars.lua")
+        self.assertEqual(data["settings_directory"], "Zomboid/Server")
+
     def test_file_explorer_is_rooted_in_data(self):
         root = self.client.get("/api/files")
         self.assertEqual(root.status_code, 200)

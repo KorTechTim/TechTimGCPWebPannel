@@ -15,8 +15,8 @@ from pydantic import BaseModel, Field, ValidationError, field_validator
 from starlette.background import BackgroundTask
 
 from .auth import Auth, SESSION_COOKIE, SESSION_SECONDS
-from .config import (PANEL_VERSION, BackupSchedule, RestartSchedule, SandboxConfig,
-                     Settings, sandbox_schema)
+from .config import (PANEL_VERSION, SERVER_PROFILE, BackupSchedule, RestartSchedule,
+                     SandboxConfig, Settings, sandbox_schema)
 from .discord_webhook import normalize_webhook_url
 from .service import BusyError, PanelService
 from .storage import inside
@@ -356,13 +356,18 @@ def create_app(settings=None, docker_factory=None):
         config = service.config()
         roots = [service.server / "steamapps" / "workshop" / "content" / "108600",
                  service.server / "steamapps" / "workshop" / "content" / "380870"]
-        installed = []
+        installed_paths = {}
         for root in roots:
             if root.exists():
-                installed.extend(path.name for path in root.iterdir() if path.is_dir() and path.name.isdigit())
+                for path in root.iterdir():
+                    if path.is_dir() and path.name.isdigit():
+                        installed_paths.setdefault(path.name, relative(path))
         return {"workshop_items": config.workshop_items, "mod_ids": config.mod_ids,
                 "workshop_mod_pairs": [pair.model_dump() for pair in config.workshop_mod_pairs],
-                "map_order": config.map_order, "installed": sorted(set(installed))}
+                "map_order": config.map_order, "installed": sorted(installed_paths),
+                "installed_paths": installed_paths,
+                "sandbox_settings_path": relative(service.server_config_dir / f"{SERVER_PROFILE}_SandboxVars.lua"),
+                "settings_directory": relative(service.server_config_dir)}
 
     @app.post("/api/workshop/lookup")
     def workshop_lookup(payload: WorkshopLookupRequest, request: Request):

@@ -11,6 +11,8 @@ let currentLog = 'all';
 let currentPath = '';
 let editingFilePath = '';
 let fileEditorOriginal = '';
+let workshopInstalledPaths = {};
+let modSettingsPaths = {sandbox: '', directory: ''};
 const commandHistory = [];
 let commandHistoryIndex = 0;
 const RESOURCE_REFRESH_MS = 1000;
@@ -628,6 +630,8 @@ $('#save-sandbox').addEventListener('click', () => perform(() => api('/api/sandb
 
 async function loadMods() {
   const [workshop, config] = await Promise.all([api('/api/workshop'), api('/api/config')]); configCache = config;
+  workshopInstalledPaths = workshop.installed_paths || {};
+  modSettingsPaths = {sandbox: workshop.sandbox_settings_path || '', directory: workshop.settings_directory || ''};
   renderModPairs(workshop.workshop_items, workshop.mod_ids, workshop.workshop_mod_pairs); $('#map-order').value = workshop.map_order.join('\n');
   $('#workshop-count').textContent = workshop.workshop_items.length; $('#mod-count').textContent = workshop.mod_ids.length; $('#installed-mod-count').textContent = workshop.installed.length;
 }
@@ -638,15 +642,28 @@ function updateModPairCounts() {
   $('#workshop-count').textContent = new Set($$('.mod-pair-workshop').map(input => input.value.trim()).filter(Boolean)).size;
   $('#mod-count').textContent = $$('.mod-pair-id').filter(input => input.value.trim()).length;
 }
+function updateModFolderButton(row) {
+  const workshopId = row.querySelector('.mod-pair-workshop').value.trim();
+  const button = row.querySelector('.mod-pair-folder');
+  const installedPath = workshopInstalledPaths[workshopId];
+  button.disabled = !installedPath;
+  button.title = installedPath ? `설치 폴더 열기: /data/${installedPath}` : '서버에서 다운로드된 Workshop 폴더가 없습니다.';
+}
 function createModPairRow(workshopId = '', modId = '') {
   const row = document.createElement('div'); row.className = 'mod-pair-row';
   const index = document.createElement('span'); index.className = 'mod-pair-index';
   const workshop = document.createElement('input'); workshop.className = 'mod-pair-workshop'; workshop.type = 'text'; workshop.inputMode = 'numeric'; workshop.pattern = '[0-9]*'; workshop.maxLength = 20; workshop.placeholder = '예: 2392709985'; workshop.ariaLabel = 'Steam Workshop 숫자 ID'; workshop.value = workshopId;
   const mod = document.createElement('input'); mod.className = 'mod-pair-id'; mod.type = 'text'; mod.maxLength = 128; mod.placeholder = '예: ModOptions'; mod.ariaLabel = '내부 Mod ID'; mod.value = modId;
+  const folder = document.createElement('button'); folder.className = 'mod-pair-folder'; folder.type = 'button'; folder.textContent = '폴더 열기'; folder.ariaLabel = '설치된 모드 폴더 열기';
   const remove = document.createElement('button'); remove.className = 'mod-pair-remove'; remove.type = 'button'; remove.title = '이 모드 행 삭제'; remove.ariaLabel = '모드 행 삭제'; remove.textContent = '×';
-  workshop.addEventListener('input', updateModPairCounts); mod.addEventListener('input', updateModPairCounts);
+  workshop.addEventListener('input', () => { updateModPairCounts(); updateModFolderButton(row); }); mod.addEventListener('input', updateModPairCounts);
+  folder.addEventListener('click', () => {
+    const installedPath = workshopInstalledPaths[workshop.value.trim()];
+    if (!installedPath) return message('설치된 모드 폴더가 없습니다. 서버에서 모드를 다운로드한 뒤 다시 확인해주세요.', true);
+    openFilesAt(installedPath).catch(error => message(error.message, true));
+  });
   remove.addEventListener('click', () => { row.remove(); if (!$('#mod-pair-list').children.length) $('#mod-pair-list').append(createModPairRow()); renumberModPairs(); updateModPairCounts(); });
-  row.append(index, workshop, mod, remove); return row;
+  row.append(index, workshop, mod, folder, remove); updateModFolderButton(row); return row;
 }
 function renderModPairs(workshopItems = [], modIds = [], storedPairs = []) {
   const list = $('#mod-pair-list'); list.replaceChildren();
@@ -666,6 +683,14 @@ function collectModPairs() {
   return {workshopItems, modIds, items: uniquePairs.map(pair => ({workshop_id: pair.workshop, mod_id: pair.mod}))};
 }
 $('#add-mod-pair').addEventListener('click', () => { $('#mod-pair-list').append(createModPairRow()); renumberModPairs(); });
+$('#open-mod-settings-file').addEventListener('click', () => {
+  if (!modSettingsPaths.sandbox) return message('서버 설정 파일 경로를 확인하지 못했습니다.', true);
+  openFileEditor(modSettingsPaths.sandbox);
+});
+$('#open-mod-settings-folder').addEventListener('click', () => {
+  if (!modSettingsPaths.directory) return message('서버 설정 폴더 경로를 확인하지 못했습니다.', true);
+  openFilesAt(modSettingsPaths.directory).catch(error => message(error.message, true));
+});
 $('#lookup-workshop').addEventListener('click', async event => {
   const button = event.currentTarget; const label = button.textContent;
   const value = await requestTextInput({
@@ -933,6 +958,10 @@ function renderBreadcrumbs(path) {
   const target = $('#breadcrumbs'); target.replaceChildren(); const root = document.createElement('button'); root.textContent = '/data'; root.addEventListener('click', () => loadFiles('')); target.append(root);
   let accumulated = '';
   for (const part of path.split('/').filter(Boolean)) { target.append(document.createTextNode(' / ')); accumulated = accumulated ? `${accumulated}/${part}` : part; const destination = accumulated; const button = document.createElement('button'); button.textContent = part; button.addEventListener('click', () => loadFiles(destination)); target.append(button); }
+}
+async function openFilesAt(path) {
+  currentPath = path;
+  await showView('files');
 }
 async function loadFiles(path = '') {
   const data = await api(`/api/files?path=${encodeURIComponent(path)}`); currentPath = data.path; renderBreadcrumbs(data.path); const list = $('#file-list'); list.replaceChildren();

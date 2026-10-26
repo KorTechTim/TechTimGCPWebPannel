@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>T2 Zomboid Server Pannel</title>
   <link rel="icon" href="/static/zomboid-panel-mark.png?v=1">
-  <link rel="stylesheet" href="/static/app.css?v=1.0.5">
-  <script src="/static/app.js?v=1.0.5" defer></script>
+  <link rel="stylesheet" href="/static/app.css?v=1.0.6">
+  <script src="/static/app.js?v=1.0.6" defer></script>
 </head>
 <body>
 <div class="app-shell">
@@ -30,7 +30,7 @@
       <button class="nav-item" data-view="players"><b class="nav-icon"><img src="/static/zomboid-menu-players-v1.png" alt=""></b><span>사용자 관리</span></button>
       <button class="nav-item" data-view="backups"><b class="nav-icon"><img src="/static/zomboid-menu-backups-v1.png" alt=""></b><span>백업 · 복원</span></button>
     </nav>
-    <div class="sidebar-foot"><span>GCP LINUX</span><span id="sidebar-version">PANEL 1.0.5</span></div>
+    <div class="sidebar-foot"><span>GCP LINUX</span><span id="sidebar-version">PANEL 1.0.6</span></div>
   </aside>
 
   <main class="workspace">
@@ -56,7 +56,7 @@
       <article><span class="status-mark game"><img src="/static/zomboid-panel-mark.png?v=1" alt=""></span><div><small>게임</small><strong>Project Zomboid</strong><em>Dedicated Server</em></div></article>
       <article><span class="status-mark install"><img src="/static/zomboid-status-install-v1.png" alt=""></span><div><small>설치 상태</small><strong id="engine-state">확인 중</strong><em id="engine-build">Steam App 380870</em></div></article>
       <article><span class="status-mark server"><img src="/static/zomboid-status-server-v1.png" alt=""></span><div><small>서버 상태</small><strong id="server-state">확인 중</strong><em>servertest · <span id="branch-state">public</span></em></div></article>
-      <article><span class="status-mark panel"><img src="/static/zomboid-status-panel-v1.png" alt=""></span><div><small>패널 버전</small><strong id="panel-version">1.0.5</strong><em>TechTim GCP Panel</em></div></article>
+      <article><span class="status-mark panel"><img src="/static/zomboid-status-panel-v1.png" alt=""></span><div><small>패널 버전</small><strong id="panel-version">1.0.6</strong><em>TechTim GCP Panel</em></div></article>
     </section>
 
     <p id="global-message" class="global-message" role="status"></p>
@@ -128,7 +128,8 @@
     <section class="view" data-page="mods">
       <div class="page-head"><div><p class="eyebrow">STEAM WORKSHOP</p><h2>모드 · 워크숍 관리</h2><p>Workshop ID와 내부 Mod ID를 한 행의 페어로 구성합니다.</p></div><div class="mod-page-actions"><a class="steam-workshop-button" href="https://steamcommunity.com/app/108600/workshop/" target="_blank" rel="noreferrer">↗ 스팀 워크샵 이동하기</a><button class="primary" id="save-mods">모드 구성 저장</button></div></div>
       <div class="workshop-summary"><article><small>등록 항목</small><strong id="workshop-count">0</strong></article><article><small>내부 Mod ID</small><strong id="mod-count">0</strong></article><article><small>로컬 감지</small><strong id="installed-mod-count">0</strong></article></div>
-      <section class="panel mod-pair-panel"><header><div><h3>워크샵 모드 페어</h3><p>Steam Workshop 숫자 ID와 <code>mod.info</code>의 내부 Mod ID를 같은 행에 입력하세요.</p></div><div class="mod-pair-actions"><button id="lookup-workshop" type="button">창작 마당ID로 바로 추가</button><button id="add-mod-pair" type="button">＋ 모드 행 추가</button></div></header><div class="mod-pair-columns" aria-hidden="true"><span>순서</span><span>Steam Workshop 숫자 ID</span><span>내부 Mod ID</span><span>삭제</span></div><div id="mod-pair-list" class="mod-pair-list"><p class="mod-pair-empty">모드 구성을 불러오는 중입니다.</p></div></section>
+      <section class="panel mod-settings-shortcuts"><div><h3>모드 환경설정 바로가기</h3><p>샌드박스 방식의 모드 설정은 서버 공통 파일을 사용합니다. 모드에 따라 설치 폴더에 별도 설정 파일이 포함될 수 있습니다.</p></div><div><button id="open-mod-settings-file" type="button">서버 설정 파일 열기</button><button id="open-mod-settings-folder" type="button">설정 폴더 열기</button></div></section>
+      <section class="panel mod-pair-panel"><header><div><h3>워크샵 모드 페어</h3><p>Steam Workshop 숫자 ID와 <code>mod.info</code>의 내부 Mod ID를 같은 행에 입력하세요.</p></div><div class="mod-pair-actions"><button id="lookup-workshop" type="button">창작 마당ID로 바로 추가</button><button id="add-mod-pair" type="button">＋ 모드 행 추가</button></div></header><div class="mod-pair-columns" aria-hidden="true"><span>순서</span><span>Steam Workshop 숫자 ID</span><span>내부 Mod ID</span><span>설치 폴더</span><span>삭제</span></div><div id="mod-pair-list" class="mod-pair-list"><p class="mod-pair-empty">모드 구성을 불러오는 중입니다.</p></div></section>
       <section class="panel map-order-panel"><header><div><h3>맵 로드 순서</h3><p>모드 맵을 기본 맵보다 위에 두고 한 줄에 하나씩 입력하세요.</p></div><small>MAP LOAD ORDER</small></header><label><span>맵 이름</span><textarea id="map-order" rows="6" placeholder="Muldraugh, KY">Muldraugh, KY</textarea></label></section>
       <aside class="callout">Build 42와 Build 41 모드는 서로 호환되지 않을 수 있습니다. 배포 채널 변경 전 백업을 만들고 모드의 대상 빌드를 확인하세요.</aside>
     </section>
@@ -147,7 +148,6 @@
 
     <section class="view" data-page="players">
       <div class="page-head"><div><p class="eyebrow">SURVIVOR REGISTRY</p><h2>사용자 관리</h2><p>서버 계정 DB의 화이트리스트, 차단, 운영 권한을 안전하게 관리합니다.</p></div><button id="refresh-players">DB 새로고침</button></div>
-      <aside class="callout warning">사용자 DB 변경은 서버가 중지된 동안만 가능하며, 변경 직전에 세이브·설정·DB 안전 백업을 자동 생성합니다.</aside>
       <section class="player-toolbar" aria-label="사용자 검색 및 필터"><label><span>사용자 검색</span><input id="player-search" type="search" placeholder="사용자명, 표시 이름, Steam ID"></label><label><span>상태 필터</span><select id="player-status-filter"><option value="all">전체 계정</option><option value="operator">운영 권한</option><option value="banned">블랙리스트</option><option value="steam">Steam 연결</option></select></label><div id="player-counts" class="player-counts" aria-live="polite"></div></section>
       <p id="players-summary" class="section-message"></p><div id="player-list" class="record-list player-list"></div>
     </section>
@@ -246,7 +246,7 @@
     <dialog id="panel-update-dialog" class="app-dialog panel-update-dialog" aria-labelledby="panel-update-title">
       <header><div><p class="eyebrow">PANEL MAINTENANCE</p><h2 id="panel-update-title">구동기 업데이트</h2><p>게임 서버 업데이트와 별개로 웹 구동기 이미지만 교체합니다.</p></div><button id="close-panel-update" class="dialog-close" type="button" title="닫기" aria-label="업데이트 창 닫기">×</button></header>
       <div class="panel-update-body">
-        <section class="panel update-card"><div><small>CURRENT VERSION</small><strong id="update-current-version">1.0.5</strong><span>TechTim GCP Project Zomboid 웹 구동기</span></div><div><small>IMAGE STATUS</small><strong id="update-image-status">확인 중</strong><span id="update-image-detail">컨테이너 레지스트리를 확인합니다.</span></div></section>
+        <section class="panel update-card"><div><small>CURRENT VERSION</small><strong id="update-current-version">1.0.6</strong><span>TechTim GCP Project Zomboid 웹 구동기</span></div><div><small>IMAGE STATUS</small><strong id="update-image-status">확인 중</strong><span id="update-image-detail">컨테이너 레지스트리를 확인합니다.</span></div></section>
         <section id="panel-update-progress" class="panel-update-progress" aria-labelledby="panel-update-progress-label" hidden>
           <div class="panel-update-progress-head"><strong id="panel-update-progress-label">업데이트 준비</strong><b id="panel-update-progress-percent">0%</b></div>
           <div id="panel-update-progress-track" class="panel-update-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="panel-update-progress-bar"></i></div>
