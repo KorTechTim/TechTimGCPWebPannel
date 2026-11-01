@@ -67,6 +67,24 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(schema.status_code, 200)
         self.assertGreaterEqual(len(schema.json()["fields"]), 260)
 
+    def test_mod_priority_order_is_written_to_server_ini(self):
+        config = self.client.get("/api/config").json()
+        config["workshop_mod_pairs"] = [
+            {"workshop_id": "2222222222", "mod_id": "HighPriorityMod"},
+            {"workshop_id": "1111111111", "mod_id": "LowPriorityMod"},
+        ]
+
+        saved = self.client.post("/api/config", json=config)
+
+        self.assertEqual(saved.status_code, 200)
+        self.assertEqual(
+            [pair["mod_id"] for pair in saved.json()["workshop_mod_pairs"]],
+            ["HighPriorityMod", "LowPriorityMod"],
+        )
+        ini = (self.root / "Zomboid/Server/servertest.ini").read_text(encoding="utf-8")
+        self.assertIn("WorkshopItems=2222222222;1111111111", ini)
+        self.assertIn("Mods=HighPriorityMod;LowPriorityMod", ini)
+
     def test_backup_schedule_round_trip(self):
         saved = self.client.post("/api/backups/settings", json={
             "enabled": True,

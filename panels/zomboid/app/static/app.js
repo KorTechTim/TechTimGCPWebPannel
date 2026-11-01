@@ -13,6 +13,7 @@ let editingFilePath = '';
 let fileEditorOriginal = '';
 let workshopInstalledPaths = {};
 let modSettingsPaths = {sandbox: '', directory: ''};
+let modsDirty = false;
 const commandHistory = [];
 let commandHistoryIndex = 0;
 const RESOURCE_REFRESH_MS = 1000;
@@ -634,9 +635,20 @@ async function loadMods() {
   modSettingsPaths = {sandbox: workshop.sandbox_settings_path || '', directory: workshop.settings_directory || ''};
   renderModPairs(workshop.workshop_items, workshop.mod_ids, workshop.workshop_mod_pairs); $('#map-order').value = workshop.map_order.join('\n');
   $('#workshop-count').textContent = workshop.workshop_items.length; $('#mod-count').textContent = workshop.mod_ids.length; $('#installed-mod-count').textContent = workshop.installed.length;
+  setModsDirty(false);
+}
+function setModsDirty(dirty = true) {
+  modsDirty = dirty;
+  $('#mod-save-reminder').hidden = !dirty;
+  $('#save-mods').classList.toggle('is-dirty', dirty);
 }
 function renumberModPairs() {
-  $$('.mod-pair-row').forEach((row, index) => { row.querySelector('.mod-pair-index').textContent = String(index + 1).padStart(2, '0'); });
+  const rows = $$('.mod-pair-row');
+  rows.forEach((row, index) => {
+    row.querySelector('.mod-pair-index').textContent = String(index + 1).padStart(2, '0');
+    row.querySelector('.mod-pair-move-up').disabled = index === 0;
+    row.querySelector('.mod-pair-move-down').disabled = index === rows.length - 1;
+  });
 }
 function updateModPairCounts() {
   $('#workshop-count').textContent = new Set($$('.mod-pair-workshop').map(input => input.value.trim()).filter(Boolean)).size;
@@ -649,21 +661,36 @@ function updateModFolderButton(row) {
   button.disabled = !installedPath;
   button.title = installedPath ? `설치 폴더 열기: /data/${installedPath}` : '서버에서 다운로드된 Workshop 폴더가 없습니다.';
 }
+function moveModPair(row, direction) {
+  const sibling = direction === 'up' ? row.previousElementSibling : row.nextElementSibling;
+  if (!sibling) return;
+  if (direction === 'up') row.parentElement.insertBefore(row, sibling);
+  else row.parentElement.insertBefore(sibling, row);
+  renumberModPairs();
+  setModsDirty();
+  row.querySelector(`.mod-pair-move-${direction}`).focus();
+}
 function createModPairRow(workshopId = '', modId = '') {
   const row = document.createElement('div'); row.className = 'mod-pair-row';
   const index = document.createElement('span'); index.className = 'mod-pair-index';
   const workshop = document.createElement('input'); workshop.className = 'mod-pair-workshop'; workshop.type = 'text'; workshop.inputMode = 'numeric'; workshop.pattern = '[0-9]*'; workshop.maxLength = 20; workshop.placeholder = '예: 2392709985'; workshop.ariaLabel = 'Steam Workshop 숫자 ID'; workshop.value = workshopId;
   const mod = document.createElement('input'); mod.className = 'mod-pair-id'; mod.type = 'text'; mod.maxLength = 128; mod.placeholder = '예: ModOptions'; mod.ariaLabel = '내부 Mod ID'; mod.value = modId;
   const folder = document.createElement('button'); folder.className = 'mod-pair-folder'; folder.type = 'button'; folder.textContent = '폴더 열기'; folder.ariaLabel = '설치된 모드 폴더 열기';
+  const priority = document.createElement('div'); priority.className = 'mod-pair-priority'; priority.ariaLabel = '모드 우선순위 변경';
+  const moveUp = document.createElement('button'); moveUp.className = 'mod-pair-move mod-pair-move-up'; moveUp.type = 'button'; moveUp.textContent = '↑'; moveUp.title = '위로 이동'; moveUp.ariaLabel = '모드 우선순위를 위로 이동';
+  const moveDown = document.createElement('button'); moveDown.className = 'mod-pair-move mod-pair-move-down'; moveDown.type = 'button'; moveDown.textContent = '↓'; moveDown.title = '아래로 이동'; moveDown.ariaLabel = '모드 우선순위를 아래로 이동';
   const remove = document.createElement('button'); remove.className = 'mod-pair-remove'; remove.type = 'button'; remove.title = '이 모드 행 삭제'; remove.ariaLabel = '모드 행 삭제'; remove.textContent = '×';
-  workshop.addEventListener('input', () => { updateModPairCounts(); updateModFolderButton(row); }); mod.addEventListener('input', updateModPairCounts);
+  workshop.addEventListener('input', () => { updateModPairCounts(); updateModFolderButton(row); setModsDirty(); }); mod.addEventListener('input', () => { updateModPairCounts(); setModsDirty(); });
   folder.addEventListener('click', () => {
     const installedPath = workshopInstalledPaths[workshop.value.trim()];
     if (!installedPath) return message('설치된 모드 폴더가 없습니다. 서버에서 모드를 다운로드한 뒤 다시 확인해주세요.', true);
     openFilesAt(installedPath).catch(error => message(error.message, true));
   });
-  remove.addEventListener('click', () => { row.remove(); if (!$('#mod-pair-list').children.length) $('#mod-pair-list').append(createModPairRow()); renumberModPairs(); updateModPairCounts(); });
-  row.append(index, workshop, mod, folder, remove); updateModFolderButton(row); return row;
+  moveUp.addEventListener('click', () => moveModPair(row, 'up'));
+  moveDown.addEventListener('click', () => moveModPair(row, 'down'));
+  remove.addEventListener('click', () => { row.remove(); if (!$('#mod-pair-list').children.length) $('#mod-pair-list').append(createModPairRow()); renumberModPairs(); updateModPairCounts(); setModsDirty(); });
+  priority.append(moveUp, moveDown);
+  row.append(index, workshop, mod, folder, priority, remove); updateModFolderButton(row); return row;
 }
 function renderModPairs(workshopItems = [], modIds = [], storedPairs = []) {
   const list = $('#mod-pair-list'); list.replaceChildren();
@@ -682,7 +709,8 @@ function collectModPairs() {
   if (new Set(modIds).size !== modIds.length) throw new Error('중복된 내부 Mod ID가 있습니다.');
   return {workshopItems, modIds, items: uniquePairs.map(pair => ({workshop_id: pair.workshop, mod_id: pair.mod}))};
 }
-$('#add-mod-pair').addEventListener('click', () => { $('#mod-pair-list').append(createModPairRow()); renumberModPairs(); });
+$('#add-mod-pair').addEventListener('click', () => { $('#mod-pair-list').append(createModPairRow()); renumberModPairs(); setModsDirty(); });
+$('#map-order').addEventListener('input', () => setModsDirty());
 $('#open-mod-settings-file').addEventListener('click', () => {
   if (!modSettingsPaths.sandbox) return message('서버 설정 파일 경로를 확인하지 못했습니다.', true);
   openFileEditor(modSettingsPaths.sandbox);
@@ -714,6 +742,7 @@ $('#lookup-workshop').addEventListener('click', async event => {
       if (!duplicate) { list.append(createModPairRow(item.workshop_id, modId)); added++; }
     });
     renumberModPairs(); updateModPairCounts();
+    if (added) setModsDirty();
     if (!item.mod_ids.length) message(`${item.title}의 Workshop ID를 추가했습니다. 설명에서 내부 Mod ID를 찾지 못해 직접 입력이 필요합니다.`, true);
     else if (!added) message(`${item.title}은 이미 같은 구성으로 등록되어 있습니다.`);
     else message(`${item.title}에서 내부 Mod ID ${item.mod_ids.length}개를 확인해 ${added}개 행을 추가했습니다.`);

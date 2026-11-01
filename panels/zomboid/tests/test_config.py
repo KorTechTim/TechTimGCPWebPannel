@@ -68,6 +68,25 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(values["WorkshopItems"], "3796373365")
         self.assertEqual(values["Mods"], "FirstMod;SecondMod")
 
+    def test_workshop_pair_priority_is_preserved_in_ini(self):
+        config = ServerConfig(workshop_mod_pairs=[
+            WorkshopModPair(workshop_id="2222222222", mod_id="HighPriorityMod"),
+            WorkshopModPair(workshop_id="1111111111", mod_id="MiddlePriorityMod"),
+            WorkshopModPair(workshop_id="1111111111", mod_id="LowPriorityMod"),
+        ])
+
+        self.assertEqual(
+            [(pair.workshop_id, pair.mod_id) for pair in config.workshop_mod_pairs],
+            [
+                ("2222222222", "HighPriorityMod"),
+                ("1111111111", "MiddlePriorityMod"),
+                ("1111111111", "LowPriorityMod"),
+            ],
+        )
+        values = ini_values(config)
+        self.assertEqual(values["WorkshopItems"], "2222222222;1111111111")
+        self.assertEqual(values["Mods"], "HighPriorityMod;MiddlePriorityMod;LowPriorityMod")
+
     def test_sandbox_values_include_dotted_build42_keys(self):
         values = sandbox_values(SandboxConfig(respawn_multiplier=.25, drag_down=False))
         self.assertEqual(values["ZombieConfig.RespawnMultiplier"], "0.25")
