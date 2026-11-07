@@ -44,7 +44,7 @@ app = FastAPI(title="TechTim Minecraft Server Panel")
 APP_DIR = Path(__file__).resolve().parent
 app.mount("/static", StaticFiles(directory=str(APP_DIR / "static")), name="static")
 
-PANEL_VERSION = os.getenv("PANEL_VERSION", "1.0.0")
+PANEL_VERSION = os.getenv("PANEL_VERSION", "1.0.1")
 STATIC_ASSET_VERSION = hashlib.sha256(
     (APP_DIR / "static" / "app.css").read_bytes()
     + (APP_DIR / "static" / "panel-overrides.css").read_bytes()
@@ -133,6 +133,10 @@ SERVER_TYPES = {
 }
 MODPACK_URL_TYPES = {"FORGE", "NEOFORGE", "FABRIC"}
 JAVA_VERSIONS = {"AUTO", "8", "11", "16", "17", "21", "25"}
+FORGE_MODPACK_COMPATIBILITY_DEFAULTS = {
+    "1.20.1": "47.4.0",
+}
+SERVER_RESTART_POLICY = {"Name": "on-failure", "MaximumRetryCount": 3}
 STOPPABLE_SERVER_STATUSES = {"running", "restarting", "paused"}
 DISCORD_EVENT_SETTINGS = {
     "server_start": "notify_server_start",
@@ -234,6 +238,7 @@ class ConfigRequest(BaseModel):
     Whitelist: str = ""
     Ops: str = ""
     ModpackUrl: str = ""
+    ForgeVersion: str = ""
 
 
 class CreateDirRequest(BaseModel):
@@ -375,6 +380,10 @@ def normalize_config(raw: dict) -> dict:
     merged["SimulationDistance"] = min(32, max(2, int(merged["SimulationDistance"])))
     merged["SpawnProtection"] = min(128, max(0, int(merged["SpawnProtection"])))
     merged["ModpackUrl"] = "" if legacy_curseforge_selection else str(merged.get("ModpackUrl") or "").strip()
+    forge_version = str(merged.get("ForgeVersion") or "").strip()
+    if forge_version and not re.fullmatch(r"(?i:latest|recommended|\d+(?:\.\d+){1,3})", forge_version):
+        forge_version = ""
+    merged["ForgeVersion"] = forge_version
     for key in tuple(merged):
         if key == "ModpackSource" or key.startswith("CurseForge"):
             merged.pop(key, None)
@@ -1790,7 +1799,11 @@ def runtime_environment(config: dict) -> dict[str, str]:
     if config["Type"] in MODPACK_URL_TYPES:
         optional["GENERIC_PACK"] = config["ModpackUrl"]
     if config["Type"] == "FORGE" and config["ModpackUrl"]:
-        optional["FORGE_VERSION"] = "latest"
+        forge_version = str(config.get("ForgeVersion") or "").strip()
+        if not forge_version:
+            forge_version = FORGE_MODPACK_COMPATIBILITY_DEFAULTS.get(str(config.get("Version") or "").strip(), "")
+        if forge_version and forge_version.upper() != "RECOMMENDED":
+            optional["FORGE_VERSION"] = forge_version
     for key, value in optional.items():
         if str(value or "").strip():
             env[key] = str(value).strip()
@@ -2224,7 +2237,7 @@ def start_server(payload: StartServerRequest, request: Request):
     CONTROL_LOG_FILE.write_text("", encoding="utf-8")
     if old:
         if old.status in {"created", "exited"} and container_matches_runtime(old, runtime_image, environment):
-            old.update(restart_policy={"Name": "unless-stopped"})
+            old.update(restart_policy=SERVER_RESTART_POLICY)
             append_log(CONTROL_LOG_FILE, "기존 서버 컨테이너와 영구 저장 데이터를 확인했습니다.")
             append_log(CONTROL_LOG_FILE, "재설치 없이 기존 Minecraft 서버를 시작합니다.")
             old.start()
@@ -2251,7 +2264,7 @@ def start_server(payload: StartServerRequest, request: Request):
         environment=environment,
         volumes={str(HOST_SERVER_DIR): {"bind": "/data", "mode": "rw"}},
         ports={"25565/tcp": SERVER_PORT},
-        restart_policy={"Name": "unless-stopped"},
+        restart_policy=SERVER_RESTART_POLICY,
         labels={RUNTIME_CONFIG_LABEL: signature},
         stdin_open=True,
         tty=True,

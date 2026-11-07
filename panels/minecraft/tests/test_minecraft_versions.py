@@ -51,6 +51,45 @@ class MinecraftVersionListTests(unittest.TestCase):
         self.assertTrue(main.installed({"JavaVersion": "25"}))
         self.assertFalse(main.installed({"JavaVersion": "8"}))
 
+    def test_forge_modpack_uses_compatible_version_instead_of_latest(self):
+        config = main.normalize_config({
+            "Type": "FORGE",
+            "Version": "1.20.1",
+            "JavaVersion": "17",
+            "ModpackUrl": "https://example.com/server-pack.zip",
+        })
+
+        environment = main.runtime_environment(config)
+
+        self.assertEqual(environment["FORGE_VERSION"], "47.4.0")
+        self.assertNotEqual(environment["FORGE_VERSION"].lower(), "latest")
+
+    def test_explicit_forge_version_overrides_compatibility_default(self):
+        config = main.normalize_config({
+            "Type": "FORGE",
+            "Version": "1.20.1",
+            "ModpackUrl": "https://example.com/server-pack.zip",
+            "ForgeVersion": "47.4.10",
+        })
+
+        self.assertEqual(main.runtime_environment(config)["FORGE_VERSION"], "47.4.10")
+
+    def test_recommended_forge_version_leaves_selection_to_runtime(self):
+        config = main.normalize_config({
+            "Type": "FORGE",
+            "Version": "1.20.1",
+            "ModpackUrl": "https://example.com/server-pack.zip",
+            "ForgeVersion": "recommended",
+        })
+
+        self.assertNotIn("FORGE_VERSION", main.runtime_environment(config))
+
+    def test_server_crash_restart_attempts_are_limited(self):
+        self.assertEqual(
+            main.SERVER_RESTART_POLICY,
+            {"Name": "on-failure", "MaximumRetryCount": 3},
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -145,10 +145,16 @@
         </div></section>
         <section class="form-section conditional" id="loaderModpackSection">
           <h3>모드팩 자동 설치</h3>
-          <label>모드팩 URL
-            <span class="modpack-url-row"><input id="ModpackUrl" type="url" placeholder="https://example.com/server-modpack.zip"><a class="modpack-guide-link" href="https://techtim.tistory.com/299" target="_blank" rel="noopener noreferrer">ModPack URL</a></span>
-            <small class="field-help">직접 다운로드 가능한 서버팩 .zip 또는 .tgz 주소를 입력하세요.</small>
-          </label>
+          <div class="grid cols-2">
+            <label>모드팩 URL
+              <span class="modpack-url-row"><input id="ModpackUrl" type="url" placeholder="https://example.com/server-modpack.zip"><a class="modpack-guide-link" href="https://techtim.tistory.com/299" target="_blank" rel="noopener noreferrer">ModPack URL</a></span>
+              <small class="field-help">직접 다운로드 가능한 서버팩 .zip 또는 .tgz 주소를 입력하세요.</small>
+            </label>
+            <label class="conditional" id="forgeVersionField">Forge 버전
+              <input id="ForgeVersion" placeholder="권장 버전 자동 선택 (예: 47.4.0)" autocomplete="off">
+              <small class="field-help">비워두면 Minecraft 버전에 맞는 검증된 권장값을 사용합니다. 모드팩 안내에 버전이 있으면 직접 입력하세요.</small>
+            </label>
+          </div>
         </section>
         <section class="form-section" id="serverPropertiesSection"><h3>서버 및 월드 · server.properties</h3><div class="grid cols-2">
           <label>서버 이름<input id="ServerName"></label><label>월드 폴더 이름<input id="Level"></label>

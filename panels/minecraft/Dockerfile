@@ -8,7 +8,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app ./app
 
 ENV GAME_CODE=minecraft
-ENV PANEL_VERSION=1.0.0
+ENV PANEL_VERSION=1.0.1
 
 EXPOSE 8080
 

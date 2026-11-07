@@ -803,7 +803,7 @@ $('deleteServerConfirm').onclick = async event => {
   }
 };
 
-const fields = ['Type','Version','JavaVersion','Memory','ServerName','Motd','Level','Seed','Difficulty','GameMode','MaxPlayers','OnlineMode','Pvp','AllowFlight','EnableCommandBlock','ViewDistance','SimulationDistance','SpawnProtection','Whitelist','Ops','ModpackUrl'];
+const fields = ['Type','Version','JavaVersion','Memory','ServerName','Motd','Level','Seed','Difficulty','GameMode','MaxPlayers','OnlineMode','Pvp','AllowFlight','EnableCommandBlock','ViewDistance','SimulationDistance','SpawnProtection','Whitelist','Ops','ModpackUrl','ForgeVersion'];
 const checkFields = new Set(['OnlineMode','Pvp','AllowFlight','EnableCommandBlock']);
 const numberFields = new Set(['MaxPlayers','ViewDistance','SimulationDistance','SpawnProtection']);
 const motdColors = {
@@ -1045,7 +1045,9 @@ function applyRecommendedJavaVersion() {
 }
 
 function updateTypeFields(applyJavaRecommendation = false) {
-  $('loaderModpackSection').classList.toggle('visible', ['FORGE', 'NEOFORGE', 'FABRIC'].includes($('Type').value));
+  const type = $('Type').value;
+  $('loaderModpackSection').classList.toggle('visible', ['FORGE', 'NEOFORGE', 'FABRIC'].includes(type));
+  $('forgeVersionField').classList.toggle('visible', type === 'FORGE');
   if (applyJavaRecommendation) applyRecommendedJavaVersion();
 }
 
