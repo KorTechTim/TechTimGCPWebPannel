@@ -44,7 +44,7 @@ app = FastAPI(title="TechTim Minecraft Server Panel")
 APP_DIR = Path(__file__).resolve().parent
 app.mount("/static", StaticFiles(directory=str(APP_DIR / "static")), name="static")
 
-PANEL_VERSION = os.getenv("PANEL_VERSION", "1.0.1")
+PANEL_VERSION = os.getenv("PANEL_VERSION", "1.0.2")
 STATIC_ASSET_VERSION = hashlib.sha256(
     (APP_DIR / "static" / "app.css").read_bytes()
     + (APP_DIR / "static" / "panel-overrides.css").read_bytes()
