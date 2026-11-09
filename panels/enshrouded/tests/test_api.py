@@ -109,6 +109,8 @@ class ApiTests(unittest.TestCase):
         self.assertIn('class="server-summary"', dashboard)
         self.assertIn('id="summary-uptime"', dashboard)
         self.assertIn('id="network-chart"', dashboard)
+        self.assertIn('/static/techtim-profile.png', dashboard)
+        self.assertIn('@media(min-width:761px){.section-head>div:first-child>p:not(.eyebrow){white-space:nowrap}}', self.client.get('/static/app.css').text)
 
     def test_migration_export_and_import_endpoints(self):
         service = self.client.app.state.service
