@@ -72,6 +72,12 @@ class ApiTests(unittest.TestCase):
         self.assertIn('<option value="ja">🇯🇵 日本語</option>', dashboard)
         self.assertIn('data-view="migration"', dashboard)
         self.assertIn('/static/enshrouded-menu-atlas-v1.png', self.client.get('/static/app.css').text)
+        self.assertIn('/static/enshrouded-status-atlas-v1.png', self.client.get('/static/app.css').text)
+        self.assertIn('https://discord.gg/Awy6Uh38KW', dashboard)
+        self.assertIn('https://www.youtube.com/@kortechtim', dashboard)
+        self.assertIn('/static/enshrouded-nav-discord-v1.png', dashboard)
+        self.assertIn('/static/enshrouded-nav-youtube-v1.png', dashboard)
+        self.assertIn('class="schedule-weekdays"', dashboard)
 
     def test_migration_export_and_import_endpoints(self):
         service = self.client.app.state.service
