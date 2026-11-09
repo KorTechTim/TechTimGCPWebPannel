@@ -40,8 +40,40 @@
     },
   };
 
+  const interfaceMessages = {
+    ko: {
+      save_reminder: '변경사항이 있습니다. 저장을 눌러주세요.',
+      running_lock_title: '설정 변경 제한',
+      running_lock_copy: '서버가 운영 중에는 설정할 수 없습니다.',
+      notice_title: '안내',
+      error_title: '확인이 필요합니다.',
+    },
+    en: {
+      save_reminder: 'Changes are waiting. Please save them.',
+      running_lock_title: 'Settings locked',
+      running_lock_copy: 'Settings cannot be changed while the server is running.',
+      notice_title: 'Notice',
+      error_title: 'Attention required',
+    },
+    zh: {
+      save_reminder: '有未保存的更改，请点击保存。',
+      running_lock_title: '设置已锁定',
+      running_lock_copy: '服务器运行时无法更改设置。',
+      notice_title: '提示',
+      error_title: '需要确认',
+    },
+    ja: {
+      save_reminder: '変更があります。保存してください。',
+      running_lock_title: '設定を変更できません',
+      running_lock_copy: 'サーバー稼働中は設定を変更できません。',
+      notice_title: 'お知らせ',
+      error_title: '確認が必要です',
+    },
+  };
+  Object.entries(interfaceMessages).forEach(([language, messages]) => Object.assign(dictionaries[language], messages));
+
   const credentialLabels = {
-    ko: '초기 계정 / 패스워드는 admin / admin 입니다.',
+    ko: '초기 계정 패스워드는 admin / admin 입니다.',
     en: 'Initial account / password: admin / admin',
     zh: '初始账号 / 密码：admin / admin',
     ja: '初期アカウント / パスワード: admin / admin',

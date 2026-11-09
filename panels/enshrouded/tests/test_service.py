@@ -22,6 +22,20 @@ class FakeClient:
         pass
 
 
+class LogContainer:
+    def logs(self, **_kwargs):
+        return b"2099-01-01T00:00:00.000000000Z SERVER-LATEST\n"
+
+
+class LogClient:
+    def __init__(self):
+        self.containers = self
+    def get(self, _name):
+        return LogContainer()
+    def close(self):
+        pass
+
+
 class ServiceTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
@@ -37,7 +51,7 @@ class ServiceTests(unittest.TestCase):
     def test_render_preserves_future_official_settings(self):
         existing = json.loads(self.service.game_config_path.read_text())
         existing["futureOfficialSetting"] = {"enabled": True}
-        existing["gameSettings"] = {"playerHealthFactor": 1.5}
+        existing["gameSettings"] = {"futureGameSetting": "kept"}
         self.service.game_config_path.write_text(json.dumps(existing), encoding="utf-8")
 
         payload = self.service.config().model_dump()
@@ -45,12 +59,37 @@ class ServiceTests(unittest.TestCase):
         payload["roles"][0]["password"] = "admin-new-password"
         payload["roles"][1]["password"] = "friend-new-password"
         payload["roles"][2]["password"] = "guest-new-password"
+        payload["game_settings"]["playerHealthFactor"] = 1.5
         self.service.save_config(payload)
 
         rendered = json.loads(self.service.game_config_path.read_text())
         self.assertEqual(rendered["name"], "Ember Valley")
         self.assertEqual(rendered["futureOfficialSetting"], {"enabled": True})
         self.assertEqual(rendered["gameSettings"]["playerHealthFactor"], 1.5)
+        self.assertEqual(rendered["gameSettings"]["futureGameSetting"], "kept")
+
+    def test_combined_logs_keep_latest_lines_from_every_source(self):
+        self.service.docker_factory = lambda: LogClient()
+        self.service.logs_dir.joinpath("install.log").write_text(
+            "[2026-01-01 00:00:00] INSTALL-MARKER\n", encoding="utf-8",
+        )
+        self.service.logs_dir.joinpath("control.log").write_text(
+            "".join(f"[2026-01-01 00:00:{index % 60:02d}] CONTROL-{index}\n" for index in range(750)),
+            encoding="utf-8",
+        )
+
+        combined = self.service.logs("all", tail=700)
+
+        self.assertIn("[서버] 2099-01-01T00:00:00.000000000Z SERVER-LATEST", combined)
+        self.assertIn("[작업]", combined)
+
+    def test_operation_tracks_install_progress(self):
+        self.service._operation(
+            "running", "서버 설치", "SteamCMD 설치 중", progress=72, stage="steamcmd",
+        )
+        operation = self.service.status()["operation"]
+        self.assertEqual(operation["progress"], 72)
+        self.assertEqual(operation["stage"], "steamcmd")
 
     def test_start_rejects_placeholder_role_passwords(self):
         with self.assertRaisesRegex(ValueError, "역할별 접속 비밀번호"):

@@ -6,7 +6,7 @@ import os
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
-PANEL_VERSION = "1.0.5"
+PANEL_VERSION = "1.0.6"
 STEAM_APP_ID = "2278520"
 DEFAULT_RUNTIME_IMAGE = "ghcr.io/kortechtim/enshrouded-runtime:wine-v1"
 UPSTREAM_RUNTIME_IMAGE = (
@@ -14,6 +14,73 @@ UPSTREAM_RUNTIME_IMAGE = (
     "sha256:002a8ac3387eddc5151b18ab5e7c02f9382f8e941dcfc75e56fa5134bd18f283"
 )
 LANGUAGES = ("ko", "en", "zh", "ja")
+
+DEFAULT_GAME_SETTINGS = {
+    "playerHealthFactor": 1.0,
+    "playerManaFactor": 1.0,
+    "playerStaminaFactor": 1.0,
+    "playerBodyHeatFactor": 1.0,
+    "playerDivingTimeFactor": 1.0,
+    "enableDurability": True,
+    "enableStarvingDebuff": False,
+    "foodBuffDurationFactor": 1.0,
+    "fromHungerToStarving": 600_000_000_000,
+    "shroudTimeFactor": 1.0,
+    "tombstoneMode": "AddBackpackMaterials",
+    "enableGliderTurbulences": True,
+    "weatherFrequency": "Normal",
+    "fishingDifficulty": "Normal",
+    "miningDamageFactor": 1.0,
+    "plantGrowthSpeedFactor": 1.0,
+    "resourceDropStackAmountFactor": 1.0,
+    "factoryProductionSpeedFactor": 1.0,
+    "perkUpgradeRecyclingFactor": 0.5,
+    "perkCostFactor": 1.0,
+    "experienceCombatFactor": 1.0,
+    "experienceMiningFactor": 1.0,
+    "experienceExplorationQuestsFactor": 1.0,
+    "randomSpawnerAmount": "Normal",
+    "aggroPoolAmount": "Normal",
+    "enemyDamageFactor": 1.0,
+    "enemyHealthFactor": 1.0,
+    "enemyStaminaFactor": 1.0,
+    "enemyPerceptionRangeFactor": 1.0,
+    "bossDamageFactor": 1.0,
+    "bossHealthFactor": 1.0,
+    "threatBonus": 1.0,
+    "pacifyAllEnemies": False,
+    "tamingStartleRepercussion": "LoseSomeProgress",
+    "dayTimeDuration": 1_800_000_000_000,
+    "nightTimeDuration": 720_000_000_000,
+    "curseModifier": "Normal",
+}
+
+GAME_SETTING_RANGES = {
+    "playerHealthFactor": (0.25, 4), "playerManaFactor": (0.25, 4),
+    "playerStaminaFactor": (0.25, 4), "playerBodyHeatFactor": (0.5, 2),
+    "playerDivingTimeFactor": (0.5, 2), "foodBuffDurationFactor": (0.5, 2),
+    "fromHungerToStarving": (300_000_000_000, 1_200_000_000_000),
+    "shroudTimeFactor": (0.5, 2), "miningDamageFactor": (0.5, 2),
+    "plantGrowthSpeedFactor": (0.25, 2), "resourceDropStackAmountFactor": (0.25, 2),
+    "factoryProductionSpeedFactor": (0.25, 2), "perkUpgradeRecyclingFactor": (0, 1),
+    "perkCostFactor": (0.25, 2), "experienceCombatFactor": (0.25, 2),
+    "experienceMiningFactor": (0, 2), "experienceExplorationQuestsFactor": (0.25, 2),
+    "enemyDamageFactor": (0.25, 5), "enemyHealthFactor": (0.25, 4),
+    "enemyStaminaFactor": (0.5, 2), "enemyPerceptionRangeFactor": (0.5, 2),
+    "bossDamageFactor": (0.2, 5), "bossHealthFactor": (0.2, 5),
+    "threatBonus": (0.25, 4), "dayTimeDuration": (120_000_000_000, 3_600_000_000_000),
+    "nightTimeDuration": (120_000_000_000, 3_600_000_000_000),
+}
+
+GAME_SETTING_OPTIONS = {
+    "weatherFrequency": {"Disabled", "Rare", "Normal", "Often"},
+    "fishingDifficulty": {"VeryEasy", "Easy", "Normal", "Hard", "VeryHard"},
+    "randomSpawnerAmount": {"Few", "Normal", "Many", "Extreme"},
+    "aggroPoolAmount": {"Few", "Normal", "Many", "Extreme"},
+    "tombstoneMode": {"AddBackpackMaterials", "Everything", "NoTombstone"},
+    "tamingStartleRepercussion": {"KeepProgress", "LoseSomeProgress", "LoseAllProgress"},
+    "curseModifier": {"Easy", "Normal", "Hard"},
+}
 
 
 @dataclass(frozen=True)
@@ -115,6 +182,7 @@ class ServerConfig(BaseModel):
     enable_voice_chat: bool = False
     enable_text_chat: bool = True
     game_settings_preset: Literal["Default", "Relaxed", "Hard", "Survival", "Custom"] = "Default"
+    game_settings: dict[str, bool | int | float | str] = Field(default_factory=lambda: dict(DEFAULT_GAME_SETTINGS))
     tags: list[str] = Field(default_factory=lambda: ["Korean", "Exploration"], max_length=12)
     roles: list[ServerRole] = Field(default_factory=default_roles, min_length=1, max_length=8)
     backup_retention_count: int = Field(default=10, ge=1, le=100)
@@ -137,6 +205,28 @@ class ServerConfig(BaseModel):
             if item and item not in cleaned:
                 cleaned.append(item[:32])
         return cleaned
+
+    @field_validator("game_settings")
+    @classmethod
+    def validate_game_settings(cls, values):
+        if not isinstance(values, dict):
+            raise ValueError("상세 게임 설정 형식이 올바르지 않습니다.")
+        normalized = {**DEFAULT_GAME_SETTINGS, **values}
+        for key, default in DEFAULT_GAME_SETTINGS.items():
+            value = normalized[key]
+            if isinstance(default, bool):
+                if not isinstance(value, bool):
+                    raise ValueError(f"{key} 값은 true 또는 false여야 합니다.")
+            elif key in GAME_SETTING_OPTIONS:
+                if value not in GAME_SETTING_OPTIONS[key]:
+                    raise ValueError(f"{key} 값이 지원 범위를 벗어났습니다.")
+            elif key in GAME_SETTING_RANGES:
+                if isinstance(value, bool) or not isinstance(value, (int, float)):
+                    raise ValueError(f"{key} 값은 숫자여야 합니다.")
+                minimum, maximum = GAME_SETTING_RANGES[key]
+                if not minimum <= value <= maximum:
+                    raise ValueError(f"{key} 값은 {minimum}~{maximum} 범위여야 합니다.")
+        return normalized
 
     @model_validator(mode="after")
     def validate_roles(self):
@@ -162,6 +252,7 @@ class ServerConfig(BaseModel):
             "enableVoiceChat": self.enable_voice_chat,
             "enableTextChat": self.enable_text_chat,
             "gameSettingsPreset": self.game_settings_preset,
+            "gameSettings": self.game_settings,
             "tags": self.tags,
             "userGroups": [role.game_dict() for role in self.roles],
         }

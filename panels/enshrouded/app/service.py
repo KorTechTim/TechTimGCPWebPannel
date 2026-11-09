@@ -24,6 +24,9 @@ from .storage import read_json, write_json
 
 KST = timezone(timedelta(hours=9), name="KST")
 ANSI_ESCAPE_PATTERN = re.compile(r"(?:\x1b\[|\x9b|\[)[0-?]*[ -/]*[@-~]")
+PANEL_LOG_TIMESTAMP = re.compile(r"^\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\]")
+CONTAINER_LOG_TIMESTAMP = re.compile(r"^(\d{4}-\d{2}-\d{2}T\S+?Z)(?:\s|$)")
+INSTALL_PERCENTAGE = re.compile(r"(?:progress|download(?:ing)?|update)[^\d]{0,20}(\d{1,3}(?:\.\d+)?)\s*%", re.IGNORECASE)
 MIGRATION_SCHEMA = "techtim-enshrouded-migration"
 MIGRATION_VERSION = 1
 READY_MARKERS = ("'HostOnline' (up)!", "Host_Online")
@@ -104,24 +107,27 @@ class PanelService:
             if self.busy:
                 raise BusyError("다른 작업이 진행 중입니다.")
             self.busy = True
-        self._operation("running", name, "작업을 시작했습니다.")
+        self._operation("running", name, "작업을 시작했습니다.", progress=0, stage="queued")
         return object()
 
     def run_reserved(self, _handle, name, action):
         try:
             action()
-            self._operation("completed", name, "작업을 완료했습니다.")
+            self._operation("completed", name, "작업을 완료했습니다.", progress=100, stage="complete")
         except Exception as error:
             self._log("control", f"[{name}] 실패: {error}")
-            self._operation("failed", name, str(error))
+            self._operation("failed", name, str(error), progress=100, stage="failed")
             self.notify_discord_event("error", f"{name} 실패", str(error))
         finally:
             with self.lock:
                 self.busy = False
 
-    def _operation(self, status, name, message):
+    def _operation(self, status, name, message, *, progress=None, stage=None):
+        previous = read_json(self.operation_path, {})
         write_json(self.operation_path, {
             "status": status, "name": name, "message": message,
+            "progress": previous.get("progress", 0) if progress is None else max(0, min(100, int(progress))),
+            "stage": stage or previous.get("stage", status),
             "updated_at": datetime.now(KST).isoformat(timespec="seconds"),
         })
 
@@ -136,14 +142,33 @@ class PanelService:
     def _sanitize_log_text(value):
         return ANSI_ESCAPE_PATTERN.sub("", str(value or ""))
 
+    @staticmethod
+    def _log_timestamp(line):
+        panel = PANEL_LOG_TIMESTAMP.match(line)
+        if panel:
+            return datetime.strptime(panel.group(1), "%Y-%m-%d %H:%M:%S").replace(tzinfo=KST).timestamp()
+        container = CONTAINER_LOG_TIMESTAMP.match(line)
+        if container:
+            try:
+                return datetime.fromisoformat(container.group(1).replace("Z", "+00:00")).timestamp()
+            except ValueError:
+                pass
+        return 0
+
     def logs(self, kind="all", tail=700):
         if kind == "all":
-            blocks = []
+            entries = []
+            sequence = 0
             for log_kind, label in (("server", "서버"), ("install", "설치"), ("control", "작업")):
                 text = self.logs(log_kind, tail=tail)
                 if text and text != "아직 기록된 로그가 없습니다.":
-                    blocks.extend(f"[{label}] {line}" for line in text.splitlines() if line)
-            return "\n".join(blocks[-tail:]) + ("\n" if blocks else "") or "아직 기록된 로그가 없습니다."
+                    for line in text.splitlines():
+                        if line:
+                            entries.append((self._log_timestamp(line), sequence, f"[{label}] {line}"))
+                            sequence += 1
+            entries.sort(key=lambda entry: (entry[0], entry[1]))
+            merged = [entry[2] for entry in entries[-tail:]]
+            return "\n".join(merged) + ("\n" if merged else "") or "아직 기록된 로그가 없습니다."
         if kind == "server":
             try:
                 with self.client() as client:
@@ -236,6 +261,10 @@ class PanelService:
                 raise ValueError("enshrouded_server.json 형식이 올바르지 않습니다.")
         managed = self.config().game_dict()
         # Preserve future official settings and custom gameSettings entries.
+        managed_game_settings = managed.get("gameSettings", {})
+        current_game_settings = current.get("gameSettings", {})
+        if isinstance(current_game_settings, dict):
+            managed["gameSettings"] = {**current_game_settings, **managed_game_settings}
         current.update(managed)
         self.game_config_path.parent.mkdir(parents=True, exist_ok=True)
         write_json(self.game_config_path, current)
@@ -316,9 +345,47 @@ class PanelService:
 
     def install(self):
         self._log("install", "Enshrouded 1.0 Wine 서버 설치를 시작합니다.")
-        self._ensure_container(start=True)
-        self._log("install", "서버 컨테이너를 시작했습니다. SteamCMD 설치와 Wine 초기화를 진행합니다.")
+        self._operation("running", "서버 설치", "설정과 역할 비밀번호를 확인하고 있습니다.", progress=5, stage="validate")
+        self.validate_start_requirements()
+        self.render_game_config()
+        self._operation("running", "서버 설치", "Wine 런타임 이미지를 준비하고 있습니다.", progress=12, stage="runtime")
+        with self.client() as client:
+            try:
+                container = client.containers.get(self.settings.server_container)
+                self._operation("running", "서버 설치", "기존 서버 컨테이너를 확인했습니다.", progress=68, stage="container")
+            except NotFound:
+                self._pull_runtime(client)
+                self._operation("running", "서버 설치", "서버 컨테이너를 생성하고 있습니다.", progress=65, stage="container")
+                container = client.containers.create(self.settings.runtime_image, **self._container_options())
+            container.reload()
+            if container.status != "running":
+                container.start()
+            self._log("install", "서버 컨테이너를 시작했습니다. SteamCMD 설치와 Wine 초기화를 진행합니다.")
+            self._operation("running", "서버 설치", "SteamCMD 설치와 Wine 초기화를 진행하고 있습니다.", progress=72, stage="steamcmd")
+            self._wait_for_install_ready(container)
+        self._operation("running", "서버 설치", "서버 접속 준비를 마무리하고 있습니다.", progress=98, stage="verify")
+        self._log("install", "Enshrouded 서버 설치와 첫 기동이 완료되었습니다.")
         self.notify_discord_event("server_start", "Enshrouded 설치 및 시작", "게임 서버 설치를 시작했습니다.")
+
+    def _wait_for_install_ready(self, container):
+        deadline = time.monotonic() + self.settings.install_timeout
+        last_progress = 72
+        while time.monotonic() < deadline:
+            container.reload()
+            raw = self._sanitize_log_text(container.logs(tail=300, timestamps=True).decode(errors="replace"))
+            percentages = [float(value) for value in INSTALL_PERCENTAGE.findall(raw)]
+            if percentages:
+                last_progress = max(last_progress, min(94, 72 + int(max(percentages) * 0.22)))
+            if any(marker in raw for marker in READY_MARKERS):
+                return
+            if container.status in {"exited", "dead"}:
+                raise RuntimeError("설치 중 서버 컨테이너가 종료되었습니다. 상세 로그를 확인해주세요.")
+            self._operation(
+                "running", "서버 설치", "SteamCMD 설치와 서버 첫 기동을 기다리고 있습니다.",
+                progress=last_progress, stage="steamcmd",
+            )
+            time.sleep(1)
+        raise TimeoutError("서버 설치 대기 시간이 초과되었습니다. 상세 로그를 확인해주세요.")
 
     def validate_start_requirements(self):
         config = self.config()
