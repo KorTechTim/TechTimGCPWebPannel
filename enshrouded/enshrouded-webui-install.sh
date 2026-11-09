@@ -2,7 +2,7 @@
 set -euo pipefail
 umask 077
 
-PANEL_VERSION="1.0.1"
+PANEL_VERSION="1.0.2"
 INSTALL_DIR="/opt/techtim/enshrouded"
 PANEL_IMAGE="${PANEL_IMAGE:-ghcr.io/kortechtim/enshrouded-panel:latest}"
 RUNTIME_IMAGE="${ENSHROUDED_RUNTIME_IMAGE:-ghcr.io/kortechtim/enshrouded-runtime:wine-v1}"

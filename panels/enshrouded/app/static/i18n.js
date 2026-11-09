@@ -1,7 +1,7 @@
 (function () {
   const dictionaries = {
     ko: {
-      language: '한국어', login_title: '관리자 성화에 입장', login_copy: 'Google Cloud의 Enshrouded 서버를 안전하게 관리합니다.',
+      language: '한국어', login_title: '관리자 성화에 입장', login_copy: 'TechTim(T2) 인슈어라오디드 구글클라우드 구동기 관리페이지',
       username: '관리자 계정', password: '비밀번호', login: '로그인', initial_title: '첫 관리자 비밀번호 설정',
       initial_copy: '기본 비밀번호 admin 대신 사용할 새 패널 비밀번호를 입력하세요.', new_password: '새 비밀번호', save_password: '비밀번호 저장',
       home: '홈', logs: '관리 로그', settings: '서버 설정', roles: '역할 · 비밀번호', world: '월드 설정', schedule: '예약 작업',
@@ -33,6 +33,14 @@
       language: '日本語', login_title: '管理者の炎へ入る', login_copy: 'Google Cloud の Enshrouded サーバーを安全に管理します。', username: '管理者アカウント', password: 'パスワード', login: 'ログイン', initial_title: '初期管理者パスワード設定', initial_copy: '既定の admin パスワードに代わる新しいパスワードを設定してください。', new_password: '新しいパスワード', save_password: 'パスワードを保存', home: 'ホーム', logs: '管理ログ', settings: 'サーバー設定', roles: 'ロール・パスワード', world: 'ワールド設定', schedule: '予約タスク', files: 'サーバーファイル', discord: 'Discord連携', backups: 'バックアップ・復元', migration: '引っ越し', update: 'パネル更新', logout: 'ログアウト', panel_name: 'ENSHROUDED GCP PANEL', realm_control: 'EMBER REALM CONTROL', hero_title: '炎を絶やさないために', hero_copy: 'インストール、バックアップ、ロール権限、新しい Google Cloud アカウントへの移行を一つのパネルで管理します。', install: 'インストールして開始', start: 'サーバー開始', stop: 'サーバー停止', restart: '再起動', status: 'サーバー状態', players: '接続人数', version: 'パネルバージョン', runtime: '実行環境', cpu: 'CPU', memory: 'メモリ', disk: 'ディスク', ten_minutes: '直近10分', now: '現在', overview: 'サーバー概要', ready: 'オンライン', running: '起動中', stopped: '停止中', missing: '未インストール', log_title: 'リアルタイム作業ログ', all: 'すべて', server: 'サーバー', install_log: 'インストール', control: '作業', export_log: 'ログを書き出す', auto_scroll: '自動スクロール', basic_settings: '基本サーバー設定', server_name: 'サーバー名', max_players: '最大接続人数', query_port: 'クエリポート', voice_mode: 'ボイスチャット範囲', voice_chat: 'ボイスチャットを使用', text_chat: 'テキストチャットを使用', tags: 'サーバータグ', save_changes: '変更を保存', roles_title: 'ロール別アクセス権限', roles_copy: '参加時のパスワードで権限が決まります。ロールごとに異なるパスワードが必要です。', role_name: 'ロール名', role_password: '参加パスワード', reserved_slots: '予約スロット', kick_ban: 'キック・BAN', inventories: '保管箱の利用', edit_world: 'ワールド活動', edit_base: '拠点編集', extend_base: '炎の祭壇を拡張', add_role: 'ロール追加', remove: '削除', world_title: 'ワールド難易度', world_copy: '公式プリセットを選択します。詳細設定は enshrouded_server.json で編集できます。', default: 'デフォルト', relaxed: 'リラックス', hard: 'ハード', survival: 'サバイバル', custom: 'カスタム', schedule_title: '予約再起動', enabled: '使用', restart_time: '再起動時刻', weekdays: '曜日', skip_players: 'プレイヤー接続中はスキップ', save_schedule: '予約を保存', files_title: 'サーバーファイル管理', parent: '上のフォルダー', new_folder: '新規フォルダー', upload: 'アップロード', refresh: '更新', download: 'ダウンロード', delete: '削除', edit: '編集', file_locked: 'サーバー稼働中はファイル変更がロックされます。', discord_title: 'Discord運用通知', webhook: 'Webhook URL', display_name: '表示名', test_send: 'テスト送信', save_integration: '連携設定を保存', integration_use: '連携を使用', backup_title: 'バックアップ・復元', backup_now: '今すぐバックアップ', backup_times: '予約時刻（最大3件）', retention_count: '最大保管数', retention_days: '最大保管期間', save_policy: '保管ポリシーを保存', restore: '復元', no_backups: '作成済みのバックアップはありません。', migration_title: 'Google Cloud アカウント引っ越し', migration_copy: 'ワールドセーブとサーバー・パネル設定を一つのZIPで移動します。ロールのパスワードとDiscord Webhookを含むため安全に保管してください。', export_move: '引っ越しファイルを書き出す', import_move: '引っ越しファイルを読み込む', export_copy: '現在のサーバーからZIPをダウンロードします。', import_copy: '新しいアカウントのパネルでZIPをアップロードすると復元されます。', import_warning: '読み込みはサーバー停止中のみ可能で、現在データの安全バックアップを先に作成します。', update_title: 'パネル更新', update_copy: '最新のTechTim Enshroudedパネルを確認し安全に置き換えます。', check_update: '更新を確認', apply_update: '更新を適用', save: '保存', cancel: 'キャンセル', confirm: '確認', close: '閉じる', dirty: '未保存の変更があります。', loading: '炎を目覚めさせています…',
     },
   };
+
+  const credentialLabels = {
+    ko: '초기 계정 / 패스워드는 admin / admin 입니다.',
+    en: 'Initial account / password: admin / admin',
+    zh: '初始账号 / 密码：admin / admin',
+    ja: '初期アカウント / パスワード: admin / admin',
+  };
+  Object.entries(credentialLabels).forEach(([language, label]) => { dictionaries[language].initial_credentials = label; });
 
   const supported = Object.keys(dictionaries);
   function current() { const saved = localStorage.getItem('techtim-language'); return supported.includes(saved) ? saved : 'ko'; }

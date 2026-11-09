@@ -65,8 +65,11 @@ class ApiTests(unittest.TestCase):
     def test_static_ui_has_languages_and_migration(self):
         login = self.client.get("/login").text
         dashboard = self.client.get("/").text
-        self.assertIn('<option value="zh">中文</option>', login)
-        self.assertIn('<option value="ja">日本語</option>', dashboard)
+        self.assertIn('<option value="zh">🇨🇳 中文</option>', login)
+        self.assertIn('TechTim(T2) 인슈어라오디드 구글클라우드 구동기 관리페이지', login)
+        self.assertIn('초기 계정 / 패스워드는 admin / admin 입니다.', login)
+        self.assertIn('© 2026 TechTim(T2). All rights reserved.', login)
+        self.assertIn('<option value="ja">🇯🇵 日本語</option>', dashboard)
         self.assertIn('data-view="migration"', dashboard)
         self.assertIn('/static/enshrouded-menu-atlas-v1.png', self.client.get('/static/app.css').text)
 
