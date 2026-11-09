@@ -1,0 +1,65 @@
+name: Build Enshrouded Panel
+on:
+  pull_request:
+    paths: ['panels/enshrouded/**', 'enshrouded/**', '.github/workflows/build-enshrouded-panel.yml']
+  push:
+    branches: [main]
+    paths: ['panels/enshrouded/**', 'enshrouded/**', '.github/workflows/build-enshrouded-panel.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r panels/enshrouded/requirements-dev.txt
+      - name: Run Enshrouded tests
+        env:
+          PYTHONPATH: panels/enshrouded
+          DATA_DIR: /tmp/enshrouded-tests-bootstrap
+          HOST_DATA_DIR: /tmp/enshrouded-tests-bootstrap
+          SCHEDULER_ENABLED: '0'
+        run: python -m unittest discover -s panels/enshrouded/tests -v
+      - name: Check scripts
+        run: |
+          bash -n enshrouded/enshrouded-webui-install.sh
+          bash -n enshrouded/gcp-create.sh
+          node --check panels/enshrouded/app/static/app.js
+          node --check panels/enshrouded/app/static/i18n.js
+          node --check panels/enshrouded/app/static/login.js
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        include:
+          - image: enshrouded-panel
+            context: ./panels/enshrouded
+            tag: latest
+          - image: enshrouded-runtime
+            context: ./panels/enshrouded/runtime
+            tag: wine-v1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          platforms: linux/amd64
+          push: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
+          tags: |
+            ghcr.io/kortechtim/${{ matrix.image }}:${{ matrix.tag }}
+            ghcr.io/kortechtim/${{ matrix.image }}:${{ github.sha }}
