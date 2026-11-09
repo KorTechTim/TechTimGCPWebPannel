@@ -391,7 +391,7 @@ class PanelService:
         config = self.config()
         placeholders = {"change-admin-password", "change-friend-password", "change-guest-password", "change-this-password"}
         if any(role.password in placeholders for role in config.roles):
-            raise ValueError("역할별 접속 비밀번호를 먼저 변경해주세요.")
+            raise ValueError("게임 접속용 역할 비밀번호가 기본값입니다. '서버 역활 및 접속비밀번호' 메뉴에서 Admin, Friend, Guest 비밀번호를 변경해주세요.")
         return config
 
     def start(self):
@@ -726,11 +726,55 @@ class PanelService:
             except Exception as error:
                 self._log("control", f"예약 작업 확인 실패: {error}")
 
-    def panel_update_status(self):
-        return read_json(self.update_status_path, {
+    def panel_update_status(self, check=False):
+        result = read_json(self.update_status_path, {
             "status": "idle", "stage": "idle", "progress": 0,
             "message": "업데이트 준비가 완료되었습니다.", "version": PANEL_VERSION,
         })
+        result["current_version"] = PANEL_VERSION
+        if not check or result.get("status") in {
+            "queued", "running", "pulling", "downloading", "preparing",
+            "replacing", "verifying", "reconnecting",
+        }:
+            return result
+        try:
+            with self.client() as client:
+                container = client.containers.get(self.settings.panel_container)
+                container.reload()
+                image = container.image
+                local_digests = {
+                    digest.split("@", 1)[1]
+                    for digest in image.attrs.get("RepoDigests", [])
+                    if "@" in digest
+                }
+                remote = client.images.get_registry_data(self.settings.panel_image)
+                remote_digest = remote.id
+                if not remote_digest:
+                    raise RuntimeError("원격 이미지 식별자를 확인할 수 없습니다.")
+                if local_digests:
+                    update_available = remote_digest not in local_digests
+                elif image.id == remote_digest:
+                    update_available = False
+                else:
+                    raise RuntimeError("현재 이미지의 배포 식별자가 없습니다.")
+            result.update({
+                "checked": True,
+                "update_available": update_available,
+                "latest_digest": remote_digest.removeprefix("sha256:")[:12],
+                "checked_at": datetime.now(KST).isoformat(timespec="seconds"),
+                "message": (
+                    "새 패널 업데이트를 사용할 수 있습니다."
+                    if update_available else "현재 패널이 최신 버전입니다."
+                ),
+            })
+        except Exception as error:
+            self._log("control", f"패널 업데이트 확인 실패: {error}")
+            result.update({
+                "checked": False,
+                "update_available": None,
+                "message": "업데이트 서버에 연결하지 못했습니다. 잠시 후 다시 확인해주세요.",
+            })
+        return result
 
     def update_panel(self):
         # The helper implementation is shared with the other TechTim panels.

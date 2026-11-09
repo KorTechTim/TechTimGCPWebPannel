@@ -419,9 +419,9 @@ def create_app(settings=None, docker_factory=None):
         return {"status": "ok"}
 
     @app.get("/api/panel-update")
-    def panel_update(request: Request):
+    def panel_update(request: Request, check: bool = False):
         auth.require(request)
-        return service.panel_update_status()
+        return service.panel_update_status(check=check)
 
     @app.post("/api/panel-update")
     def apply_panel_update(request: Request):

@@ -36,6 +36,35 @@ class LogClient:
         pass
 
 
+class UpdateImage:
+    id = "sha256:local-image-id"
+    attrs = {"RepoDigests": ["ghcr.io/kortechtim/enshrouded-panel@sha256:current-digest"]}
+
+
+class UpdateContainer:
+    image = UpdateImage()
+    def reload(self):
+        pass
+
+
+class RegistryImage:
+    def __init__(self, digest):
+        self.id = digest
+
+
+class UpdateClient:
+    def __init__(self, digest):
+        self.containers = self
+        self.images = self
+        self.digest = digest
+    def get(self, _name):
+        return UpdateContainer()
+    def get_registry_data(self, _image):
+        return RegistryImage(self.digest)
+    def close(self):
+        pass
+
+
 class ServiceTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
@@ -91,8 +120,20 @@ class ServiceTests(unittest.TestCase):
         self.assertEqual(operation["progress"], 72)
         self.assertEqual(operation["stage"], "steamcmd")
 
+    def test_panel_update_check_compares_registry_digest(self):
+        self.service.docker_factory = lambda: UpdateClient("sha256:current-digest")
+        current = self.service.panel_update_status(check=True)
+        self.assertTrue(current["checked"])
+        self.assertFalse(current["update_available"])
+        self.assertIn("최신 버전", current["message"])
+
+        self.service.docker_factory = lambda: UpdateClient("sha256:new-digest")
+        available = self.service.panel_update_status(check=True)
+        self.assertTrue(available["update_available"])
+        self.assertEqual(available["latest_digest"], "new-digest")
+
     def test_start_rejects_placeholder_role_passwords(self):
-        with self.assertRaisesRegex(ValueError, "역할별 접속 비밀번호"):
+        with self.assertRaisesRegex(ValueError, "게임 접속용 역할 비밀번호"):
             self.service.validate_start_requirements()
 
     def test_backup_and_migration_round_trip(self):

@@ -22,7 +22,7 @@ const PRESET_DETAILS = {
   ja:{Default:['デフォルト','初めて遊ぶプレイヤーに推奨される標準バランスです。','標準の敵数','標準の資源','基本サバイバル'],Relaxed:['リラックス','敵が少なく資源と戦利品が増え、建築と気軽な冒険に向きます。','敵が少ない','資源増加','建築重視'],Hard:['ハード','敵の数と攻撃性が増え、戦闘がより厳しくなります。','敵が多い','攻撃性上昇','戦闘重視'],Survival:['サバイバル','より攻撃的な敵に加え、空腹と重い死亡ペナルティが適用されます。','空腹あり','強い敵','重い死亡ペナルティ'],Custom:['カスタム','enshrouded_server.json で各ゲーム設定を自由に組み合わせます。','個別調整','30項目以上','上級設定']}
 };
 const GAME_SETTING_GROUPS = [
-  {title:'플레이어 능력', copy:'체력, 마나, 스태미나와 환경 대응 능력을 조정합니다.', fields:[
+  {title:'플레이어 능력', icon:'abilities', copy:'체력, 마나, 스태미나와 환경 대응 능력을 조정합니다.', fields:[
     {key:'playerHealthFactor',label:'플레이어 체력',desc:'최대 체력 배율',type:'number',min:.25,max:4,step:.25},
     {key:'playerManaFactor',label:'플레이어 마나',desc:'최대 마나 배율',type:'number',min:.25,max:4,step:.25},
     {key:'playerStaminaFactor',label:'플레이어 스태미나',desc:'최대 스태미나 배율',type:'number',min:.25,max:4,step:.25},
@@ -30,7 +30,7 @@ const GAME_SETTING_GROUPS = [
     {key:'playerDivingTimeFactor',label:'잠수 시간',desc:'수중 산소 지속 배율',type:'number',min:.5,max:2,step:.25},
     {key:'shroudTimeFactor',label:'장막 체류 시간',desc:'장막 안에서 버틸 수 있는 시간',type:'number',min:.5,max:2,step:.25},
   ]},
-  {title:'생존 규칙', copy:'내구도, 허기, 음식 효과와 사망 규칙을 설정합니다.', fields:[
+  {title:'생존 규칙', icon:'survival', copy:'내구도, 허기, 음식 효과와 사망 규칙을 설정합니다.', fields:[
     {key:'enableDurability',label:'무기 내구도',desc:'무기와 장비 내구도 사용',type:'boolean'},
     {key:'enableStarvingDebuff',label:'허기 및 굶주림',desc:'굶주림 피해 사용',type:'boolean'},
     {key:'foodBuffDurationFactor',label:'음식 효과 시간',desc:'음식 버프 지속 배율',type:'number',min:.5,max:2,step:.25},
@@ -39,7 +39,7 @@ const GAME_SETTING_GROUPS = [
     {key:'enableGliderTurbulences',label:'글라이더 난기류',desc:'비행 중 난기류 사용',type:'boolean'},
     {key:'fishingDifficulty',label:'낚시 난이도',desc:'낚시 미니게임 강도',type:'select',options:['VeryEasy','Easy','Normal','Hard','VeryHard']},
   ]},
-  {title:'자원과 성장', copy:'채집량, 제작 속도, 강화 비용과 경험치 획득량을 조정합니다.', fields:[
+  {title:'자원과 성장', icon:'resources', copy:'채집량, 제작 속도, 강화 비용과 경험치 획득량을 조정합니다.', fields:[
     {key:'miningDamageFactor',label:'채광 효율',desc:'채광 피해와 자원 수확량',type:'number',min:.5,max:2,step:.25},
     {key:'plantGrowthSpeedFactor',label:'작물 성장 속도',desc:'식물 성장 속도 배율',type:'number',min:.25,max:2,step:.25},
     {key:'resourceDropStackAmountFactor',label:'자원 획득량',desc:'전리품 묶음 수량 배율',type:'number',min:.25,max:2,step:.25},
@@ -50,7 +50,7 @@ const GAME_SETTING_GROUPS = [
     {key:'experienceMiningFactor',label:'채광 경험치',desc:'채광 경험치 획득 배율',type:'number',min:0,max:2,step:.25},
     {key:'experienceExplorationQuestsFactor',label:'탐험·퀘스트 경험치',desc:'탐험과 퀘스트 경험치 배율',type:'number',min:.25,max:2,step:.25},
   ]},
-  {title:'적과 전투', copy:'적 수, 공격성, 일반 적과 보스의 전투 능력을 조정합니다.', fields:[
+  {title:'적과 전투', icon:'combat', copy:'적 수, 공격성, 일반 적과 보스의 전투 능력을 조정합니다.', fields:[
     {key:'randomSpawnerAmount',label:'적 개체 수',desc:'월드에 생성되는 적 수',type:'select',options:['Few','Normal','Many','Extreme']},
     {key:'aggroPoolAmount',label:'동시 공격 적 수',desc:'동시에 공격 가능한 적 수',type:'select',options:['Few','Normal','Many','Extreme']},
     {key:'enemyDamageFactor',label:'적 피해량',desc:'일반 적 공격 피해 배율',type:'number',min:.25,max:5,step:.25},
@@ -62,7 +62,7 @@ const GAME_SETTING_GROUPS = [
     {key:'threatBonus',label:'적 공격 빈도',desc:'일반 적 공격 빈도 배율',type:'number',min:.25,max:4,step:.25},
     {key:'pacifyAllEnemies',label:'적 선제공격 방지',desc:'공격받기 전까지 일반 적 중립',type:'boolean'},
   ]},
-  {title:'월드와 시간', copy:'날씨, 길들이기, 낮과 밤, 장막 저주를 설정합니다.', fields:[
+  {title:'월드와 시간', icon:'world', copy:'날씨, 길들이기, 낮과 밤, 장막 저주를 설정합니다.', fields:[
     {key:'weatherFrequency',label:'날씨 현상 빈도',desc:'새로운 날씨가 나타나는 빈도',type:'select',options:['Disabled','Rare','Normal','Often']},
     {key:'tamingStartleRepercussion',label:'길들이기 실패 불이익',desc:'동물이 놀랐을 때 진행도 손실',type:'select',options:['KeepProgress','LoseSomeProgress','LoseAllProgress']},
     {key:'dayTimeDuration',label:'낮 시간',desc:'게임 내 낮의 실제 길이',type:'number',min:2,max:60,step:1,unit:'minutes'},
@@ -235,17 +235,10 @@ async function refreshResources() {
 
 async function runAction(action) {
   const label = action === 'install' ? I18N.t('install') : I18N.t(action);
-  if (!await confirmAction(label, `${label}?`)) return;
   if (action === 'install') {
-    openInstallProgress();
-    try {
-      await api('/api/install', {method:'POST'});
-      scheduleInstallPoll(200);
-    } catch (error) {
-      renderInstallProgress({status:'failed', progress:100, stage:'failed', message:error.message}, error.message);
-    }
-    return;
+    return openInstallConfirmation();
   }
+  if (!await confirmAction(label, `${label}?`)) return;
   await perform(() => api(action === 'install' ? '/api/install' : `/api/server/${action}`, {method:'POST'}));
   setTimeout(refreshStatus, 700);
 }
@@ -263,25 +256,37 @@ function renderPresetDescription(value='Default'){ const details=(PRESET_DETAILS
 function gameSettingValue(field, value) { return field.unit === 'minutes' ? Number(value) / 60000000000 : value; }
 function renderGameSettings(settings = {}) {
   const root = $('#game-settings-groups');
-  root.innerHTML = GAME_SETTING_GROUPS.map((group, groupIndex) => `<section class="game-setting-group"><header><span>${String(groupIndex + 1).padStart(2, '0')}</span><div><h4>${escapeHtml(group.title)}</h4><p>${escapeHtml(group.copy)}</p></div></header><div class="game-setting-grid">${group.fields.map((field) => {
+  root.innerHTML = GAME_SETTING_GROUPS.map((group) => `<section class="game-setting-group"><header><span class="game-setting-group-icon game-setting-icon-${group.icon}" aria-hidden="true"></span><div><h4>${escapeHtml(group.title)}</h4><p>${escapeHtml(group.copy)}</p></div></header><div class="game-setting-grid">${group.fields.map((field) => {
     const value = gameSettingValue(field, settings[field.key]);
     let control = '';
     if (field.type === 'boolean') control = `<input data-game-setting="${field.key}" type="checkbox" role="switch" ${value ? 'checked' : ''}>`;
     else if (field.type === 'select') control = `<select data-game-setting="${field.key}">${field.options.map((option) => `<option value="${escapeHtml(option)}" ${String(option) === String(value) ? 'selected' : ''}>${escapeHtml(option)}</option>`).join('')}</select>`;
-    else control = `<input data-game-setting="${field.key}" type="number" value="${escapeHtml(value)}" min="${field.min}" max="${field.max}" step="${field.step}">`;
-    return `<label class="game-setting-field ${field.type === 'boolean' ? 'is-boolean' : ''}"><div><strong>${escapeHtml(field.label)}</strong><code>${escapeHtml(field.key)}</code><small>${escapeHtml(field.desc)}</small></div>${control}${field.unit === 'minutes' ? '<em>분</em>' : ''}</label>`;
+    else control = `<div class="game-setting-number-control"><div class="game-setting-range-label"><span>MIN ${field.min}</span><span>MAX ${field.max}</span></div><input class="game-setting-slider" data-game-setting-range="${field.key}" type="range" value="${escapeHtml(value)}" min="${field.min}" max="${field.max}" step="${field.step}" aria-label="${escapeHtml(field.label)} 범위"><div class="game-setting-number-row"><input data-game-setting="${field.key}" type="number" value="${escapeHtml(value)}" min="${field.min}" max="${field.max}" step="${field.step}">${field.unit === 'minutes' ? '<span>분</span>' : ''}</div></div>`;
+    return `<label class="game-setting-field ${field.type === 'boolean' ? 'is-boolean' : ''}"><div><strong>${escapeHtml(field.label)}</strong><code>${escapeHtml(field.key)}</code><small>${escapeHtml(field.desc)}</small></div>${control}</label>`;
   }).join('')}</div></section>`).join('');
   const count = GAME_SETTING_GROUPS.reduce((total, group) => total + group.fields.length, 0);
   $('#game-settings-count').textContent = count;
+  const markCustom = () => {
+    const custom = $('input[name="preset"][value="Custom"]');
+    custom.checked = true;
+    renderPresetDescription('Custom');
+    markUnsaved('#view-world');
+  };
   $$('[data-game-setting]', root).forEach((input) => {
-    const markCustom = () => {
-      const custom = $('input[name="preset"][value="Custom"]');
-      custom.checked = true;
-      renderPresetDescription('Custom');
-      markUnsaved('#view-world');
+    const syncSlider = () => {
+      const slider = $(`[data-game-setting-range="${input.dataset.gameSetting}"]`, root);
+      if (slider && input.value !== '') slider.value = input.value;
+      markCustom();
     };
-    input.addEventListener('change', markCustom);
-    input.addEventListener('input', markCustom);
+    input.addEventListener('change', syncSlider);
+    input.addEventListener('input', syncSlider);
+  });
+  $$('[data-game-setting-range]', root).forEach((slider) => {
+    slider.addEventListener('input', () => {
+      const input = $(`[data-game-setting="${slider.dataset.gameSettingRange}"]`, root);
+      if (input) input.value = slider.value;
+      markCustom();
+    });
   });
 }
 function collectGameSettings() {
@@ -409,12 +414,25 @@ function renderInstallProgress(operation = {}, log = '') {
   $('#install-progress-dialog').classList.toggle('is-failed', operation.status === 'failed');
   $('#install-progress-dialog').classList.toggle('is-complete', operation.status === 'completed');
 }
-function openInstallProgress() {
+function openInstallConfirmation() {
   clearTimeout(installPollTimer);
-  renderInstallProgress({status:'running', progress:0, stage:'queued', message:'설치 요청을 준비하고 있습니다.'}, '설치 로그를 기다리고 있습니다.');
   const dialog = $('#install-progress-dialog');
+  dialog.classList.add('is-confirming');
+  dialog.classList.remove('is-failed', 'is-complete');
+  $('#install-progress-message').textContent = '게임 접속용 Admin, Friend, Guest 역할 비밀번호를 확인한 뒤 설치를 시작해주세요.';
   if (!dialog.open) dialog.showModal();
   document.body.classList.add('modal-open');
+}
+async function startInstallProgress() {
+  const dialog = $('#install-progress-dialog');
+  dialog.classList.remove('is-confirming', 'is-failed', 'is-complete');
+  renderInstallProgress({status:'running', progress:0, stage:'queued', message:'설치 요청을 준비하고 있습니다.'}, '설치 로그를 기다리고 있습니다.');
+  try {
+    await api('/api/install', {method:'POST'});
+    scheduleInstallPoll(200);
+  } catch (error) {
+    renderInstallProgress({status:'failed', progress:100, stage:'failed', message:error.message}, error.message);
+  }
 }
 function closeInstallProgress() {
   clearTimeout(installPollTimer);
@@ -446,26 +464,30 @@ function renderUpdate(data) {
   const fallback = {queued:5,pulling:12,downloading:12,preparing:30,replacing:48,verifying:78,reconnecting:88,completed:100,failed:100};
   const progress = Math.max(0, Math.min(100, Number(data.progress ?? fallback[state] ?? 0)));
   updateRenderedProgress = active ? Math.max(updateRenderedProgress, progress) : progress;
-  $('#update-status').textContent = data.version || statusCache?.panel_version || '1.0.6';
-  $('#update-state').textContent = labels[state] || state;
-  $('#update-progress-label').textContent = labels[state] || '업데이트 상태';
+  const availability = data.update_available;
+  const availabilityLabel = availability === true ? '새 업데이트 사용 가능' : availability === false ? '최신 버전 사용 중' : data.checked === false ? '업데이트 확인 필요' : '업데이트 상태 확인 중';
+  $('#update-status').textContent = data.current_version || data.version || statusCache?.panel_version || '1.0.7';
+  $('#update-state').textContent = active || failed || completed ? (labels[state] || state) : availabilityLabel;
+  $('#update-progress-label').textContent = active || failed || completed ? (labels[state] || '업데이트 상태') : availabilityLabel;
   $('#update-progress-percent').textContent = `${Math.round(updateRenderedProgress)}%`;
   $('#update-progress').style.width = `${updateRenderedProgress}%`;
   $('#panel-update-progress .progress').setAttribute('aria-valuenow', String(Math.round(updateRenderedProgress)));
   $('#update-message').textContent = data.message || '업데이트 상태를 확인하고 있습니다.';
   $('#panel-update-progress').classList.toggle('is-complete', completed);
   $('#panel-update-progress').classList.toggle('is-failed', failed);
+  $('#panel-update-progress').classList.toggle('is-current', !active && availability === false);
+  $('#panel-update-progress').classList.toggle('is-available', !active && availability === true);
   const stage = data.stage === 'rollback' ? 'verify' : (data.stage || (completed ? 'complete' : 'pull'));
   const stageIndex = updateStageIndex(stage);
   $$('.panel-update-steps li').forEach((item,index)=>{item.classList.toggle('done',completed||index<stageIndex);item.classList.toggle('active',!completed&&index===stageIndex);});
-  $('#apply-update').disabled = active;
-  $('#apply-update').textContent = active ? '업데이트 중' : failed ? '다시 시도' : I18N.t('apply_update');
+  $('#apply-update').disabled = active || (!failed && availability === false);
+  $('#apply-update').textContent = active ? '업데이트 중' : failed ? '다시 시도' : availability === false ? '최신 버전' : I18N.t('apply_update');
   return active;
 }
 function scheduleUpdatePoll(delay=1200){ clearTimeout(updatePollTimer); updatePollTimer=setTimeout(pollUpdate,delay); }
-async function loadUpdate(){ const data=await api('/api/panel-update'); if(renderUpdate(data))scheduleUpdatePoll(); return data; }
+async function loadUpdate(check=false){ const data=await api(`/api/panel-update${check?'?check=true':''}`); if(renderUpdate(data))scheduleUpdatePoll(); return data; }
 async function pollUpdate(){ try{await loadUpdate();}catch(_error){renderUpdate({status:'reconnecting',stage:'verify',progress:Math.max(updateRenderedProgress,88),version:statusCache?.panel_version,message:'패널 교체 중 연결이 잠시 중단되었습니다. 자동으로 다시 연결하고 있습니다.'});scheduleUpdatePoll(1600);} }
-async function openUpdateDialog(){ const dialog=$('#panel-update-dialog'); dialog.showModal(); document.body.classList.add('modal-open'); renderUpdate({status:'idle',progress:0,version:statusCache?.panel_version,message:'업데이트 상태를 확인하고 있습니다.'}); try{await loadUpdate();}catch(error){renderUpdate({status:'failed',progress:100,version:statusCache?.panel_version,message:error.message});} }
+async function openUpdateDialog(){ const dialog=$('#panel-update-dialog'); dialog.showModal(); document.body.classList.add('modal-open'); renderUpdate({status:'idle',progress:0,version:statusCache?.panel_version,message:'최신 패널 이미지가 있는지 확인하고 있습니다.'}); try{await loadUpdate(true);}catch(error){renderUpdate({status:'idle',checked:false,progress:0,version:statusCache?.panel_version,message:error.message});} }
 function closeUpdateDialog(){ clearTimeout(updatePollTimer); if($('#panel-update-dialog').open)$('#panel-update-dialog').close(); document.body.classList.remove('modal-open'); }
 
 function requestText(title){ const dialog=$('#text-input-dialog'); $('#text-input-title').textContent=title; $('#text-input-value').value=''; dialog.showModal(); document.body.classList.add('modal-open'); requestAnimationFrame(()=>$('#text-input-value').focus()); return new Promise((resolve)=>{textInputResolver=resolve;}); }
@@ -488,7 +510,7 @@ function bindEvents(){
   $('#confirm-close').onclick=()=>closeConfirm(false); $('#confirm-cancel').onclick=()=>closeConfirm(false); $('#confirm-accept').onclick=()=>closeConfirm(true);
   $('#running-lock-close').onclick=()=>{if($('#running-lock-dialog').open)$('#running-lock-dialog').close();document.body.classList.remove('modal-open');};
   $('#running-lock-dialog').addEventListener('close',()=>document.body.classList.remove('modal-open'));
-  $('#install-progress-close').onclick=closeInstallProgress;
+  $('#install-progress-cancel').onclick=closeInstallProgress; $('#install-progress-start').onclick=startInstallProgress; $('#install-progress-close').onclick=closeInstallProgress;
   $('#install-progress-dialog').addEventListener('close',()=>{clearTimeout(installPollTimer);document.body.classList.remove('modal-open');});
   $('#notice-dialog-close').onclick=closeNotice;
   $('#notice-dialog').addEventListener('close',()=>{clearTimeout(noticeTimer);document.body.classList.remove('modal-open');});
