@@ -6,7 +6,7 @@ from app.config import PANEL_VERSION, ServerConfig, ServerRole
 class ConfigTests(unittest.TestCase):
     def test_initial_version_and_defaults(self):
         config = ServerConfig()
-        self.assertEqual(PANEL_VERSION, "1.0.3")
+        self.assertEqual(PANEL_VERSION, "1.0.4")
         self.assertEqual(config.backup_retention_count, 10)
         self.assertEqual(config.backup_retention_days, 15)
         self.assertEqual(config.slot_count, 16)

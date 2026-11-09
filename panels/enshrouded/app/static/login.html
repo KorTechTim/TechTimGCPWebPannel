@@ -1,4 +1,4 @@
-<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>TechTim Enshrouded Panel</title><link rel="stylesheet" href="/static/app.css?v=1.0.3"></head>
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>TechTim Enshrouded Panel</title><link rel="stylesheet" href="/static/app.css?v=1.0.4"></head>
 <body class="login-page">
   <main class="login-shell">
     <section class="login-brand">
@@ -19,10 +19,11 @@
       <form id="password-form" hidden>
         <h2 data-i18n="initial_title">첫 관리자 비밀번호 설정</h2><p data-i18n="initial_copy">기본 비밀번호 admin 대신 사용할 새 패널 비밀번호를 입력하세요.</p>
         <label><span data-i18n="new_password">새 비밀번호</span><input name="new_password" type="password" minlength="4" maxlength="128" autocomplete="new-password" required></label>
+        <label><span data-i18n="confirm_password">새 비밀번호 확인</span><input name="confirm_password" type="password" minlength="4" maxlength="128" autocomplete="new-password" required></label>
         <button class="primary wide" data-i18n="save_password">비밀번호 저장</button>
       </form>
       <p id="login-message" class="form-message" role="alert"></p>
     </section>
   </main>
-  <script src="/static/i18n.js?v=1.0.3"></script><script src="/static/login.js?v=1.0.3"></script>
+  <script src="/static/i18n.js?v=1.0.4"></script><script src="/static/login.js?v=1.0.4"></script>
 </body></html>

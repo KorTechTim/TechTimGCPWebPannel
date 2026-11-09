@@ -249,6 +249,20 @@ class PanelService:
         except (NotFound, DockerException):
             return "missing"
 
+    def container_runtime(self):
+        try:
+            with self.client() as client:
+                container = client.containers.get(self.settings.server_container)
+                container.reload()
+                status = container.status
+                started_at = container.attrs.get("State", {}).get("StartedAt", "")
+            if status not in {"running", "restarting"} or not started_at:
+                return status, 0
+            started = datetime.fromisoformat(started_at.replace("Z", "+00:00"))
+            return status, max(0, int((datetime.now(timezone.utc) - started).total_seconds()))
+        except (NotFound, DockerException, ValueError, TypeError):
+            return "missing", 0
+
     def is_running(self):
         return self.container_status() in {"running", "restarting"}
 
@@ -358,10 +372,11 @@ class PanelService:
             return {"reachable": False, "players": None, "max_players": self.config().slot_count}
 
     def status(self):
-        container = self.container_status()
+        container, uptime_seconds = self.container_runtime()
+        config = self.config()
         recent = self.logs("server", tail=100) if container == "running" else ""
         query = self.query_info() if container == "running" else {
-            "reachable": False, "players": 0, "max_players": self.config().slot_count,
+            "reachable": False, "players": 0, "max_players": config.slot_count,
         }
         ready = bool(query.get("reachable")) or any(marker in recent for marker in READY_MARKERS)
         operation = read_json(self.operation_path, {"status": "idle", "name": "", "message": ""})
@@ -369,7 +384,9 @@ class PanelService:
             "game": "enshrouded", "panel_version": PANEL_VERSION,
             "server": container, "installed": container != "missing",
             "ready": ready, "busy": self.busy, "operation": operation,
-            "query": query, "server_name": self.config().server_name,
+            "query": query, "server_name": config.server_name,
+            "uptime_seconds": uptime_seconds, "query_port": config.query_port,
+            "game_settings_preset": config.game_settings_preset,
             "runtime_image": self.settings.runtime_image,
         }
 
@@ -389,6 +406,20 @@ class PanelService:
         available = fields.get("MemAvailable", fields.get("MemFree", 0))
         return total, max(0, total - available)
 
+    @staticmethod
+    def _proc_network():
+        received = transmitted = 0
+        for line in Path("/host/proc/net/dev").read_text().splitlines()[2:]:
+            if ":" not in line:
+                continue
+            interface, values = line.split(":", 1)
+            if interface.strip() == "lo":
+                continue
+            fields = values.split()
+            received += int(fields[0])
+            transmitted += int(fields[8])
+        return received, transmitted
+
     def resources(self):
         cpu = memory_total = memory_used = 0
         try:
@@ -400,6 +431,19 @@ class PanelService:
             memory_total, memory_used = self._proc_memory()
         except (FileNotFoundError, ValueError, IndexError):
             pass
+        network_receive_bps = network_transmit_bps = 0
+        try:
+            received, transmitted = self._proc_network()
+            sampled_at = time.monotonic()
+            if self._network_sample:
+                previous_at, previous_received, previous_transmitted = self._network_sample
+                elapsed = sampled_at - previous_at
+                if elapsed > 0:
+                    network_receive_bps = max(0, (received - previous_received) / elapsed)
+                    network_transmit_bps = max(0, (transmitted - previous_transmitted) / elapsed)
+            self._network_sample = (sampled_at, received, transmitted)
+        except (FileNotFoundError, ValueError, IndexError):
+            pass
         disk = shutil.disk_usage(self.data)
         return {
             "cpu_percent": round(cpu, 1),
@@ -407,6 +451,8 @@ class PanelService:
             "memory_percent": round(memory_used / memory_total * 100, 1) if memory_total else 0,
             "disk_used": disk.used, "disk_total": disk.total,
             "disk_percent": round(disk.used / disk.total * 100, 1) if disk.total else 0,
+            "network_receive_bps": round(network_receive_bps, 1),
+            "network_transmit_bps": round(network_transmit_bps, 1),
         }
 
     def create_backup(self, reason="manual", allow_running=True):
