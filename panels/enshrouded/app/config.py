@@ -6,7 +6,7 @@ import os
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
-PANEL_VERSION = "1.0.7"
+PANEL_VERSION = "1.0.8"
 STEAM_APP_ID = "2278520"
 DEFAULT_RUNTIME_IMAGE = "ghcr.io/kortechtim/enshrouded-runtime:wine-v1"
 UPSTREAM_RUNTIME_IMAGE = (
@@ -39,7 +39,7 @@ DEFAULT_GAME_SETTINGS = {
     "experienceCombatFactor": 1.0,
     "experienceMiningFactor": 1.0,
     "experienceExplorationQuestsFactor": 1.0,
-    "randomSpawnerAmount": "Normal",
+    "randomSpawnerAmount": "Automatic",
     "aggroPoolAmount": "Normal",
     "enemyDamageFactor": 1.0,
     "enemyHealthFactor": 1.0,
@@ -75,8 +75,8 @@ GAME_SETTING_RANGES = {
 GAME_SETTING_OPTIONS = {
     "weatherFrequency": {"Disabled", "Rare", "Normal", "Often"},
     "fishingDifficulty": {"VeryEasy", "Easy", "Normal", "Hard", "VeryHard"},
-    "randomSpawnerAmount": {"Few", "Normal", "Many", "Extreme"},
-    "aggroPoolAmount": {"Few", "Normal", "Many", "Extreme"},
+    "randomSpawnerAmount": {"Few", "Normal", "More", "Many", "Automatic"},
+    "aggroPoolAmount": {"Few", "Normal", "More", "Many"},
     "tombstoneMode": {"AddBackpackMaterials", "Everything", "NoTombstone"},
     "tamingStartleRepercussion": {"KeepProgress", "LoseSomeProgress", "LoseAllProgress"},
     "curseModifier": {"Easy", "Normal", "Hard"},

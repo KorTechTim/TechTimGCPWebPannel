@@ -21,19 +21,25 @@ const PRESET_DETAILS = {
   zh:{Default:['默认','推荐新玩家使用的标准平衡设置。','标准敌人','标准资源','基础生存'],Relaxed:['轻松','敌人更少，资源与战利品更多，适合建造和轻松探索。','敌人减少','资源增加','建造优先'],Hard:['困难','敌人数量与攻击性提高，战斗更具挑战。','敌人增加','攻击性提高','战斗优先'],Survival:['生存','更强的敌人，并启用饥饿和更严厉的死亡惩罚。','启用饥饿','强敌','严厉死亡惩罚'],Custom:['自定义','在 enshrouded_server.json 中自由组合各项游戏设置。','独立调整','30多项设置','高级']},
   ja:{Default:['デフォルト','初めて遊ぶプレイヤーに推奨される標準バランスです。','標準の敵数','標準の資源','基本サバイバル'],Relaxed:['リラックス','敵が少なく資源と戦利品が増え、建築と気軽な冒険に向きます。','敵が少ない','資源増加','建築重視'],Hard:['ハード','敵の数と攻撃性が増え、戦闘がより厳しくなります。','敵が多い','攻撃性上昇','戦闘重視'],Survival:['サバイバル','より攻撃的な敵に加え、空腹と重い死亡ペナルティが適用されます。','空腹あり','強い敵','重い死亡ペナルティ'],Custom:['カスタム','enshrouded_server.json で各ゲーム設定を自由に組み合わせます。','個別調整','30項目以上','上級設定']}
 };
+const PRESET_GAME_SETTINGS = {
+  Default:{playerHealthFactor:1,playerManaFactor:1,playerStaminaFactor:1,playerBodyHeatFactor:1,playerDivingTimeFactor:1,shroudTimeFactor:1,enableDurability:true,enableStarvingDebuff:false,foodBuffDurationFactor:1,fromHungerToStarving:600000000000,tombstoneMode:'AddBackpackMaterials',enableGliderTurbulences:true,fishingDifficulty:'Normal',miningDamageFactor:1,plantGrowthSpeedFactor:1,resourceDropStackAmountFactor:1,factoryProductionSpeedFactor:1,perkUpgradeRecyclingFactor:.5,perkCostFactor:1,experienceCombatFactor:1,experienceMiningFactor:1,experienceExplorationQuestsFactor:1,randomSpawnerAmount:'Automatic',aggroPoolAmount:'Normal',enemyDamageFactor:1,enemyHealthFactor:1,enemyStaminaFactor:1,enemyPerceptionRangeFactor:1,bossDamageFactor:1,bossHealthFactor:1,threatBonus:1,pacifyAllEnemies:false,weatherFrequency:'Normal',tamingStartleRepercussion:'LoseSomeProgress',dayTimeDuration:1800000000000,nightTimeDuration:720000000000,curseModifier:'Normal'},
+  Relaxed:{playerHealthFactor:2,playerManaFactor:2,playerStaminaFactor:2,playerBodyHeatFactor:2,playerDivingTimeFactor:1.5,shroudTimeFactor:1.5,enableDurability:false,enableStarvingDebuff:false,foodBuffDurationFactor:1.5,fromHungerToStarving:600000000000,tombstoneMode:'NoTombstone',enableGliderTurbulences:false,fishingDifficulty:'Easy',miningDamageFactor:1.5,plantGrowthSpeedFactor:2,resourceDropStackAmountFactor:1.5,factoryProductionSpeedFactor:2,perkUpgradeRecyclingFactor:1,perkCostFactor:.5,experienceCombatFactor:1.5,experienceMiningFactor:1.25,experienceExplorationQuestsFactor:1,randomSpawnerAmount:'Few',aggroPoolAmount:'Few',enemyDamageFactor:.5,enemyHealthFactor:.5,enemyStaminaFactor:.5,enemyPerceptionRangeFactor:.75,bossDamageFactor:.5,bossHealthFactor:.5,threatBonus:.5,pacifyAllEnemies:false,weatherFrequency:'Rare',tamingStartleRepercussion:'KeepProgress',dayTimeDuration:1800000000000,nightTimeDuration:720000000000,curseModifier:'Easy'},
+  Hard:{playerHealthFactor:1,playerManaFactor:1,playerStaminaFactor:1,playerBodyHeatFactor:1,playerDivingTimeFactor:.9,shroudTimeFactor:1,enableDurability:true,enableStarvingDebuff:false,foodBuffDurationFactor:.9,fromHungerToStarving:600000000000,tombstoneMode:'AddBackpackMaterials',enableGliderTurbulences:true,fishingDifficulty:'Normal',miningDamageFactor:1,plantGrowthSpeedFactor:1,resourceDropStackAmountFactor:1,factoryProductionSpeedFactor:1,perkUpgradeRecyclingFactor:.5,perkCostFactor:1,experienceCombatFactor:.5,experienceMiningFactor:.5,experienceExplorationQuestsFactor:1,randomSpawnerAmount:'More',aggroPoolAmount:'Normal',enemyDamageFactor:1.25,enemyHealthFactor:1,enemyStaminaFactor:1,enemyPerceptionRangeFactor:1,bossDamageFactor:1,bossHealthFactor:1.5,threatBonus:1.5,pacifyAllEnemies:false,weatherFrequency:'Normal',tamingStartleRepercussion:'LoseSomeProgress',dayTimeDuration:1800000000000,nightTimeDuration:720000000000,curseModifier:'Normal'},
+  Survival:{playerHealthFactor:.75,playerManaFactor:1,playerStaminaFactor:1,playerBodyHeatFactor:.75,playerDivingTimeFactor:.75,shroudTimeFactor:1,enableDurability:true,enableStarvingDebuff:true,foodBuffDurationFactor:.7,fromHungerToStarving:600000000000,tombstoneMode:'Everything',enableGliderTurbulences:true,fishingDifficulty:'Hard',miningDamageFactor:.75,plantGrowthSpeedFactor:1,resourceDropStackAmountFactor:.75,factoryProductionSpeedFactor:1,perkUpgradeRecyclingFactor:.3,perkCostFactor:1.25,experienceCombatFactor:.5,experienceMiningFactor:.5,experienceExplorationQuestsFactor:1,randomSpawnerAmount:'More',aggroPoolAmount:'Normal',enemyDamageFactor:1.5,enemyHealthFactor:1,enemyStaminaFactor:1,enemyPerceptionRangeFactor:1,bossDamageFactor:1,bossHealthFactor:1.5,threatBonus:1.5,pacifyAllEnemies:false,weatherFrequency:'Often',tamingStartleRepercussion:'LoseAllProgress',dayTimeDuration:1800000000000,nightTimeDuration:1200000000000,curseModifier:'Hard'},
+};
 const GAME_SETTING_GROUPS = [
   {title:'플레이어 능력', icon:'abilities', copy:'체력, 마나, 스태미나와 환경 대응 능력을 조정합니다.', fields:[
     {key:'playerHealthFactor',label:'플레이어 체력',desc:'최대 체력 배율',type:'number',min:.25,max:4,step:.25},
     {key:'playerManaFactor',label:'플레이어 마나',desc:'최대 마나 배율',type:'number',min:.25,max:4,step:.25},
     {key:'playerStaminaFactor',label:'플레이어 스태미나',desc:'최대 스태미나 배율',type:'number',min:.25,max:4,step:.25},
-    {key:'playerBodyHeatFactor',label:'추위 저항 체온',desc:'추운 지역 체류 가능 시간',type:'select',options:[.5,1,1.5,2]},
-    {key:'playerDivingTimeFactor',label:'잠수 시간',desc:'수중 산소 지속 배율',type:'number',min:.5,max:2,step:.25},
+    {key:'playerBodyHeatFactor',label:'추위 저항 체온',desc:'추운 지역 체류 가능 시간',type:'select',options:[.5,.75,1,1.5,2]},
+    {key:'playerDivingTimeFactor',label:'잠수 시간',desc:'수중 산소 지속 배율',type:'number',min:.5,max:2,step:.05},
     {key:'shroudTimeFactor',label:'장막 체류 시간',desc:'장막 안에서 버틸 수 있는 시간',type:'number',min:.5,max:2,step:.25},
   ]},
   {title:'생존 규칙', icon:'survival', copy:'내구도, 허기, 음식 효과와 사망 규칙을 설정합니다.', fields:[
     {key:'enableDurability',label:'무기 내구도',desc:'무기와 장비 내구도 사용',type:'boolean'},
     {key:'enableStarvingDebuff',label:'허기 및 굶주림',desc:'굶주림 피해 사용',type:'boolean'},
-    {key:'foodBuffDurationFactor',label:'음식 효과 시간',desc:'음식 버프 지속 배율',type:'number',min:.5,max:2,step:.25},
+    {key:'foodBuffDurationFactor',label:'음식 효과 시간',desc:'음식 버프 지속 배율',type:'number',min:.5,max:2,step:.05},
     {key:'fromHungerToStarving',label:'굶주림 전환 시간',desc:'배고픔에서 굶주림까지',type:'number',min:5,max:20,step:1,unit:'minutes'},
     {key:'tombstoneMode',label:'사망 시 묘비',desc:'사망 시 잃는 아이템 범위',type:'select',options:['AddBackpackMaterials','Everything','NoTombstone']},
     {key:'enableGliderTurbulences',label:'글라이더 난기류',desc:'비행 중 난기류 사용',type:'boolean'},
@@ -51,14 +57,14 @@ const GAME_SETTING_GROUPS = [
     {key:'experienceExplorationQuestsFactor',label:'탐험·퀘스트 경험치',desc:'탐험과 퀘스트 경험치 배율',type:'number',min:.25,max:2,step:.25},
   ]},
   {title:'적과 전투', icon:'combat', copy:'적 수, 공격성, 일반 적과 보스의 전투 능력을 조정합니다.', fields:[
-    {key:'randomSpawnerAmount',label:'적 개체 수',desc:'월드에 생성되는 적 수',type:'select',options:['Few','Normal','Many','Extreme']},
-    {key:'aggroPoolAmount',label:'동시 공격 적 수',desc:'동시에 공격 가능한 적 수',type:'select',options:['Few','Normal','Many','Extreme']},
+    {key:'randomSpawnerAmount',label:'적 개체 수',desc:'월드에 생성되는 적 수',type:'select',options:['Few','Normal','More','Many','Automatic']},
+    {key:'aggroPoolAmount',label:'동시 공격 적 수',desc:'동시에 공격 가능한 적 수',type:'select',options:['Few','Normal','More','Many']},
     {key:'enemyDamageFactor',label:'적 피해량',desc:'일반 적 공격 피해 배율',type:'number',min:.25,max:5,step:.25},
     {key:'enemyHealthFactor',label:'적 체력',desc:'일반 적 체력 배율',type:'number',min:.25,max:4,step:.25},
     {key:'enemyStaminaFactor',label:'적 기절 저항',desc:'적 스태미나 배율',type:'number',min:.5,max:2,step:.25},
     {key:'enemyPerceptionRangeFactor',label:'적 감지 범위',desc:'시야와 청각 감지 배율',type:'number',min:.5,max:2,step:.25},
-    {key:'bossDamageFactor',label:'보스 피해량',desc:'보스 공격 피해 배율',type:'number',min:.2,max:5,step:.2},
-    {key:'bossHealthFactor',label:'보스 체력',desc:'보스 체력 배율',type:'number',min:.2,max:5,step:.2},
+    {key:'bossDamageFactor',label:'보스 피해량',desc:'보스 공격 피해 배율',type:'number',min:.2,max:5,step:.1},
+    {key:'bossHealthFactor',label:'보스 체력',desc:'보스 체력 배율',type:'number',min:.2,max:5,step:.1},
     {key:'threatBonus',label:'적 공격 빈도',desc:'일반 적 공격 빈도 배율',type:'number',min:.25,max:4,step:.25},
     {key:'pacifyAllEnemies',label:'적 선제공격 방지',desc:'공격받기 전까지 일반 적 중립',type:'boolean'},
   ]},
@@ -250,9 +256,18 @@ function fillSettings(config) {
   ['enable_voice_chat','enable_text_chat'].forEach((name) => { form.elements[name].checked = !!config[name]; });
   form.elements.tags.value = (config.tags || []).join(', ');
   renderRoles(config.roles || []);
-  const preset = $(`input[name="preset"][value="${config.game_settings_preset}"]`); if (preset) preset.checked = true; renderPresetDescription(config.game_settings_preset); renderGameSettings(config.game_settings || {}); clearUnsavedGroup('config');
+  const presetName = config.game_settings_preset || 'Default';
+  const preset = $(`input[name="preset"][value="${presetName}"]`); if (preset) preset.checked = true;
+  renderPresetDescription(presetName);
+  renderGameSettings(presetName === 'Custom' ? (config.game_settings || {}) : structuredClone(PRESET_GAME_SETTINGS[presetName] || PRESET_GAME_SETTINGS.Default));
+  clearUnsavedGroup('config');
 }
 function renderPresetDescription(value='Default'){ const details=(PRESET_DETAILS[I18N.current()]||PRESET_DETAILS.ko)[value]||PRESET_DETAILS.ko.Default; $('#preset-description-kicker').textContent=`${value.toUpperCase()} PRESET`; $('#preset-description-title').textContent=details[0]; $('#preset-description-copy').textContent=details[1]; $('#preset-description-tags').innerHTML=details.slice(2).map(tag=>`<span>${escapeHtml(tag)}</span>`).join(''); }
+function applyPreset(value) {
+  renderPresetDescription(value);
+  if (value !== 'Custom') renderGameSettings(structuredClone(PRESET_GAME_SETTINGS[value] || PRESET_GAME_SETTINGS.Default));
+  markUnsaved('#view-world');
+}
 function gameSettingValue(field, value) { return field.unit === 'minutes' ? Number(value) / 60000000000 : value; }
 function renderGameSettings(settings = {}) {
   const root = $('#game-settings-groups');
@@ -307,10 +322,26 @@ function collectSettings() {
 }
 async function saveConfig() { const result = await perform(() => api('/api/config', json('POST', collectSettings())), I18N.t('save_changes')); fillSettings(result); }
 function renderRoles(roles) { const list = $('#roles-list'); list.innerHTML = ''; roles.forEach((role) => addRole(role)); }
+function syncPasswordToggle(button) {
+  const input = button.closest('.role-password-control').querySelector('[data-role="password"]');
+  const visible = input.type === 'text';
+  const label = I18N.t(visible ? 'hide_password' : 'show_password');
+  button.classList.toggle('is-visible', visible);
+  button.setAttribute('aria-label', label);
+  button.title = label;
+}
+function refreshPasswordToggleLabels() { $$('.role-password-toggle').forEach(syncPasswordToggle); }
 function addRole(role = {name:'New role',password:'change-this-password',can_kick_ban:false,can_access_inventories:false,can_edit_world:true,can_edit_base:false,can_extend_base:false,reserved_slots:0}) {
   if ($$('.role-row').length >= 8) return message('Maximum 8 roles', true);
   const row = $('#role-template').content.firstElementChild.cloneNode(true); row.querySelector('.role-index').textContent = String($$('.role-row').length + 1).padStart(2,'0');
   Object.entries(role).forEach(([key,value]) => { const input = row.querySelector(`[data-role="${key}"]`); if (input) input.type === 'checkbox' ? input.checked = !!value : input.value = value; });
+  const passwordToggle = row.querySelector('.role-password-toggle');
+  passwordToggle.addEventListener('click', () => {
+    const input = row.querySelector('[data-role="password"]');
+    input.type = input.type === 'password' ? 'text' : 'password';
+    syncPasswordToggle(passwordToggle);
+  });
+  syncPasswordToggle(passwordToggle);
   row.querySelector('.remove-role').addEventListener('click', () => { if ($$('.role-row').length <= 1) return; row.remove(); $$('.role-row .role-index').forEach((el,index) => el.textContent = String(index+1).padStart(2,'0')); markUnsaved('#view-roles'); });
   $('#roles-list').append(row); I18N.apply(row);
 }
@@ -347,7 +378,8 @@ async function loadFiles(path = '') {
   data.entries.forEach((entry) => {
     const row = document.createElement('div');
     row.className = 'file-row';
-    row.innerHTML = `<div class="file-icon" aria-hidden="true">${entry.type === 'folder' ? '◆' : '▧'}</div><button class="file-entry-name" type="button" title="${escapeHtml(entry.name)}">${escapeHtml(entry.name)}</button><span class="file-meta">${entry.type === 'folder' ? 'Folder' : bytes(entry.size)}</span><span class="file-meta">${formatDate(entry.modified_at)}</span><div class="file-actions"></div>`;
+    const iconType = entry.type === 'folder' ? 'folder' : entry.editable ? 'editable' : 'file';
+    row.innerHTML = `<div class="file-icon file-icon-${iconType}" aria-hidden="true"></div><button class="file-entry-name" type="button" title="${escapeHtml(entry.name)}">${escapeHtml(entry.name)}</button><span class="file-meta">${entry.type === 'folder' ? 'Folder' : bytes(entry.size)}</span><span class="file-meta">${formatDate(entry.modified_at)}</span><div class="file-actions"></div>`;
     const openEntry = () => {
       if (entry.type === 'folder') return loadFiles(entry.path);
       if (entry.editable) return openEditor(entry.path);
@@ -419,7 +451,7 @@ function openInstallConfirmation() {
   const dialog = $('#install-progress-dialog');
   dialog.classList.add('is-confirming');
   dialog.classList.remove('is-failed', 'is-complete');
-  $('#install-progress-message').textContent = '게임 접속용 Admin, Friend, Guest 역할 비밀번호를 확인한 뒤 설치를 시작해주세요.';
+  $('#install-progress-message').textContent = '새 서버 설치와 첫 기동을 시작합니다.';
   if (!dialog.open) dialog.showModal();
   document.body.classList.add('modal-open');
 }
@@ -466,7 +498,7 @@ function renderUpdate(data) {
   updateRenderedProgress = active ? Math.max(updateRenderedProgress, progress) : progress;
   const availability = data.update_available;
   const availabilityLabel = availability === true ? '새 업데이트 사용 가능' : availability === false ? '최신 버전 사용 중' : data.checked === false ? '업데이트 확인 필요' : '업데이트 상태 확인 중';
-  $('#update-status').textContent = data.current_version || data.version || statusCache?.panel_version || '1.0.7';
+  $('#update-status').textContent = data.current_version || data.version || statusCache?.panel_version || '1.0.8';
   $('#update-state').textContent = active || failed || completed ? (labels[state] || state) : availabilityLabel;
   $('#update-progress-label').textContent = active || failed || completed ? (labels[state] || '업데이트 상태') : availabilityLabel;
   $('#update-progress-percent').textContent = `${Math.round(updateRenderedProgress)}%`;
@@ -504,7 +536,7 @@ function bindEvents(){
   $('#file-parent').onclick=()=>loadFiles(currentPath.split('/').slice(0,-1).join('/')); $('#file-refresh').onclick=()=>loadFiles(currentPath); $('#new-folder').onclick=async()=>{const name=(await requestText(I18N.t('new_folder')))?.trim();if(name){await perform(()=>api('/api/files/directory',json('POST',{path:currentPath,name})));loadFiles(currentPath);}}; $('#file-upload').onchange=async(event)=>{const file=event.target.files[0];if(!file)return;const body=new FormData();body.append('file',file);body.append('path',currentPath);await perform(()=>api('/api/files/upload',{method:'POST',body}));event.target.value='';loadFiles(currentPath);};
   $('#file-editor').oninput=()=>$('#file-dirty').classList.toggle('visible',$('#file-editor').value!==editorOriginal); $('#file-editor-save').onclick=saveEditor; $('#file-editor-cancel').onclick=closeEditor; $('#file-editor-dialog .dialog-head button').onclick=closeEditor; document.addEventListener('keydown',(event)=>{if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='s'&&$('#file-editor-dialog').open){event.preventDefault();saveEditor();}});
   $('#discord-save').onclick=saveDiscord; $('#discord-test').onclick=()=>perform(()=>api('/api/discord/test',{method:'POST'}),I18N.t('test_send')); $('#migration-export').onclick=()=>location.href='/api/migration/export'; $('#migration-import').onchange=(event)=>{importMigration(event.target.files[0]);event.target.value='';};
-  $$('[name="preset"]').forEach(input=>input.onchange=()=>renderPresetDescription(input.value)); $('#discord-form').elements.username.oninput=updateDiscordPreview;
+  $$('[name="preset"]').forEach(input=>input.onchange=()=>applyPreset(input.value)); $('#discord-form').elements.username.oninput=updateDiscordPreview;
   $('#panel-update-button').onclick=openUpdateDialog; $('#close-panel-update').onclick=closeUpdateDialog; $('#cancel-panel-update').onclick=closeUpdateDialog; $('#apply-update').onclick=async()=>{updateRenderedProgress=3;renderUpdate({status:'queued',stage:'pull',progress:3,version:statusCache?.panel_version,message:'업데이트 요청을 전달하고 있습니다.'});scheduleUpdatePoll(500);try{await api('/api/panel-update',{method:'POST'});}catch(error){renderUpdate({status:'reconnecting',stage:'verify',progress:Math.max(updateRenderedProgress,30),version:statusCache?.panel_version,message:`업데이트 상태를 다시 확인하고 있습니다. ${error.message}`});}scheduleUpdatePoll(700);}; $('#logout-button').onclick=async()=>{await api('/api/auth/logout',{method:'POST'});location.href='/login';};
   $('#text-input-close').onclick=()=>closeTextInput(); $('#text-input-cancel').onclick=()=>closeTextInput(); $('#text-input-form').onsubmit=(event)=>{event.preventDefault();if($('#text-input-value').reportValidity())closeTextInput($('#text-input-value').value);};
   $('#confirm-close').onclick=()=>closeConfirm(false); $('#confirm-cancel').onclick=()=>closeConfirm(false); $('#confirm-accept').onclick=()=>closeConfirm(true);
@@ -514,7 +546,7 @@ function bindEvents(){
   $('#install-progress-dialog').addEventListener('close',()=>{clearTimeout(installPollTimer);document.body.classList.remove('modal-open');});
   $('#notice-dialog-close').onclick=closeNotice;
   $('#notice-dialog').addEventListener('close',()=>{clearTimeout(noticeTimer);document.body.classList.remove('modal-open');});
-  window.addEventListener('resize',renderCharts); window.addEventListener('languagechange',()=>{const active=$('.nav-item.active');$('#view-title').textContent=$('span',active)?.textContent||I18N.t('home');renderPresetDescription($('input[name="preset"]:checked')?.value||'Default');refreshUnsavedMessages();refreshStatus();});
+  window.addEventListener('resize',renderCharts); window.addEventListener('languagechange',()=>{const active=$('.nav-item.active');$('#view-title').textContent=$('span',active)?.textContent||I18N.t('home');renderPresetDescription($('input[name="preset"]:checked')?.value||'Default');refreshPasswordToggleLabels();refreshUnsavedMessages();refreshStatus();});
 }
 function initWeekdays(){ const labels={ko:['월','화','수','목','금','토','일'],en:['M','T','W','T','F','S','S'],zh:['一','二','三','四','五','六','日'],ja:['月','火','水','木','金','土','日']}; $('#weekday-options').innerHTML=(labels[I18N.current()]||labels.ko).map((label,index)=>`<label><input type="checkbox" name="weekday" value="${index}"><span>${label}</span></label>`).join(''); }
 async function init(){ initWeekdays(); bindEvents(); await Promise.all([loadConfig(),refreshStatus(),refreshResources(),loadSchedule()]); const hash=location.hash.slice(1); if(hash&&$(`#view-${hash}`))showView(hash); setInterval(refreshStatus,3000); setInterval(refreshResources,1000); setInterval(()=>{if($('#view-logs').classList.contains('active'))loadLogs();},1500); requestAnimationFrame(function animate(){renderCharts();requestAnimationFrame(animate);}); }

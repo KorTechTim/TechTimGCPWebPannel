@@ -47,6 +47,8 @@
       running_lock_copy: '서버가 운영 중에는 설정할 수 없습니다.',
       notice_title: '안내',
       error_title: '확인이 필요합니다.',
+      show_password: '비밀번호 보기',
+      hide_password: '비밀번호 숨기기',
     },
     en: {
       save_reminder: 'Changes are waiting. Please save them.',
@@ -54,6 +56,8 @@
       running_lock_copy: 'Settings cannot be changed while the server is running.',
       notice_title: 'Notice',
       error_title: 'Attention required',
+      show_password: 'Show password',
+      hide_password: 'Hide password',
     },
     zh: {
       save_reminder: '有未保存的更改，请点击保存。',
@@ -61,6 +65,8 @@
       running_lock_copy: '服务器运行时无法更改设置。',
       notice_title: '提示',
       error_title: '需要确认',
+      show_password: '显示密码',
+      hide_password: '隐藏密码',
     },
     ja: {
       save_reminder: '変更があります。保存してください。',
@@ -68,6 +74,8 @@
       running_lock_copy: 'サーバー稼働中は設定を変更できません。',
       notice_title: 'お知らせ',
       error_title: '確認が必要です',
+      show_password: 'パスワードを表示',
+      hide_password: 'パスワードを隠す',
     },
   };
   Object.entries(interfaceMessages).forEach(([language, messages]) => Object.assign(dictionaries[language], messages));

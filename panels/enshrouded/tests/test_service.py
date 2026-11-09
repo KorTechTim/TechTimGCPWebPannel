@@ -132,9 +132,9 @@ class ServiceTests(unittest.TestCase):
         self.assertTrue(available["update_available"])
         self.assertEqual(available["latest_digest"], "new-digest")
 
-    def test_start_rejects_placeholder_role_passwords(self):
-        with self.assertRaisesRegex(ValueError, "게임 접속용 역할 비밀번호"):
-            self.service.validate_start_requirements()
+    def test_start_allows_default_role_passwords(self):
+        config = self.service.validate_start_requirements()
+        self.assertEqual(config.roles[0].password, "change-admin-password")
 
     def test_backup_and_migration_round_trip(self):
         self.service.savegame.joinpath("world0.ksd").write_bytes(b"world-data")

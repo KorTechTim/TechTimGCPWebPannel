@@ -345,7 +345,7 @@ class PanelService:
 
     def install(self):
         self._log("install", "Enshrouded 1.0 Wine 서버 설치를 시작합니다.")
-        self._operation("running", "서버 설치", "설정과 역할 비밀번호를 확인하고 있습니다.", progress=5, stage="validate")
+        self._operation("running", "서버 설치", "서버 설정을 확인하고 있습니다.", progress=5, stage="validate")
         self.validate_start_requirements()
         self.render_game_config()
         self._operation("running", "서버 설치", "Wine 런타임 이미지를 준비하고 있습니다.", progress=12, stage="runtime")
@@ -388,11 +388,7 @@ class PanelService:
         raise TimeoutError("서버 설치 대기 시간이 초과되었습니다. 상세 로그를 확인해주세요.")
 
     def validate_start_requirements(self):
-        config = self.config()
-        placeholders = {"change-admin-password", "change-friend-password", "change-guest-password", "change-this-password"}
-        if any(role.password in placeholders for role in config.roles):
-            raise ValueError("게임 접속용 역할 비밀번호가 기본값입니다. '서버 역활 및 접속비밀번호' 메뉴에서 Admin, Friend, Guest 비밀번호를 변경해주세요.")
-        return config
+        return self.config()
 
     def start(self):
         self._ensure_container(start=True)
