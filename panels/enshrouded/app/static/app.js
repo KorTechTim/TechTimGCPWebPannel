@@ -184,7 +184,7 @@ function renderUpdate(data) {
   const fallback = {queued:5,pulling:12,downloading:12,preparing:30,replacing:48,verifying:78,reconnecting:88,completed:100,failed:100};
   const progress = Math.max(0, Math.min(100, Number(data.progress ?? fallback[state] ?? 0)));
   updateRenderedProgress = active ? Math.max(updateRenderedProgress, progress) : progress;
-  $('#update-status').textContent = data.version || statusCache?.panel_version || '1.0.4';
+  $('#update-status').textContent = data.version || statusCache?.panel_version || '1.0.5';
   $('#update-state').textContent = labels[state] || state;
   $('#update-progress-label').textContent = labels[state] || '업데이트 상태';
   $('#update-progress-percent').textContent = `${Math.round(updateRenderedProgress)}%`;
