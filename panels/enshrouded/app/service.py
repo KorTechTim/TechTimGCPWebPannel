@@ -13,6 +13,7 @@ import zipfile
 
 import docker
 from docker.errors import DockerException, NotFound
+from docker.utils import parse_repository_tag
 
 from .config import (
     PANEL_VERSION, STEAM_APP_ID, BackupSchedule, DiscordConfig, RestartSchedule,
@@ -303,9 +304,29 @@ class PanelService:
         return {str(self.settings.host_data_dir): {"bind": "/opt/enshrouded", "mode": "rw"}}
 
     def _pull_runtime(self, client):
-        if self.settings.pull_runtime:
-            self._log("install", f"런타임 이미지를 확인합니다: {self.settings.runtime_image}")
+        if not self.settings.pull_runtime:
+            return
+        self._log("install", f"런타임 이미지를 확인합니다: {self.settings.runtime_image}")
+        api = getattr(client, "api", None)
+        if api is None or not hasattr(api, "pull"):
             client.images.pull(self.settings.runtime_image)
+            return
+        repository, tag = parse_repository_tag(self.settings.runtime_image)
+        previous = None
+        for event in api.pull(repository, tag=tag or "latest", stream=True, decode=True):
+            if not isinstance(event, dict):
+                continue
+            if event.get("error"):
+                raise RuntimeError(f"런타임 이미지 다운로드 실패: {event['error']}")
+            status = str(event.get("status") or "").strip()
+            layer = str(event.get("id") or "").strip()
+            progress = str(event.get("progress") or "").strip()
+            line = " ".join(part for part in (
+                f"레이어 {layer[:12]}" if layer else "이미지", status, progress,
+            ) if part)
+            if line and line != previous:
+                self._log("install", line)
+                previous = line
 
     def _container_options(self):
         config = self.config()
@@ -321,7 +342,6 @@ class PanelService:
             "volumes": self._mounts(),
             "network_mode": "host",
             "restart_policy": {"Name": "on-failure", "MaximumRetryCount": 3},
-            "stop_timeout": self.settings.stop_timeout,
             "labels": {
                 "com.techtim.panel": "enshrouded",
                 "com.techtim.steam-app-id": STEAM_APP_ID,

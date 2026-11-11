@@ -36,6 +36,48 @@ class LogClient:
         pass
 
 
+class CreatedContainer:
+    id = "created-container"
+
+
+class CreateContainers:
+    def __init__(self):
+        self.create_calls = []
+    def get(self, _name):
+        raise NotFound("missing")
+    def create(self, image, **kwargs):
+        if "stop_timeout" in kwargs:
+            raise TypeError("run() got an unexpected keyword argument 'stop_timeout'")
+        self.create_calls.append((image, kwargs))
+        return CreatedContainer()
+
+
+class CreateClient:
+    def __init__(self, containers):
+        self.containers = containers
+    def close(self):
+        pass
+
+
+class PullApi:
+    def __init__(self):
+        self.call = None
+    def pull(self, repository, tag=None, stream=False, decode=False):
+        self.call = (repository, tag, stream, decode)
+        return iter([
+            {"status": "Pulling fs layer", "id": "abc123"},
+            {"status": "Downloading", "id": "abc123", "progress": "[====> ] 42%"},
+            {"status": "Pull complete", "id": "abc123"},
+        ])
+
+
+class PullClient:
+    def __init__(self):
+        self.api = PullApi()
+    def close(self):
+        pass
+
+
 class UpdateImage:
     id = "sha256:local-image-id"
     attrs = {"RepoDigests": ["ghcr.io/kortechtim/enshrouded-panel@sha256:current-digest"]}
@@ -119,6 +161,33 @@ class ServiceTests(unittest.TestCase):
         operation = self.service.status()["operation"]
         self.assertEqual(operation["progress"], 72)
         self.assertEqual(operation["stage"], "steamcmd")
+
+    def test_container_creation_omits_unsupported_stop_timeout(self):
+        containers = CreateContainers()
+        service = PanelService(
+            Settings(data_dir=self.root, host_data_dir=self.root, scheduler_enabled=False, pull_runtime=False),
+            lambda: CreateClient(containers),
+        )
+
+        container_id = service._ensure_container(start=False)
+
+        self.assertEqual(container_id, "created-container")
+        self.assertEqual(len(containers.create_calls), 1)
+        self.assertNotIn("stop_timeout", containers.create_calls[0][1])
+
+    def test_runtime_pull_streams_layer_progress_into_install_log(self):
+        service = PanelService(
+            Settings(data_dir=self.root, host_data_dir=self.root, scheduler_enabled=False, pull_runtime=True),
+            lambda: FakeClient(),
+        )
+        client = PullClient()
+
+        service._pull_runtime(client)
+
+        install_log = service.logs("install")
+        self.assertIn("레이어 abc123", install_log)
+        self.assertIn("42%", install_log)
+        self.assertEqual(client.api.call, ("ghcr.io/kortechtim/enshrouded-runtime", "wine-v1", True, True))
 
     def test_panel_update_check_compares_registry_digest(self):
         self.service.docker_factory = lambda: UpdateClient("sha256:current-digest")

@@ -480,13 +480,15 @@ function closeInstallProgress() {
 function scheduleInstallPoll(delay = 1000) { clearTimeout(installPollTimer); installPollTimer = setTimeout(pollInstallProgress, delay); }
 async function pollInstallProgress() {
   try {
-    const [status, installLogs, serverLogs] = await Promise.all([api('/api/status'), api('/api/logs?kind=install'), api('/api/logs?kind=server')]);
+    const refreshedAt = Date.now();
+    const [status, installLogs, serverLogs] = await Promise.all([api(`/api/status?_=${refreshedAt}`), api(`/api/logs?kind=install&_=${refreshedAt}`), api(`/api/logs?kind=server&_=${refreshedAt}`)]);
     statusCache = status;
     const operation = status.operation || {};
     const sections = [];
     if (installLogs.log && !installLogs.log.includes('아직 기록된 로그가 없습니다.')) sections.push(`[패널 설치]\n${installLogs.log.trim()}`);
     if (serverLogs.log && !serverLogs.log.includes('아직 기록된 로그가 없습니다.')) sections.push(`[서버 설치]\n${serverLogs.log.trim()}`);
     renderInstallProgress(operation, sections.join('\n\n') || '설치 로그를 기다리고 있습니다.');
+    $('#install-log-refreshed-at').textContent = `1초 간격 자동 갱신 · ${new Date().toLocaleTimeString(I18N.current(), {hour12:false})}`;
     if (operation.status === 'running' || operation.status === 'queued') scheduleInstallPoll(1000);
     else refreshStatus();
   } catch (error) {
@@ -503,8 +505,10 @@ function renderUpdate(data) {
   const progress = Math.max(0, Math.min(100, Number(data.progress ?? fallback[state] ?? 0)));
   updateRenderedProgress = active ? Math.max(updateRenderedProgress, progress) : progress;
   const availability = data.update_available;
+  const updateBubble = $('#panel-update-bubble');
+  if (updateBubble) updateBubble.hidden = availability !== true || active || completed;
   const availabilityLabel = availability === true ? '새 업데이트 사용 가능' : availability === false ? '최신 버전 사용 중' : data.checked === false ? '업데이트 확인 필요' : '업데이트 상태 확인 중';
-  $('#update-status').textContent = data.current_version || data.version || statusCache?.panel_version || '1.0.10';
+  $('#update-status').textContent = data.current_version || data.version || statusCache?.panel_version || '1.0.11';
   $('#update-state').textContent = active || failed || completed ? (labels[state] || state) : availabilityLabel;
   $('#update-progress-label').textContent = active || failed || completed ? (labels[state] || '업데이트 상태') : availabilityLabel;
   $('#update-progress-percent').textContent = `${Math.round(updateRenderedProgress)}%`;
@@ -543,7 +547,7 @@ function bindEvents(){
   $('#file-editor').oninput=()=>$('#file-dirty').classList.toggle('visible',$('#file-editor').value!==editorOriginal); $('#file-editor-save').onclick=saveEditor; $('#file-editor-cancel').onclick=closeEditor; $('#file-editor-dialog .dialog-head button').onclick=closeEditor; document.addEventListener('keydown',(event)=>{if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='s'&&$('#file-editor-dialog').open){event.preventDefault();saveEditor();}});
   $('#discord-save').onclick=saveDiscord; $('#discord-test').onclick=()=>perform(()=>api('/api/discord/test',{method:'POST'}),I18N.t('test_send')); $('#migration-export').onclick=()=>{if(migrationAvailable())location.href='/api/migration/export';}; $('#migration-import').onchange=(event)=>{importMigration(event.target.files[0]);event.target.value='';};
   $$('[name="preset"]').forEach(input=>input.onchange=()=>applyPreset(input.value)); $('#discord-form').elements.username.oninput=updateDiscordPreview;
-  $('#panel-update-button').onclick=openUpdateDialog; $('#close-panel-update').onclick=closeUpdateDialog; $('#cancel-panel-update').onclick=closeUpdateDialog; $('#apply-update').onclick=async()=>{updateRenderedProgress=3;renderUpdate({status:'queued',stage:'pull',progress:3,version:statusCache?.panel_version,message:'업데이트 요청을 전달하고 있습니다.'});scheduleUpdatePoll(500);try{await api('/api/panel-update',{method:'POST'});}catch(error){renderUpdate({status:'reconnecting',stage:'verify',progress:Math.max(updateRenderedProgress,30),version:statusCache?.panel_version,message:`업데이트 상태를 다시 확인하고 있습니다. ${error.message}`});}scheduleUpdatePoll(700);}; $('#logout-button').onclick=async()=>{await api('/api/auth/logout',{method:'POST'});location.href='/login';};
+  $('#panel-update-button').onclick=openUpdateDialog; $('#panel-update-bubble-open').onclick=async()=>{$('#panel-update-bubble').hidden=true;await openUpdateDialog();}; $('#close-panel-update').onclick=closeUpdateDialog; $('#cancel-panel-update').onclick=closeUpdateDialog; $('#apply-update').onclick=async()=>{updateRenderedProgress=3;renderUpdate({status:'queued',stage:'pull',progress:3,version:statusCache?.panel_version,message:'업데이트 요청을 전달하고 있습니다.'});scheduleUpdatePoll(500);try{await api('/api/panel-update',{method:'POST'});}catch(error){renderUpdate({status:'reconnecting',stage:'verify',progress:Math.max(updateRenderedProgress,30),version:statusCache?.panel_version,message:`업데이트 상태를 다시 확인하고 있습니다. ${error.message}`});}scheduleUpdatePoll(700);}; $('#logout-button').onclick=async()=>{await api('/api/auth/logout',{method:'POST'});location.href='/login';};
   $('#text-input-close').onclick=()=>closeTextInput(); $('#text-input-cancel').onclick=()=>closeTextInput(); $('#text-input-form').onsubmit=(event)=>{event.preventDefault();if($('#text-input-value').reportValidity())closeTextInput($('#text-input-value').value);};
   $('#confirm-close').onclick=()=>closeConfirm(false); $('#confirm-cancel').onclick=()=>closeConfirm(false); $('#confirm-accept').onclick=()=>closeConfirm(true);
   $('#running-lock-close').onclick=()=>{if($('#running-lock-dialog').open)$('#running-lock-dialog').close();document.body.classList.remove('modal-open');};
@@ -555,5 +559,5 @@ function bindEvents(){
   window.addEventListener('resize',renderCharts); window.addEventListener('languagechange',()=>{const active=$('.nav-item.active');$('#view-title').textContent=$('span',active)?.textContent||I18N.t('home');renderPresetDescription($('input[name="preset"]:checked')?.value||'Default');refreshPasswordToggleLabels();refreshUnsavedMessages();refreshStatus();});
 }
 function initWeekdays(){ const labels={ko:['월','화','수','목','금','토','일'],en:['M','T','W','T','F','S','S'],zh:['一','二','三','四','五','六','日'],ja:['月','火','水','木','金','土','日']}; $('#weekday-options').innerHTML=(labels[I18N.current()]||labels.ko).map((label,index)=>`<label><input type="checkbox" name="weekday" value="${index}"><span>${label}</span></label>`).join(''); }
-async function init(){ initWeekdays(); bindEvents(); await Promise.all([loadConfig(),refreshStatus(),refreshResources(),loadSchedule()]); const hash=location.hash.slice(1); if(hash&&$(`#view-${hash}`))showView(hash); setInterval(refreshStatus,3000); setInterval(refreshResources,1000); setInterval(()=>{if($('#view-logs').classList.contains('active'))loadLogs();},1500); requestAnimationFrame(function animate(){renderCharts();requestAnimationFrame(animate);}); }
+async function init(){ initWeekdays(); bindEvents(); await Promise.all([loadConfig(),refreshStatus(),refreshResources(),loadSchedule()]); loadUpdate(true).catch(()=>{}); const hash=location.hash.slice(1); if(hash&&$(`#view-${hash}`))showView(hash); setInterval(refreshStatus,3000); setInterval(refreshResources,1000); setInterval(()=>{if($('#view-logs').classList.contains('active'))loadLogs();},1500); requestAnimationFrame(function animate(){renderCharts();requestAnimationFrame(animate);}); }
 init().catch((error)=>message(error.message,true));
