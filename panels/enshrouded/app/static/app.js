@@ -151,8 +151,14 @@ function formatUptime(value) { const seconds = Math.max(0, Number(value) || 0); 
 function escapeHtml(value) { return String(value ?? '').replace(/[&<>'"]/g, (char) => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char])); }
 function formatDate(timestamp) { return new Intl.DateTimeFormat(I18N.current(), {dateStyle:'medium', timeStyle:'short'}).format(new Date(Number(timestamp) * 1000)); }
 function serverRunning() { return ['running', 'restarting'].includes(statusCache?.server); }
+function migrationAvailable() {
+  if (statusCache?.installed) return true;
+  message(I18N.t('migration_install_required'));
+  return false;
+}
 
 function showView(name) {
+  if (name === 'migration' && !migrationAvailable()) return;
   $$('.view').forEach((view) => view.classList.toggle('active', view.id === `view-${name}`));
   $$('.nav-item').forEach((button) => button.classList.toggle('active', button.dataset.view === name));
   const nav = $(`.nav-item[data-view="${name}"] span`);
@@ -427,7 +433,7 @@ function updateDiscordPreview(){ const name=$('#discord-form').elements.username
 async function loadDiscord(){ const data=await api('/api/discord'); const form=$('#discord-form'); Object.entries(data.config).forEach(([key,value])=>{ const input=form.elements[key]; if(!input)return; input.type==='checkbox'?input.checked=!!value:input.value=key==='webhook_hint'?value:input.value; }); form.elements.webhook_url.placeholder=data.config.webhook_hint||'https://discord.com/api/webhooks/...'; updateDiscordPreview(); }
 async function saveDiscord(){ const form=$('#discord-form'); const body={}; ['enabled','notify_server_start','notify_server_stop','notify_server_restart','notify_backup','notify_migration','notify_errors'].forEach((name)=>body[name]=form.elements[name].checked); body.webhook_url=form.elements.webhook_url.value.trim(); body.username=form.elements.username.value.trim(); await perform(()=>api('/api/discord',json('POST',body)),I18N.t('save_integration')); clearUnsavedGroup('discord'); form.elements.webhook_url.value=''; loadDiscord(); }
 
-async function importMigration(file){ if(!file)return; if(serverRunning())return message(I18N.t('import_warning'),true); if(!await confirmAction(I18N.t('import_move'),file.name))return; const body=new FormData(); body.append('file',file); await perform(()=>api('/api/migration/import',{method:'POST',body}),I18N.t('import_move')); await Promise.all([loadConfig(),loadBackups(),loadFiles('')]); }
+async function importMigration(file){ if(!file||!migrationAvailable())return; if(serverRunning())return message(I18N.t('import_warning'),true); if(!await confirmAction(I18N.t('import_move'),file.name))return; const body=new FormData(); body.append('file',file); await perform(()=>api('/api/migration/import',{method:'POST',body}),I18N.t('import_move')); await Promise.all([loadConfig(),loadBackups(),loadFiles('')]); }
 
 const INSTALL_STAGE_LABELS = {queued:'요청 접수',validate:'설정 확인',runtime:'런타임 준비',container:'컨테이너 구성',steamcmd:'SteamCMD · Wine 설치',verify:'접속 준비 확인',complete:'설치 완료',failed:'설치 실패'};
 function renderInstallProgress(operation = {}, log = '') {
@@ -498,7 +504,7 @@ function renderUpdate(data) {
   updateRenderedProgress = active ? Math.max(updateRenderedProgress, progress) : progress;
   const availability = data.update_available;
   const availabilityLabel = availability === true ? '새 업데이트 사용 가능' : availability === false ? '최신 버전 사용 중' : data.checked === false ? '업데이트 확인 필요' : '업데이트 상태 확인 중';
-  $('#update-status').textContent = data.current_version || data.version || statusCache?.panel_version || '1.0.8';
+  $('#update-status').textContent = data.current_version || data.version || statusCache?.panel_version || '1.0.9';
   $('#update-state').textContent = active || failed || completed ? (labels[state] || state) : availabilityLabel;
   $('#update-progress-label').textContent = active || failed || completed ? (labels[state] || '업데이트 상태') : availabilityLabel;
   $('#update-progress-percent').textContent = `${Math.round(updateRenderedProgress)}%`;
@@ -535,7 +541,7 @@ function bindEvents(){
   $('#backup-now').onclick=async()=>{await perform(()=>api('/api/backups',{method:'POST'}),I18N.t('backup_now'));setTimeout(loadBackups,900);}; $('#backup-settings-save').onclick=(event)=>{event.preventDefault();saveBackupSettings();};
   $('#file-parent').onclick=()=>loadFiles(currentPath.split('/').slice(0,-1).join('/')); $('#file-refresh').onclick=()=>loadFiles(currentPath); $('#new-folder').onclick=async()=>{const name=(await requestText(I18N.t('new_folder')))?.trim();if(name){await perform(()=>api('/api/files/directory',json('POST',{path:currentPath,name})));loadFiles(currentPath);}}; $('#file-upload').onchange=async(event)=>{const file=event.target.files[0];if(!file)return;const body=new FormData();body.append('file',file);body.append('path',currentPath);await perform(()=>api('/api/files/upload',{method:'POST',body}));event.target.value='';loadFiles(currentPath);};
   $('#file-editor').oninput=()=>$('#file-dirty').classList.toggle('visible',$('#file-editor').value!==editorOriginal); $('#file-editor-save').onclick=saveEditor; $('#file-editor-cancel').onclick=closeEditor; $('#file-editor-dialog .dialog-head button').onclick=closeEditor; document.addEventListener('keydown',(event)=>{if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='s'&&$('#file-editor-dialog').open){event.preventDefault();saveEditor();}});
-  $('#discord-save').onclick=saveDiscord; $('#discord-test').onclick=()=>perform(()=>api('/api/discord/test',{method:'POST'}),I18N.t('test_send')); $('#migration-export').onclick=()=>location.href='/api/migration/export'; $('#migration-import').onchange=(event)=>{importMigration(event.target.files[0]);event.target.value='';};
+  $('#discord-save').onclick=saveDiscord; $('#discord-test').onclick=()=>perform(()=>api('/api/discord/test',{method:'POST'}),I18N.t('test_send')); $('#migration-export').onclick=()=>{if(migrationAvailable())location.href='/api/migration/export';}; $('#migration-import').onchange=(event)=>{importMigration(event.target.files[0]);event.target.value='';};
   $$('[name="preset"]').forEach(input=>input.onchange=()=>applyPreset(input.value)); $('#discord-form').elements.username.oninput=updateDiscordPreview;
   $('#panel-update-button').onclick=openUpdateDialog; $('#close-panel-update').onclick=closeUpdateDialog; $('#cancel-panel-update').onclick=closeUpdateDialog; $('#apply-update').onclick=async()=>{updateRenderedProgress=3;renderUpdate({status:'queued',stage:'pull',progress:3,version:statusCache?.panel_version,message:'업데이트 요청을 전달하고 있습니다.'});scheduleUpdatePoll(500);try{await api('/api/panel-update',{method:'POST'});}catch(error){renderUpdate({status:'reconnecting',stage:'verify',progress:Math.max(updateRenderedProgress,30),version:statusCache?.panel_version,message:`업데이트 상태를 다시 확인하고 있습니다. ${error.message}`});}scheduleUpdatePoll(700);}; $('#logout-button').onclick=async()=>{await api('/api/auth/logout',{method:'POST'});location.href='/login';};
   $('#text-input-close').onclick=()=>closeTextInput(); $('#text-input-cancel').onclick=()=>closeTextInput(); $('#text-input-form').onsubmit=(event)=>{event.preventDefault();if($('#text-input-value').reportValidity())closeTextInput($('#text-input-value').value);};

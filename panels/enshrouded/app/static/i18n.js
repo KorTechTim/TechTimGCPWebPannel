@@ -49,6 +49,7 @@
       error_title: '확인이 필요합니다.',
       show_password: '비밀번호 보기',
       hide_password: '비밀번호 숨기기',
+      migration_install_required: '이사하기 기능을 사용하려면 게임 엔진을 먼저 설치해주세요.',
     },
     en: {
       save_reminder: 'Changes are waiting. Please save them.',
@@ -58,6 +59,7 @@
       error_title: 'Attention required',
       show_password: 'Show password',
       hide_password: 'Hide password',
+      migration_install_required: 'Install the game engine before using server migration.',
     },
     zh: {
       save_reminder: '有未保存的更改，请点击保存。',
@@ -67,6 +69,7 @@
       error_title: '需要确认',
       show_password: '显示密码',
       hide_password: '隐藏密码',
+      migration_install_required: '使用服务器迁移功能前，请先安装游戏引擎。',
     },
     ja: {
       save_reminder: '変更があります。保存してください。',
@@ -76,6 +79,7 @@
       error_title: '確認が必要です',
       show_password: 'パスワードを表示',
       hide_password: 'パスワードを隠す',
+      migration_install_required: '引っ越し機能を使用する前に、ゲームエンジンをインストールしてください。',
     },
   };
   Object.entries(interfaceMessages).forEach(([language, messages]) => Object.assign(dictionaries[language], messages));

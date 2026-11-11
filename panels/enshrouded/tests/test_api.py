@@ -130,6 +130,9 @@ class ApiTests(unittest.TestCase):
         self.assertIn('/static/techtim-profile.png', dashboard)
         app_js = self.client.get('/static/app.js').text
         self.assertIn('RUNNING_LOCKED_VIEWS', app_js)
+        self.assertIn('migrationAvailable', app_js)
+        self.assertIn("name === 'migration' && !migrationAvailable()", app_js)
+        self.assertIn('migration_install_required', app_js)
         self.assertIn('SAVE_REMINDER_SCOPES', app_js)
         self.assertIn('file-entry-name', app_js)
         self.assertIn('GAME_SETTING_GROUPS', app_js)
@@ -153,8 +156,20 @@ class ApiTests(unittest.TestCase):
         self.assertIn('class="server-control"', dashboard)
         self.assertIn('@media(min-width:761px){.section-head>div:first-child>p:not(.eyebrow){white-space:nowrap}}', self.client.get('/static/app.css').text)
 
+    def test_migration_requires_game_engine_installation(self):
+        exported = self.client.get("/api/migration/export")
+        self.assertEqual(exported.status_code, 409)
+        self.assertIn("게임 엔진을 먼저 설치", exported.json()["detail"])
+
+        imported = self.client.post(
+            "/api/migration/import",
+            files={"file": ("migration.zip", b"not-used", "application/zip")},
+        )
+        self.assertEqual(imported.status_code, 409)
+
     def test_migration_export_and_import_endpoints(self):
         service = self.client.app.state.service
+        service.status = lambda: {"installed": True}
         service.savegame.joinpath("world0.ksd").write_bytes(b"portable-world")
         config = self.client.get("/api/config").json()
         config["server_name"] = "Portable Embervale"

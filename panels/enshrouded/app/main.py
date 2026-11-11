@@ -82,6 +82,13 @@ def create_app(settings=None, docker_factory=None):
     app.state.auth = auth
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
+    def require_game_installed():
+        if not service.status().get("installed"):
+            raise HTTPException(
+                status_code=409,
+                detail="이사하기 기능을 사용하려면 게임 엔진을 먼저 설치해주세요.",
+            )
+
     @app.middleware("http")
     async def headers(request, call_next):
         origin = request.headers.get("origin")
@@ -290,6 +297,7 @@ def create_app(settings=None, docker_factory=None):
     @app.get("/api/migration/export")
     def migration_export(request: Request):
         auth.require(request)
+        require_game_installed()
         path = service.create_migration_archive()
         return FileResponse(
             path, filename=path.name, media_type="application/zip",
@@ -299,6 +307,7 @@ def create_app(settings=None, docker_factory=None):
     @app.post("/api/migration/import")
     async def migration_import(request: Request, file: UploadFile = File(...)):
         auth.require(request)
+        require_game_installed()
         if not file.filename or not file.filename.lower().endswith(".zip"):
             raise ValueError("ZIP 형식의 이사 파일을 선택해주세요.")
         descriptor, temporary_name = tempfile.mkstemp(prefix="enshrouded-migration-", suffix=".zip")
