@@ -504,7 +504,7 @@ function renderUpdate(data) {
   updateRenderedProgress = active ? Math.max(updateRenderedProgress, progress) : progress;
   const availability = data.update_available;
   const availabilityLabel = availability === true ? '새 업데이트 사용 가능' : availability === false ? '최신 버전 사용 중' : data.checked === false ? '업데이트 확인 필요' : '업데이트 상태 확인 중';
-  $('#update-status').textContent = data.current_version || data.version || statusCache?.panel_version || '1.0.9';
+  $('#update-status').textContent = data.current_version || data.version || statusCache?.panel_version || '1.0.10';
   $('#update-state').textContent = active || failed || completed ? (labels[state] || state) : availabilityLabel;
   $('#update-progress-label').textContent = active || failed || completed ? (labels[state] || '업데이트 상태') : availabilityLabel;
   $('#update-progress-percent').textContent = `${Math.round(updateRenderedProgress)}%`;

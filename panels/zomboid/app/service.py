@@ -1,12 +1,14 @@
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from threading import Event, Lock, Thread
 import json
 import os
 import re
 import shutil
 import sqlite3
+import stat
+import tempfile
 import time
 import zipfile
 
@@ -50,6 +52,8 @@ DISCORD_OPERATION_EVENTS = {
 INSTALL_MAX_RETRIES = 3
 INSTALL_RETRY_DELAY_SECONDS = 5
 ANSI_ESCAPE_PATTERN = re.compile(r"(?:\x1b\[|\x9b|\[)[0-?]*[ -/]*[@-~]")
+MIGRATION_SCHEMA = "techtim-zomboid-migration"
+MIGRATION_VERSION = 1
 
 
 class BusyError(RuntimeError):
@@ -691,6 +695,115 @@ class PanelService:
                 "operation": operation, "busy": self.busy,
                 "config_ready": bool(self.config().admin_password),
                 "profile": SERVER_PROFILE, "endpoint_port": self.config().default_port}
+
+    @staticmethod
+    def _safe_extract(source, destination, *, allowed_prefixes=None, max_bytes=8 * 1024**3):
+        with zipfile.ZipFile(source) as archive:
+            entries = archive.infolist()
+            total = sum(item.file_size for item in entries)
+            if len(entries) > 30000 or total > max_bytes:
+                raise ValueError("압축파일의 크기 또는 파일 수가 제한을 초과했습니다.")
+            for item in entries:
+                pure = PurePosixPath(item.filename)
+                if pure.is_absolute() or ".." in pure.parts or "\\" in item.filename:
+                    raise ValueError("압축파일에 안전하지 않은 경로가 있습니다.")
+                if stat.S_ISLNK(item.external_attr >> 16) or item.flag_bits & 1:
+                    raise ValueError("링크 또는 암호화 파일은 가져올 수 없습니다.")
+                if allowed_prefixes and pure.parts and pure.parts[0] not in allowed_prefixes:
+                    raise ValueError("지원하지 않는 파일이 포함되어 있습니다.")
+            archive.extractall(destination)
+
+    def create_migration_archive(self):
+        timestamp = datetime.now(KST).strftime("%Y%m%d-%H%M%S")
+        destination = self.exports / f"techtim-zomboid-migration-{timestamp}.zip"
+        temporary = destination.with_suffix(".partial")
+        manifest = {
+            "schema": MIGRATION_SCHEMA,
+            "schema_version": MIGRATION_VERSION,
+            "panel_version": PANEL_VERSION,
+            "created_at": datetime.now(KST).isoformat(timespec="seconds"),
+            "contents": ["world save", "server settings", "account database", "panel settings", "schedules", "discord settings"],
+        }
+        panel_files = (
+            (self.config_path, "panel/config.json"),
+            (self.sandbox_path, "panel/sandbox.json"),
+            (self.schedule_path, "panel/restart-schedule.json"),
+            (self.backup_schedule_path, "panel/backup-schedule.json"),
+            (self.discord_path, "panel/discord-config.json"),
+        )
+        roots = (
+            (self.server_config_dir, "server/Server"),
+            (self.saves, f"server/Saves/Multiplayer/{SERVER_PROFILE}"),
+            (self.database, "server/db"),
+        )
+        if self.is_running():
+            self.console_command("save")
+            time.sleep(2)
+        try:
+            with zipfile.ZipFile(temporary, "w", zipfile.ZIP_DEFLATED, allowZip64=True, compresslevel=3) as archive:
+                archive.writestr("migration-manifest.json", json.dumps(manifest, ensure_ascii=False, indent=2))
+                for source, target in panel_files:
+                    if source.is_file():
+                        archive.write(source, target)
+                for root, prefix in roots:
+                    archive.writestr(f"{prefix}/", b"")
+                    if not root.exists():
+                        continue
+                    for source in sorted(root.rglob("*")):
+                        if source.is_symlink():
+                            raise ValueError("이사 데이터에 심볼릭 링크가 포함되어 있습니다.")
+                        if source.is_file():
+                            archive.write(source, f"{prefix}/{source.relative_to(root).as_posix()}")
+            temporary.replace(destination)
+        finally:
+            temporary.unlink(missing_ok=True)
+        self._log("control", f"이사 내보내기 파일을 생성했습니다: {destination.name}")
+        return destination
+
+    def import_migration_archive(self, source):
+        self.require_stopped()
+        with tempfile.TemporaryDirectory(dir=self.data) as temporary:
+            stage = Path(temporary) / "migration"
+            stage.mkdir()
+            self._safe_extract(source, stage, allowed_prefixes={"migration-manifest.json", "panel", "server"})
+            manifest = read_json(stage / "migration-manifest.json", {})
+            if manifest.get("schema") != MIGRATION_SCHEMA or manifest.get("schema_version") != MIGRATION_VERSION:
+                raise ValueError("TechTim Project Zomboid 이사 파일이 아닙니다.")
+            panel_root = stage / "panel"
+            server_root = stage / "server"
+            required_files = (
+                panel_root / "config.json",
+                panel_root / "sandbox.json",
+                panel_root / "restart-schedule.json",
+                panel_root / "backup-schedule.json",
+                panel_root / "discord-config.json",
+            )
+            required_dirs = (
+                server_root / "Server",
+                server_root / "Saves" / "Multiplayer" / SERVER_PROFILE,
+                server_root / "db",
+            )
+            if not all(path.is_file() and not path.is_symlink() for path in required_files):
+                raise ValueError("이사 파일에 필수 패널 설정이 없습니다.")
+            if not all(path.is_dir() and not path.is_symlink() for path in required_dirs):
+                raise ValueError("이사 파일에 세이브 또는 서버 설정이 없습니다.")
+            config = ServerConfig.model_validate(read_json(panel_root / "config.json", {}))
+            sandbox = SandboxConfig.model_validate(migrate_sandbox_payload(read_json(panel_root / "sandbox.json", {})))
+            schedule = RestartSchedule.model_validate(read_json(panel_root / "restart-schedule.json", {}))
+            backup_schedule = BackupSchedule.model_validate(read_json(panel_root / "backup-schedule.json", {}))
+            discord = DiscordConfig.model_validate(read_json(panel_root / "discord-config.json", {}))
+            self.create_backup("before-migration")
+            write_json(self.config_path, config.model_dump())
+            write_json(self.sandbox_path, sandbox.model_dump())
+            write_json(self.schedule_path, schedule.model_dump())
+            write_json(self.backup_schedule_path, backup_schedule.model_dump())
+            write_json(self.discord_path, discord.model_dump())
+            for staged, target in zip(required_dirs, (self.server_config_dir, self.saves, self.database)):
+                if target.exists():
+                    shutil.rmtree(target)
+                shutil.copytree(staged, target)
+            self.render_game_files()
+        self._log("control", "새 Google Cloud 계정의 세이브와 설정을 성공적으로 가져왔습니다.")
 
     def create_backup(self, reason="manual", allow_running=False):
         running = self.is_running()

@@ -102,7 +102,7 @@ class ApiTests(unittest.TestCase):
         self.assertIn('/static/enshrouded-install-character-v1.png', self.client.get('/static/app.css').text)
         self.assertIn('/static/enshrouded-game-settings-atlas-v1.png', self.client.get('/static/app.css').text)
         self.assertIn('/static/enshrouded-terminal-character-v1.png', self.client.get('/static/app.css').text)
-        self.assertIn('/static/enshrouded-content-footer-v2.png', self.client.get('/static/app.css').text)
+        self.assertIn('/static/enshrouded-content-footer-v3.png', self.client.get('/static/app.css').text)
         self.assertIn('/static/enshrouded-file-icons-v1.png', self.client.get('/static/app.css').text)
         self.assertIn('© 2026 TechTim(T2)', dashboard)
         self.assertNotIn('STEAM APP 2278520', dashboard)

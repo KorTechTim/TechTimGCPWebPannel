@@ -98,6 +98,46 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(loaded.json(), saved.json())
         self.assertEqual(loaded.json()["times"], ["02:30", "14:30", "22:30"])
 
+    def test_migration_requires_game_engine_installation(self):
+        exported = self.client.get("/api/migration/export")
+        imported = self.client.post(
+            "/api/migration/import",
+            files={"file": ("migration.zip", b"not-a-zip", "application/zip")},
+        )
+
+        self.assertEqual(exported.status_code, 409)
+        self.assertEqual(imported.status_code, 409)
+        self.assertIn("게임 엔진을 먼저 설치", exported.json()["detail"])
+        self.assertIn("게임 엔진을 먼저 설치", imported.json()["detail"])
+
+    def test_migration_export_and_import_round_trip(self):
+        service = self.client.app.state.service
+        (service.server / "start-server.sh").write_text("#!/bin/sh\n", encoding="utf-8")
+        save = service.saves / "map.bin"
+        save.write_bytes(b"original-world")
+        config = self.client.get("/api/config").json()
+        config["server_name"] = "Migration Survivors"
+        config["admin_password"] = "migration-password"
+        self.assertEqual(self.client.post("/api/config", json=config).status_code, 200)
+
+        exported = self.client.get("/api/migration/export")
+        self.assertEqual(exported.status_code, 200)
+        self.assertIn("attachment;", exported.headers["content-disposition"])
+        save.write_bytes(b"changed-world")
+        changed = self.client.get("/api/config").json()
+        changed["server_name"] = "Changed Server"
+        self.assertEqual(self.client.post("/api/config", json=changed).status_code, 200)
+
+        imported = self.client.post(
+            "/api/migration/import",
+            files={"file": ("migration.zip", exported.content, "application/zip")},
+        )
+
+        self.assertEqual(imported.status_code, 200)
+        self.assertEqual(self.client.get("/api/config").json()["server_name"], "Migration Survivors")
+        self.assertEqual(save.read_bytes(), b"original-world")
+        self.assertTrue(any(service.backups.glob("*-before-migration-*.zip")))
+
     @patch("app.main.lookup_workshop_item")
     def test_workshop_lookup_accepts_url_and_returns_mod_pair(self, mocked_lookup):
         mocked_lookup.return_value = {

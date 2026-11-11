@@ -36,6 +36,7 @@ let panelUpdateProgress = 0;
 let pendingServerReadyOperation = '';
 let playerDataCache = null;
 let pendingPlayerAction = null;
+let pendingMigrationFile = null;
 const PANEL_UPDATE_ACTIVE = new Set(['running', 'downloading', 'preparing', 'replacing', 'verifying', 'reconnecting']);
 const PANEL_UPDATE_STAGES = ['download', 'replace', 'verify', 'complete'];
 
@@ -86,8 +87,16 @@ $$('dialog').forEach(dialog => {
   dialog.addEventListener('click', event => { if (event.target === dialog && dialog.dataset.persistent !== 'true') closeDialog(dialog); });
 });
 
-const titles = {overview:'홈(HOME)',console:'관리 터미널',settings:'기본 서버 설정',sandbox:'샌드박스 배율',mods:'모드 · 워크숍',players:'사용자 관리',backups:'백업 · 복원',advanced:'샌드박스 배율 직접 수정',schedule:'예약 작업',files:'서버 폴더 탐색기',discord:'디스코드 연동'};
+const titles = {overview:'홈(HOME)',console:'관리 터미널',settings:'기본 서버 설정',sandbox:'샌드박스 배율',mods:'모드 · 워크숍',players:'사용자 관리',backups:'백업 · 복원',migration:'이사하기',advanced:'샌드박스 배율 직접 수정',schedule:'예약 작업',files:'서버 폴더 탐색기',discord:'디스코드 연동'};
 function serverIsRunning(status = statusCache) { return ['running', 'restarting'].includes(status?.server); }
+async function migrationAvailable() {
+  try {
+    const status = await refreshStatus();
+    if (status.engine.installed) return true;
+    if (!$('#engine-required-dialog').open) showDialog($('#engine-required-dialog'));
+  } catch (error) { message(error.message, true); }
+  return false;
+}
 function showServerRunningLock() {
   const dialog = $('#server-running-lock-dialog');
   if (!dialog.open) showDialog(dialog);
@@ -103,6 +112,7 @@ $('#engine-required-dialog').addEventListener('cancel', event => event.preventDe
 
 async function showView(name) {
   if (!titles[name]) name = 'overview';
+  if (name === 'migration' && !await migrationAvailable()) return;
   $$('.view').forEach(view => view.classList.toggle('active', view.dataset.page === name));
   $$('.nav-item').forEach(item => item.classList.toggle('active', item.dataset.view === name));
   $('#overview-status').hidden = name !== 'overview';
@@ -915,6 +925,41 @@ $('#save-backup-settings').addEventListener('click', () => perform(() => {
     retention_days: Number(form.elements.retention_days.value),
   }));
 }, '백업 예약과 보관 정책을 저장했습니다.').then(loadBackups));
+
+$('#migration-export').addEventListener('click', async () => {
+  if (await migrationAvailable()) location.assign('/api/migration/export');
+});
+$('#migration-import-button').addEventListener('click', async () => {
+  if (!await migrationAvailable()) return;
+  if (serverIsRunning()) { showServerRunningLock(); return; }
+  $('#migration-import').click();
+});
+$('#migration-import').addEventListener('change', event => {
+  const file = event.target.files[0];
+  event.target.value = '';
+  if (!file) return;
+  pendingMigrationFile = file;
+  $('#migration-import-name').textContent = `${file.name} 파일에서 세이브와 설정을 가져옵니다.`;
+  showDialog($('#migration-import-dialog'));
+});
+function cancelMigrationImport() {
+  pendingMigrationFile = null;
+  closeDialog($('#migration-import-dialog'));
+}
+$('#close-migration-import').addEventListener('click', cancelMigrationImport);
+$('#cancel-migration-import').addEventListener('click', cancelMigrationImport);
+$('#migration-import-dialog').addEventListener('cancel', event => { event.preventDefault(); cancelMigrationImport(); });
+$('#confirm-migration-import').addEventListener('click', async () => {
+  const file = pendingMigrationFile;
+  pendingMigrationFile = null;
+  closeDialog($('#migration-import-dialog'), 'confirm');
+  if (!file || !await migrationAvailable()) return;
+  if (serverIsRunning()) { showServerRunningLock(); return; }
+  const body = new FormData();
+  body.append('file', file);
+  await perform(() => api('/api/migration/import', {method:'POST', body}), '세이브와 설정을 가져왔습니다.');
+  await Promise.all([loadConfig(), loadSandbox(), loadBackups()]);
+});
 
 async function loadTextFile() { const data = await api(`/api/text-file/${$('#text-file-kind').value}`); $('#text-file-editor').value = data.content; }
 $('#text-file-kind').addEventListener('change', () => loadTextFile().catch(error => message(error.message, true)));

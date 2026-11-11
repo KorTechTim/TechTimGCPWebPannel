@@ -3,6 +3,7 @@ import unittest
 import os
 import sqlite3
 import time
+import zipfile
 from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch
@@ -234,6 +235,35 @@ class ServiceTests(unittest.TestCase):
         status = self.service.status()
         self.assertEqual(status["server"], "missing")
         self.assertEqual(status["profile"], "servertest")
+
+    def test_migration_archive_restores_world_and_panel_settings(self):
+        save = self.service.saves / "map.bin"
+        save.write_bytes(b"portable-world")
+        config = self.service.config()
+        config.server_name = "Portable Survivors"
+        config.admin_password = "portable-password"
+        self.service.save_config(config)
+
+        archive = self.service.create_migration_archive()
+        save.write_bytes(b"changed-world")
+        changed = self.service.config()
+        changed.server_name = "Changed Server"
+        self.service.save_config(changed)
+        self.service.import_migration_archive(archive)
+
+        self.assertEqual(self.service.config().server_name, "Portable Survivors")
+        self.assertEqual(save.read_bytes(), b"portable-world")
+        self.assertTrue(any(self.service.backups.glob("*-before-migration-*.zip")))
+
+    def test_migration_rejects_unsafe_zip_paths(self):
+        archive = self.service.exports / "unsafe-migration.zip"
+        with zipfile.ZipFile(archive, "w") as package:
+            package.writestr("../outside.txt", "blocked")
+
+        with self.assertRaisesRegex(ValueError, "안전하지 않은 경로"):
+            self.service.import_migration_archive(archive)
+
+        self.assertFalse((Path(self.temp.name).parent / "outside.txt").exists())
 
     def test_backup_schedule_prunes_old_files_by_count(self):
         for index in range(5):

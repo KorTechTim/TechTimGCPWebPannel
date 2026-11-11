@@ -203,6 +203,22 @@ class StaticUiTests(unittest.TestCase):
         self.assertIn("if (!status.engine.installed) { showDialog($('#engine-required-dialog')); return; }", script)
         self.assertIn(".engine-required-dialog{", css)
 
+    def test_migration_page_requires_engine_and_supports_zip_transfer(self):
+        root = Path(__file__).parents[1]
+        html = (root / "app/static/dashboard.html").read_text()
+        script = (root / "app/static/app.js").read_text()
+        css = (root / "app/static/app.css").read_text()
+
+        self.assertIn('data-view="migration"', html)
+        self.assertIn('data-page="migration"', html)
+        self.assertIn('id="migration-import-dialog"', html)
+        self.assertIn("async function migrationAvailable()", script)
+        self.assertIn("name === 'migration' && !await migrationAvailable()", script)
+        self.assertIn("/api/migration/export", script)
+        self.assertIn("/api/migration/import", script)
+        self.assertIn('.migration-flow{', css)
+        self.assertIn('.migration-import-dialog{', css)
+
     def test_sidebar_places_system_tools_below_basic_settings(self):
         html = (Path(__file__).parents[1] / "app/static/dashboard.html").read_text()
         positions = [html.index(label) for label in ("기본 설정", "예약 작업", "서버 폴더 탐색기", "디스코드 연동", "SETTINGS &amp; WORLD")]
@@ -342,7 +358,7 @@ class StaticUiTests(unittest.TestCase):
             "zomboid-menu-config-v1.png",
         ):
             self.assertIn(asset, html)
-        self.assertEqual(html.count('class="nav-icon"'), 11)
+        self.assertEqual(html.count('class="nav-icon"'), 12)
         self.assertIn(".nav-item .nav-icon img", css)
 
     def test_sidebar_uses_survivor_background_art(self):
@@ -480,14 +496,14 @@ class StaticUiTests(unittest.TestCase):
         login = (root / "app/static/login.html").read_text()
         config = (root / "app/config.py").read_text()
         main = (root / "app/main.py").read_text()
-        self.assertIn('PANEL_VERSION = "1.0.7"', config)
-        self.assertIn('id="sidebar-version">PANEL 1.0.7', html)
-        self.assertIn('id="panel-version">1.0.7', html)
-        self.assertIn('id="update-current-version">1.0.7', html)
-        self.assertIn('/static/app.js?v=1.0.7', html)
-        self.assertIn('/static/app.css?v=1.0.7', html)
-        self.assertIn('/static/login.js?v=1.0.7', login)
-        self.assertIn('/static/app.css?v=1.0.7', login)
+        self.assertIn('PANEL_VERSION = "1.0.8"', config)
+        self.assertIn('id="sidebar-version">PANEL 1.0.8', html)
+        self.assertIn('id="panel-version">1.0.8', html)
+        self.assertIn('id="update-current-version">1.0.8', html)
+        self.assertIn('/static/app.js?v=1.0.8', html)
+        self.assertIn('/static/app.css?v=1.0.8', html)
+        self.assertIn('/static/login.js?v=1.0.8', login)
+        self.assertIn('/static/app.css?v=1.0.8', login)
         self.assertIn('"no-cache, must-revalidate"', main)
 
     def test_all_dialogs_use_shared_blurred_backdrop(self):

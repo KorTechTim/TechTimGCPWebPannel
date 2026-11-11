@@ -111,6 +111,13 @@ def create_app(settings=None, docker_factory=None):
     app.state.auth = auth
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
+    def require_game_installed():
+        if not service.engine().get("installed"):
+            raise HTTPException(
+                status_code=409,
+                detail="이사하기 기능을 사용하려면 게임 엔진을 먼저 설치해주세요.",
+            )
+
     @app.middleware("http")
     async def headers(request, call_next):
         origin = request.headers.get("origin")
@@ -349,6 +356,39 @@ def create_app(settings=None, docker_factory=None):
         if not target.is_file():
             raise FileNotFoundError(name)
         return FileResponse(target, filename=target.name, media_type="application/zip")
+
+    @app.get("/api/migration/export")
+    def migration_export(request: Request):
+        auth.require(request)
+        require_game_installed()
+        path = service.create_migration_archive()
+        return FileResponse(
+            path, filename=path.name, media_type="application/zip",
+            background=BackgroundTask(path.unlink, missing_ok=True),
+        )
+
+    @app.post("/api/migration/import")
+    async def migration_import(request: Request, file: UploadFile = File(...)):
+        auth.require(request)
+        require_game_installed()
+        if not file.filename or not file.filename.lower().endswith(".zip"):
+            raise ValueError("ZIP 형식의 이사 파일을 선택해주세요.")
+        descriptor, temporary_name = tempfile.mkstemp(prefix="zomboid-migration-", suffix=".zip")
+        os.close(descriptor)
+        temporary = Path(temporary_name)
+        size = 0
+        try:
+            with temporary.open("wb") as writer:
+                while chunk := await file.read(1024 * 1024):
+                    size += len(chunk)
+                    if size > settings.max_upload_bytes:
+                        raise ValueError("이사 파일이 업로드 제한을 초과했습니다.")
+                    writer.write(chunk)
+            with service.operation("이사 가져오기"):
+                service.import_migration_archive(temporary)
+            return {"status": "ok", "message": "세이브와 설정을 가져왔습니다."}
+        finally:
+            temporary.unlink(missing_ok=True)
 
     @app.get("/api/workshop")
     def workshop(request: Request):

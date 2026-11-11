@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>T2 Zomboid Server Pannel</title>
   <link rel="icon" href="/static/zomboid-panel-mark.png?v=1">
-  <link rel="stylesheet" href="/static/app.css?v=1.0.7">
-  <script src="/static/app.js?v=1.0.7" defer></script>
+  <link rel="stylesheet" href="/static/app.css?v=1.0.8">
+  <script src="/static/app.js?v=1.0.8" defer></script>
 </head>
 <body>
 <div class="app-shell">
@@ -29,8 +29,9 @@
       <button class="nav-item" data-view="mods"><b class="nav-icon"><img src="/static/zomboid-menu-mods-v1.png" alt=""></b><span>모드 · 워크숍</span></button>
       <button class="nav-item" data-view="players"><b class="nav-icon"><img src="/static/zomboid-menu-players-v1.png" alt=""></b><span>사용자 관리</span></button>
       <button class="nav-item" data-view="backups"><b class="nav-icon"><img src="/static/zomboid-menu-backups-v1.png" alt=""></b><span>백업 · 복원</span></button>
+      <button class="nav-item" data-view="migration"><b class="nav-icon"><img src="/static/zomboid-menu-backups-v1.png" alt=""></b><span>이사하기</span></button>
     </nav>
-    <div class="sidebar-foot"><span>GCP LINUX</span><span id="sidebar-version">PANEL 1.0.7</span></div>
+    <div class="sidebar-foot"><span>GCP LINUX</span><span id="sidebar-version">PANEL 1.0.8</span></div>
   </aside>
 
   <main class="workspace">
@@ -56,7 +57,7 @@
       <article><span class="status-mark game"><img src="/static/zomboid-panel-mark.png?v=1" alt=""></span><div><small>게임</small><strong>Project Zomboid</strong><em>Dedicated Server</em></div></article>
       <article><span class="status-mark install"><img src="/static/zomboid-status-install-v1.png" alt=""></span><div><small>설치 상태</small><strong id="engine-state">확인 중</strong><em id="engine-build">Steam App 380870</em></div></article>
       <article><span class="status-mark server"><img src="/static/zomboid-status-server-v1.png" alt=""></span><div><small>서버 상태</small><strong id="server-state">확인 중</strong><em>servertest · <span id="branch-state">public</span></em></div></article>
-      <article><span class="status-mark panel"><img src="/static/zomboid-status-panel-v1.png" alt=""></span><div><small>패널 버전</small><strong id="panel-version">1.0.7</strong><em>TechTim GCP Panel</em></div></article>
+      <article><span class="status-mark panel"><img src="/static/zomboid-status-panel-v1.png" alt=""></span><div><small>패널 버전</small><strong id="panel-version">1.0.8</strong><em>TechTim GCP Panel</em></div></article>
     </section>
 
     <p id="global-message" class="global-message" role="status"></p>
@@ -146,6 +147,15 @@
       <div id="backup-list" class="record-list"></div>
     </section>
 
+    <section class="view" data-page="migration">
+      <div class="page-head"><div><p class="eyebrow">ACCOUNT MIGRATION</p><h2>Google Cloud 계정 이사</h2><p>월드 세이브와 서버·패널 설정을 하나의 ZIP으로 안전하게 옮깁니다.</p></div></div>
+      <div class="migration-flow">
+        <article class="panel migration-card export"><span class="migration-card-icon"><img src="/static/zomboid-menu-backups-v1.png" alt=""></span><div><h3>이사 파일 내보내기</h3><p>현재 서버의 세이브, 서버 설정, 계정 DB와 패널 설정을 하나의 ZIP으로 내려받습니다.</p></div><button id="migration-export" class="primary" type="button">이사 파일 내보내기</button></article>
+        <article class="panel migration-card import"><span class="migration-card-icon"><img src="/static/zomboid-file-document-v1.png" alt=""></span><div><h3>이사 파일 가져오기</h3><p>새 Google Cloud 계정의 패널에서 ZIP을 선택하면 세이브와 설정을 즉시 복원합니다.</p></div><button id="migration-import-button" class="primary" type="button">이사 파일 가져오기</button><input id="migration-import" type="file" accept=".zip,application/zip" hidden></article>
+      </div>
+      <aside class="callout warning">가져오기는 서버를 중지한 상태에서만 가능하며, 현재 데이터의 안전 백업을 먼저 생성합니다.</aside>
+    </section>
+
     <section class="view" data-page="players">
       <div class="page-head"><div><p class="eyebrow">SURVIVOR REGISTRY</p><h2>사용자 관리</h2><p>서버 계정 DB의 화이트리스트, 차단, 운영 권한을 안전하게 관리합니다.</p></div><button id="refresh-players">DB 새로고침</button></div>
       <section class="player-toolbar" aria-label="사용자 검색 및 필터"><label><span>사용자 검색</span><input id="player-search" type="search" placeholder="사용자명, 표시 이름, Steam ID"></label><label><span>상태 필터</span><select id="player-status-filter"><option value="all">전체 계정</option><option value="operator">운영 권한</option><option value="banned">블랙리스트</option><option value="steam">Steam 연결</option></select></label><div id="player-counts" class="player-counts" aria-live="polite"></div></section>
@@ -198,6 +208,13 @@
       <aside class="callout">동일 시각은 한 번만 실행되며, 서버가 꺼져 있거나 다른 작업 중이면 건너뜁니다.</aside>
     </section>
 
+    <dialog id="migration-import-dialog" class="app-dialog confirm-dialog migration-import-dialog" aria-labelledby="migration-import-title">
+      <header><div><p class="eyebrow">ACCOUNT MIGRATION</p><h2 id="migration-import-title">이사 파일 가져오기</h2></div><button id="close-migration-import" class="dialog-close" type="button" title="닫기" aria-label="이사 파일 가져오기 창 닫기">×</button></header>
+      <div class="confirm-dialog-body"><span class="confirm-dialog-icon"><img src="/static/zomboid-menu-backups-v1.png" alt=""></span><div><strong>현재 세이브와 설정을 교체하시겠습니까?</strong><p id="migration-import-name">선택한 ZIP 파일을 확인합니다.</p></div></div>
+      <p class="confirm-dialog-status">가져오기 직전에 현재 데이터를 자동 백업합니다.</p>
+      <footer><button id="cancel-migration-import" type="button">취소</button><button id="confirm-migration-import" class="primary" type="button">가져오기</button></footer>
+    </dialog>
+
     <dialog id="engine-required-dialog" class="app-dialog engine-required-dialog" aria-labelledby="engine-required-title" data-persistent="true">
       <div class="engine-required-icon"><img src="/static/zomboid-status-install-v1.png" alt=""></div>
       <p class="eyebrow">ENGINE REQUIRED</p>
@@ -246,7 +263,7 @@
     <dialog id="panel-update-dialog" class="app-dialog panel-update-dialog" aria-labelledby="panel-update-title">
       <header><div><p class="eyebrow">PANEL MAINTENANCE</p><h2 id="panel-update-title">구동기 업데이트</h2><p>게임 서버 업데이트와 별개로 웹 구동기 이미지만 교체합니다.</p></div><button id="close-panel-update" class="dialog-close" type="button" title="닫기" aria-label="업데이트 창 닫기">×</button></header>
       <div class="panel-update-body">
-        <section class="panel update-card"><div><small>CURRENT VERSION</small><strong id="update-current-version">1.0.7</strong><span>TechTim GCP Project Zomboid 웹 구동기</span></div><div><small>IMAGE STATUS</small><strong id="update-image-status">확인 중</strong><span id="update-image-detail">컨테이너 레지스트리를 확인합니다.</span></div></section>
+        <section class="panel update-card"><div><small>CURRENT VERSION</small><strong id="update-current-version">1.0.8</strong><span>TechTim GCP Project Zomboid 웹 구동기</span></div><div><small>IMAGE STATUS</small><strong id="update-image-status">확인 중</strong><span id="update-image-detail">컨테이너 레지스트리를 확인합니다.</span></div></section>
         <section id="panel-update-progress" class="panel-update-progress" aria-labelledby="panel-update-progress-label" hidden>
           <div class="panel-update-progress-head"><strong id="panel-update-progress-label">업데이트 준비</strong><b id="panel-update-progress-percent">0%</b></div>
           <div id="panel-update-progress-track" class="panel-update-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="panel-update-progress-bar"></i></div>
