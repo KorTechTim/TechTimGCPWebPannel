@@ -3,6 +3,7 @@ import tempfile
 import unittest
 import zipfile
 from pathlib import Path
+from unittest.mock import patch
 
 from docker.errors import NotFound
 
@@ -74,6 +75,34 @@ class PullApi:
 class PullClient:
     def __init__(self):
         self.api = PullApi()
+    def close(self):
+        pass
+
+
+class InstallContainer:
+    id = "install-container"
+    def __init__(self):
+        self.status = "created"
+        self.start_called = False
+        self.stop_timeout = None
+    def reload(self):
+        pass
+    def start(self):
+        self.start_called = True
+        self.status = "running"
+    def stop(self, timeout=None):
+        self.stop_timeout = timeout
+        self.status = "exited"
+    def logs(self, **_kwargs):
+        return b"2026-01-01T00:00:00Z 'HostOnline' (up)!\n"
+
+
+class InstallClient:
+    def __init__(self, container):
+        self.containers = self
+        self.container = container
+    def get(self, _name):
+        return self.container
     def close(self):
         pass
 
@@ -162,6 +191,13 @@ class ServiceTests(unittest.TestCase):
         self.assertEqual(operation["progress"], 72)
         self.assertEqual(operation["stage"], "steamcmd")
 
+    def test_log_sanitizer_removes_textual_ansi_escape_markers(self):
+        raw = "#033[0mOK\n\\033[31mERROR\n#033 standalone"
+
+        clean = self.service._sanitize_log_text(raw)
+
+        self.assertEqual(clean, "OK\nERROR\n standalone")
+
     def test_container_creation_omits_unsupported_stop_timeout(self):
         containers = CreateContainers()
         service = PanelService(
@@ -188,6 +224,26 @@ class ServiceTests(unittest.TestCase):
         self.assertIn("레이어 abc123", install_log)
         self.assertIn("42%", install_log)
         self.assertEqual(client.api.call, ("ghcr.io/kortechtim/enshrouded-runtime", "wine-v1", True, True))
+
+    def test_install_stops_container_after_runtime_initialization(self):
+        container = InstallContainer()
+        service = PanelService(
+            Settings(data_dir=self.root, host_data_dir=self.root, scheduler_enabled=False, pull_runtime=False),
+            lambda: InstallClient(container),
+        )
+
+        service.install()
+
+        self.assertTrue(container.start_called)
+        self.assertEqual(container.stop_timeout, service.settings.stop_timeout)
+        self.assertEqual(container.status, "exited")
+        self.assertIn("서버 시작은 수동", service.logs("install"))
+
+    def test_status_exposes_configured_public_ip(self):
+        with patch.dict("os.environ", {"PUBLIC_IP": "34.64.123.45"}):
+            status = self.service.status()
+
+        self.assertEqual(status["public_ip"], "34.64.123.45")
 
     def test_panel_update_check_compares_registry_digest(self):
         self.service.docker_factory = lambda: UpdateClient("sha256:current-digest")

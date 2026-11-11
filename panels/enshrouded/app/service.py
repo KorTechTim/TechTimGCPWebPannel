@@ -2,6 +2,8 @@ from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path, PurePosixPath
 from threading import Event, Lock, Thread
+from urllib.request import Request as UrlRequest, urlopen
+import ipaddress
 import json
 import os
 import re
@@ -25,12 +27,15 @@ from .storage import read_json, write_json
 
 KST = timezone(timedelta(hours=9), name="KST")
 ANSI_ESCAPE_PATTERN = re.compile(r"(?:\x1b\[|\x9b|\[)[0-?]*[ -/]*[@-~]")
+TEXTUAL_ANSI_ESCAPE_PATTERN = re.compile(r"(?:#033|\\033)(?:\[[0-?]*[ -/]*[@-~])?")
 PANEL_LOG_TIMESTAMP = re.compile(r"^\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\]")
 CONTAINER_LOG_TIMESTAMP = re.compile(r"^(\d{4}-\d{2}-\d{2}T\S+?Z)(?:\s|$)")
 INSTALL_PERCENTAGE = re.compile(r"(?:progress|download(?:ing)?|update)[^\d]{0,20}(\d{1,3}(?:\.\d+)?)\s*%", re.IGNORECASE)
 MIGRATION_SCHEMA = "techtim-enshrouded-migration"
 MIGRATION_VERSION = 1
 READY_MARKERS = ("'HostOnline' (up)!", "Host_Online")
+PUBLIC_IP_CACHE = {"value": "", "expires_at": 0.0}
+PUBLIC_IP_LOCK = Lock()
 DISCORD_EVENT_SETTINGS = {
     "server_start": "notify_server_start",
     "server_stop": "notify_server_stop",
@@ -141,7 +146,8 @@ class PanelService:
 
     @staticmethod
     def _sanitize_log_text(value):
-        return ANSI_ESCAPE_PATTERN.sub("", str(value or ""))
+        text = TEXTUAL_ANSI_ESCAPE_PATTERN.sub("", str(value or ""))
+        return ANSI_ESCAPE_PATTERN.sub("", text)
 
     @staticmethod
     def _log_timestamp(line):
@@ -380,12 +386,13 @@ class PanelService:
             container.reload()
             if container.status != "running":
                 container.start()
-            self._log("install", "서버 컨테이너를 시작했습니다. SteamCMD 설치와 Wine 초기화를 진행합니다.")
+            self._log("install", "설치용 컨테이너를 임시 시작했습니다. SteamCMD 설치와 Wine 초기화를 진행합니다.")
             self._operation("running", "서버 설치", "SteamCMD 설치와 Wine 초기화를 진행하고 있습니다.", progress=72, stage="steamcmd")
             self._wait_for_install_ready(container)
-        self._operation("running", "서버 설치", "서버 접속 준비를 마무리하고 있습니다.", progress=98, stage="verify")
-        self._log("install", "Enshrouded 서버 설치와 첫 기동이 완료되었습니다.")
-        self.notify_discord_event("server_start", "Enshrouded 설치 및 시작", "게임 서버 설치를 시작했습니다.")
+            self._operation("running", "서버 설치", "설치 완료 후 서버를 중지하고 있습니다.", progress=96, stage="stopping")
+            container.stop(timeout=self.settings.stop_timeout)
+        self._operation("running", "서버 설치", "게임 엔진 설치를 마무리하고 있습니다.", progress=98, stage="verify")
+        self._log("install", "Enshrouded 게임 엔진 설치가 완료되었습니다. 서버 시작은 수동으로 진행해주세요.")
 
     def _wait_for_install_ready(self, container):
         deadline = time.monotonic() + self.settings.install_timeout
@@ -401,7 +408,7 @@ class PanelService:
             if container.status in {"exited", "dead"}:
                 raise RuntimeError("설치 중 서버 컨테이너가 종료되었습니다. 상세 로그를 확인해주세요.")
             self._operation(
-                "running", "서버 설치", "SteamCMD 설치와 서버 첫 기동을 기다리고 있습니다.",
+                "running", "서버 설치", "SteamCMD 설치와 Wine 초기화를 기다리고 있습니다.",
                 progress=last_progress, stage="steamcmd",
             )
             time.sleep(1)
@@ -471,7 +478,33 @@ class PanelService:
             "uptime_seconds": uptime_seconds, "query_port": config.query_port,
             "game_settings_preset": config.game_settings_preset,
             "runtime_image": self.settings.runtime_image,
+            "public_ip": self.public_ip(),
         }
+
+    @staticmethod
+    def public_ip():
+        configured = str(os.getenv("PUBLIC_IP") or "").strip()
+        if configured:
+            return configured
+        now = time.monotonic()
+        with PUBLIC_IP_LOCK:
+            if now < float(PUBLIC_IP_CACHE.get("expires_at") or 0):
+                return str(PUBLIC_IP_CACHE.get("value") or "")
+            value = ""
+            try:
+                request = UrlRequest(
+                    "http://169.254.169.254/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip",
+                    headers={"Metadata-Flavor": "Google"},
+                )
+                with urlopen(request, timeout=1.0) as response:
+                    candidate = response.read(64).decode("ascii", errors="ignore").strip()
+                if ipaddress.ip_address(candidate).version == 4:
+                    value = candidate
+            except (OSError, ValueError):
+                value = ""
+            PUBLIC_IP_CACHE["value"] = value
+            PUBLIC_IP_CACHE["expires_at"] = now + (300 if value else 60)
+            return value
 
     @staticmethod
     def _proc_cpu():

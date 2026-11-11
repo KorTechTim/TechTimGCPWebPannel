@@ -6,7 +6,7 @@ import os
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
-PANEL_VERSION = "1.0.11"
+PANEL_VERSION = "1.0.12"
 STEAM_APP_ID = "2278520"
 DEFAULT_RUNTIME_IMAGE = "ghcr.io/kortechtim/enshrouded-runtime:wine-v1"
 UPSTREAM_RUNTIME_IMAGE = (

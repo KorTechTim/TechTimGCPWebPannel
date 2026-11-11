@@ -128,6 +128,8 @@ async function api(url, options = {}) {
   return data;
 }
 const json = (method, body) => ({method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
+function publicAddressFallback() { const hostname=location.hostname; if(!/^\d{1,3}(?:\.\d{1,3}){3}$/.test(hostname)||hostname==='127.0.0.1'||hostname.startsWith('10.')||hostname.startsWith('192.168.'))return ''; const second=Number(hostname.split('.')[1]); return hostname.startsWith('172.')&&second>=16&&second<=31?'':hostname; }
+async function copyText(value) { try { if(navigator.clipboard?.writeText){await navigator.clipboard.writeText(value);return;} } catch(_error){} const input=document.createElement('textarea');input.value=value;input.setAttribute('readonly','');input.style.cssText='position:fixed;left:-9999px;top:0';document.body.append(input);input.select();const copied=document.execCommand('copy');input.remove();if(!copied)throw new Error('IP를 복사하지 못했습니다.'); }
 function closeNotice() {
   clearTimeout(noticeTimer);
   const dialog = $('#notice-dialog');
@@ -194,6 +196,10 @@ async function refreshStatus() {
     $('#summary-preset').textContent = I18N.t(String(statusCache.game_settings_preset || 'default').toLowerCase());
     $('#panel-version').textContent = statusCache.panel_version;
     $('#sidebar-version').textContent = `v${statusCache.panel_version}`;
+    const publicIp = statusCache.public_ip || publicAddressFallback();
+    $('#public-ip').textContent = publicIp || '-';
+    $('#copy-public-ip').dataset.ip = publicIp;
+    $('#copy-public-ip').disabled = !publicIp;
     $('#install-button').hidden = statusCache.installed;
     $$('[data-action="start"]').forEach((button) => button.disabled = serverRunning() || statusCache.busy);
     $$('[data-action="stop"]').forEach((button) => button.disabled = !serverRunning() || statusCache.busy);
@@ -457,7 +463,7 @@ function openInstallConfirmation() {
   const dialog = $('#install-progress-dialog');
   dialog.classList.add('is-confirming');
   dialog.classList.remove('is-failed', 'is-complete');
-  $('#install-progress-message').textContent = '새 서버 설치와 첫 기동을 시작합니다.';
+  $('#install-progress-message').textContent = '게임 엔진을 설치합니다. 완료 후 서버는 중지 상태로 유지됩니다.';
   if (!dialog.open) dialog.showModal();
   document.body.classList.add('modal-open');
 }
@@ -508,7 +514,7 @@ function renderUpdate(data) {
   const updateBubble = $('#panel-update-bubble');
   if (updateBubble) updateBubble.hidden = availability !== true || active || completed;
   const availabilityLabel = availability === true ? '새 업데이트 사용 가능' : availability === false ? '최신 버전 사용 중' : data.checked === false ? '업데이트 확인 필요' : '업데이트 상태 확인 중';
-  $('#update-status').textContent = data.current_version || data.version || statusCache?.panel_version || '1.0.11';
+  $('#update-status').textContent = data.current_version || data.version || statusCache?.panel_version || '1.0.12';
   $('#update-state').textContent = active || failed || completed ? (labels[state] || state) : availabilityLabel;
   $('#update-progress-label').textContent = active || failed || completed ? (labels[state] || '업데이트 상태') : availabilityLabel;
   $('#update-progress-percent').textContent = `${Math.round(updateRenderedProgress)}%`;
@@ -548,6 +554,7 @@ function bindEvents(){
   $('#discord-save').onclick=saveDiscord; $('#discord-test').onclick=()=>perform(()=>api('/api/discord/test',{method:'POST'}),I18N.t('test_send')); $('#migration-export').onclick=()=>{if(migrationAvailable())location.href='/api/migration/export';}; $('#migration-import').onchange=(event)=>{importMigration(event.target.files[0]);event.target.value='';};
   $$('[name="preset"]').forEach(input=>input.onchange=()=>applyPreset(input.value)); $('#discord-form').elements.username.oninput=updateDiscordPreview;
   $('#panel-update-button').onclick=openUpdateDialog; $('#panel-update-bubble-open').onclick=async()=>{$('#panel-update-bubble').hidden=true;await openUpdateDialog();}; $('#close-panel-update').onclick=closeUpdateDialog; $('#cancel-panel-update').onclick=closeUpdateDialog; $('#apply-update').onclick=async()=>{updateRenderedProgress=3;renderUpdate({status:'queued',stage:'pull',progress:3,version:statusCache?.panel_version,message:'업데이트 요청을 전달하고 있습니다.'});scheduleUpdatePoll(500);try{await api('/api/panel-update',{method:'POST'});}catch(error){renderUpdate({status:'reconnecting',stage:'verify',progress:Math.max(updateRenderedProgress,30),version:statusCache?.panel_version,message:`업데이트 상태를 다시 확인하고 있습니다. ${error.message}`});}scheduleUpdatePoll(700);}; $('#logout-button').onclick=async()=>{await api('/api/auth/logout',{method:'POST'});location.href='/login';};
+  $('#copy-public-ip').onclick=async(event)=>{const ip=event.currentTarget.dataset.ip;if(!ip)return;try{await copyText(ip);message(I18N.t('ip_copied'));}catch(error){message(error.message,true);}};
   $('#text-input-close').onclick=()=>closeTextInput(); $('#text-input-cancel').onclick=()=>closeTextInput(); $('#text-input-form').onsubmit=(event)=>{event.preventDefault();if($('#text-input-value').reportValidity())closeTextInput($('#text-input-value').value);};
   $('#confirm-close').onclick=()=>closeConfirm(false); $('#confirm-cancel').onclick=()=>closeConfirm(false); $('#confirm-accept').onclick=()=>closeConfirm(true);
   $('#running-lock-close').onclick=()=>{if($('#running-lock-dialog').open)$('#running-lock-dialog').close();document.body.classList.remove('modal-open');};
